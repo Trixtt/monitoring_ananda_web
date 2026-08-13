@@ -1,0 +1,15 @@
+{
+  "name": "monitoring-siswa-sd4keling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistem Informasi Monitoring Perkembangan Siswa Berbasis Web - SD Negeri 4 Keling",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "setup": "npm install && npm install --prefix server && npm install --prefix client",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
