@@ -1,0 +1,105 @@
+<template>
+  <div class="space-y-6">
+    <div>
+      <h1 class="page-title">Rekap Perkembangan</h1>
+      <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
+    </div>
+
+    <div v-if="loading"><LoadingState /></div>
+
+    <template v-else-if="data">
+      <!-- Rincian skor -->
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Rincian Skor</h2>
+          <div class="flex items-center gap-2">
+            <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">Skor SPK</p>
+            <p class="font-headline-md text-deep-navy dark:text-ice-white">{{ data.skor.abk ? 'ABK' : formatSkor(data.skor.skor) }}</p>
+            <StatusBadge :kode="data.skor.kategori.kode" />
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div v-for="s in skorBars" :key="s.key">
+            <div class="flex justify-between font-label-md mb-1">
+              <span class="text-on-surface-variant dark:text-ice-white/60">{{ s.label }}</span>
+              <span class="text-deep-navy dark:text-ice-white">{{ persen(s.value) }}</span>
+            </div>
+            <div class="h-2.5 rounded-full bg-surface-variant dark:bg-white/10 overflow-hidden">
+              <div class="h-full rounded-full" :class="s.color" :style="{ width: (s.value * 100).toFixed(1) + '%' }"></div>
+            </div>
+          </div>
+        </div>
+        <p v-if="data.mapelTerlemah" class="mt-4 font-body-md text-on-surface-variant dark:text-ice-white/60">
+          Mapel terlemah: <span class="font-label-md text-status-berisiko">{{ data.mapelTerlemah }}</span>
+        </p>
+      </div>
+
+      <!-- Rata-rata per mapel -->
+      <div v-if="rekap.length" class="card p-6">
+        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Rata-rata Nilai per Mapel</h2>
+        <div class="space-y-4">
+          <div v-for="r in rekap" :key="r.mapel">
+            <div class="flex justify-between font-label-md mb-1">
+              <span class="text-on-surface-variant dark:text-ice-white/60">{{ r.mapel }}</span>
+              <span class="text-deep-navy dark:text-ice-white">{{ r.rata }}</span>
+            </div>
+            <div class="h-2.5 rounded-full bg-surface-variant dark:bg-white/10 overflow-hidden">
+              <div class="h-full rounded-full bg-dark-teal" :style="{ width: r.rata + '%' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rekomendasi -->
+      <div v-if="data.rekomendasi" class="card p-6 border-l-4 border-dark-teal">
+        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-2">Rekomendasi untuk Ananda</h2>
+        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mb-3">{{ data.rekomendasi.pesan }}</p>
+        <ul class="space-y-2">
+          <li v-for="r in data.rekomendasi.daftar" :key="r" class="flex items-start gap-2 font-body-md text-on-surface text-sm">
+            <span class="material-symbols-outlined text-[18px] text-dark-teal mt-0.5">favorite</span>
+            {{ r }}
+          </li>
+        </ul>
+      </div>
+    </template>
+
+    <EmptyState v-else title="Data belum tersedia" message="Data siswa belum tertaut ke akun Anda. Hubungi admin sekolah." icon="assessment" />
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import api from '../../services/api'
+import { formatSkor, persen } from '../../utils/format'
+import { useOrtuProfil } from '../../composables/useOrtuProfil'
+import StatusBadge from '../../components/StatusBadge.vue'
+import LoadingState from '../../components/LoadingState.vue'
+import EmptyState from '../../components/EmptyState.vue'
+
+const { siswa, tahunAjaran } = useOrtuProfil()
+
+const data = ref(null)
+const rekap = ref([])
+const loading = ref(true)
+
+const skorBars = computed(() => {
+  if (!data.value || data.value.skor.abk) return []
+  const s = data.value.skor
+  return [
+    { key: 'akademik', label: 'Akademik', value: s.skorAkademik, color: 'bg-dark-teal' },
+    { key: 'kehadiran', label: 'Kehadiran', value: s.skorKehadiran, color: 'bg-sky-600' },
+    { key: 'sikap', label: 'Sikap', value: s.skorSikap, color: 'bg-purple-600' }
+  ]
+})
+
+onMounted(async () => {
+  try {
+    const { data: d } = await api.get('/ortu/dashboard')
+    data.value = d
+    const { data: r } = await api.get('/ortu/rekap-nilai')
+    rekap.value = r.rekap
+  } finally {
+    loading.value = false
+  }
+})
+</script>
