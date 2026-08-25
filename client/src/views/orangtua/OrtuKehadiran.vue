@@ -5,7 +5,7 @@
       <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
 
     <template v-else>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -5,7 +5,7 @@
       <p class="page-subtitle">Rekap kondisi siswa seluruh kelas &middot; {{ data?.tahunAjaran || '' }}</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="cards" /></div>
 
     <template v-else-if="data">
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-up">

@@ -27,7 +27,15 @@
           </div>
           <div>
             <label class="label">Nilai Awal (untuk semua siswa)</label>
-            <input v-model="form.defaultNilai" type="number" min="0" max="100" class="input" placeholder="opsional" />
+            <input
+              v-model="form.defaultNilai"
+              type="number"
+              min="0"
+              max="100"
+              class="input"
+              placeholder="opsional"
+              @change="form.defaultNilai = clampNilai(form.defaultNilai)"
+            />
             <p class="font-label-sm text-outline dark:text-ice-white/40 mt-1">Nilai 0-100. Kosongkan pada baris siswa yang belum dinilai.</p>
           </div>
           <div class="flex items-center gap-2">
@@ -74,17 +82,20 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in rows" :key="row.siswa.id">
+                <tr v-for="(row, index) in rows" :key="row.siswa.id">
                   <td>{{ row.siswa.nomorAbsen }}</td>
                   <td class="font-label-md text-deep-navy dark:text-ice-white">{{ row.siswa.nama }}</td>
                   <td>
                     <input
+                      :ref="(el) => (inputRefs[index] = el)"
                       v-model="row.nilai"
                       type="number"
                       min="0"
                       max="100"
                       class="input !py-1.5 text-center"
                       :disabled="row.status === 'ok'"
+                      @change="row.nilai = clampNilai(row.nilai)"
+                      @keydown.enter.prevent="fokusBerikutnya(index)"
                     />
                   </td>
                   <td>
@@ -135,6 +146,20 @@ const form = ref({
 
 const mapelNama = computed(() => mapels.value.find((m) => m.id === Number(form.value.mapelId))?.nama || '')
 
+function clampNilai(value) {
+  if (value === '' || value === null || value === undefined) return ''
+  const n = Number(value)
+  if (Number.isNaN(n)) return ''
+  return Math.min(100, Math.max(0, n))
+}
+
+const inputRefs = ref([])
+
+function fokusBerikutnya(index) {
+  const next = rows.value.findIndex((r, i) => i > index && r.status !== 'ok')
+  if (next !== -1) inputRefs.value[next]?.focus()
+}
+
 async function siapkan() {
   if (!form.value.mapelId || !form.value.judul.trim() || !form.value.tanggal) {
     toast.error('Mapel, judul, dan tanggal wajib diisi.')
@@ -142,11 +167,12 @@ async function siapkan() {
   }
   loading.value = true
   progress.value = { berhasil: 0, gagal: 0 }
+  inputRefs.value = []
   try {
     const { data } = await api.get('/guru/siswa', { params: params() })
     rows.value = data.list.map(({ siswa }) => ({
       siswa,
-      nilai: form.value.defaultNilai !== '' ? Number(form.value.defaultNilai) : '',
+      nilai: form.value.defaultNilai !== '' ? clampNilai(form.value.defaultNilai) : '',
       status: ''
     }))
     if (!rows.value.length) toast.info('Belum ada siswa pada kelas ini.')
@@ -161,6 +187,11 @@ async function simpan() {
   const pending = rows.value.filter((r) => r.status !== 'ok' && r.nilai !== '' && r.nilai !== null)
   if (!pending.length) {
     toast.info('Tidak ada nilai baru untuk disimpan.')
+    return
+  }
+  const invalid = pending.filter((r) => Number(r.nilai) < 0 || Number(r.nilai) > 100)
+  if (invalid.length) {
+    toast.error(`${invalid.length} nilai berada di luar rentang 0-100. Perbaiki terlebih dahulu.`)
     return
   }
   saving.value = true

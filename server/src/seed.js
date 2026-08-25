@@ -15,7 +15,7 @@ async function seed() {
   await sequelize.sync({ force: true })
 
   const tahunAktif = await TahunAjaran.create({ nama: '2025/2026', isActive: true })
-  const tahunLalu = await TahunAjaran.create({ nama: '2024/2025', isActive: false })
+  await TahunAjaran.create({ nama: '2024/2025', isActive: false })
 
   const kelasList = []
   for (let i = 0; i < 6; i++) {
@@ -52,7 +52,7 @@ async function seed() {
     )
   }
 
-  const kepalaSekolah = await User.create({
+  await User.create({
     username: 'kepsek',
     password: hash('password123'),
     role: 'kepala_sekolah',

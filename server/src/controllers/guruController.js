@@ -1,5 +1,4 @@
 import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User } from '../models/index.js'
-import { Op } from 'sequelize'
 import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
@@ -174,7 +173,6 @@ export async function guruKehadiranBulk(req, res) {
 export async function guruKehadiranByDate(req, res) {
   const { tanggal, kelasId } = req.query
   const kId = Number(kelasId || kelasAktif(req))
-  const ta = await tahunAktif()
 
   const list = await Siswa.findAll({ where: { kelasId: kId }, order: [['nomorAbsen', 'ASC']] })
   const rows = []

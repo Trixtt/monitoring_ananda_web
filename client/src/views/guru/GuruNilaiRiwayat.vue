@@ -48,8 +48,9 @@
           />
         </div>
 
-        <div v-else-if="loading" class="card p-8 flex items-center justify-center">
-          <span class="w-6 h-6 border-2 border-dark-teal border-t-transparent rounded-full animate-spin"></span>
+        <div v-else-if="loading" class="card p-5 space-y-3">
+          <div class="skeleton h-6 w-40"></div>
+          <div v-for="i in 4" :key="i" class="skeleton h-10 w-full rounded-lg"></div>
         </div>
 
         <div v-else-if="!groups.length" class="card">

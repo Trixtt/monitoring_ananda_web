@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { Artikel, User } from '../models/index.js'
+import { Artikel } from '../models/index.js'
 
 const KATEGORI = ['Kegiatan', 'Pengumuman', 'Prestasi', 'Tips']
 
