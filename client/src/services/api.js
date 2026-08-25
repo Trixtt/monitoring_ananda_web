@@ -1,15 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api'
-})
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  baseURL: '/api',
+  withCredentials: true
 })
 
 api.interceptors.response.use(
@@ -17,7 +10,6 @@ api.interceptors.response.use(
   (err) => {
     const status = err.response?.status
     if (status === 401) {
-      localStorage.removeItem('token')
       localStorage.removeItem('user')
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'

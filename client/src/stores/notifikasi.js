@@ -11,9 +11,9 @@ export const useNotifStore = defineStore('notifikasi', {
   }),
   actions: {
     connect() {
-      if (this.socket || !localStorage.getItem('token')) return
+      if (this.socket || !localStorage.getItem('user')) return
       const socket = io('/', {
-        auth: { token: localStorage.getItem('token') }
+        withCredentials: true
       })
       socket.on('connect', () => {
         this.connected = true

@@ -3,11 +3,10 @@ import api from '../services/api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem('token') || null,
     user: JSON.parse(localStorage.getItem('user') || 'null')
   }),
   getters: {
-    isAuthenticated: (s) => !!s.token,
+    isAuthenticated: (s) => !!s.user,
     role: (s) => s.user?.role || null,
     homePath() {
       switch (this.role) {
@@ -25,21 +24,22 @@ export const useAuthStore = defineStore('auth', {
     }
   },
   actions: {
-    setSession(token, user) {
-      this.token = token
+    setUser(user) {
       this.user = user
-      localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
     },
     async login(username, password) {
       const { data } = await api.post('/auth/login', { username, password })
-      this.setSession(data.token, data.user)
+      this.setUser(data.user)
       return data
     },
-    logout() {
-      this.token = null
+    async logout() {
+      try {
+        await api.post('/auth/logout')
+      } catch {
+        // abaikan — cookie tetap dibersihkan di bawah
+      }
       this.user = null
-      localStorage.removeItem('token')
       localStorage.removeItem('user')
     },
     async changePassword(payload) {
@@ -48,8 +48,7 @@ export const useAuthStore = defineStore('auth', {
     },
     async me() {
       const { data } = await api.get('/auth/me')
-      this.user = data.user
-      localStorage.setItem('user', JSON.stringify(data.user))
+      this.setUser(data.user)
       return data.user
     }
   }
