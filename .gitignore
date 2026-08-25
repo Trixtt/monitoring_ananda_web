@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# User uploads
+uploads/
+
+# Database lokal
+*.sqlite
+*.sqlite3
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

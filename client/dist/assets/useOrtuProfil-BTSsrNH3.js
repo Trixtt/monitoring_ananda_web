@@ -1,1 +1,0 @@
-import{o as r,a as l,m as a}from"./index-BoMu5VCT.js";function i(){const n=a(null),t=a(""),o=a(!0);async function u(){try{const{data:s}=await l.get("/ortu/profil");n.value=s.siswa,t.value=s.tahunAjaran}finally{o.value=!1}}return r(u),{siswa:n,tahunAjaran:t,loading:o}}export{i as u};
