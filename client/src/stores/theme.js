@@ -26,7 +26,9 @@ function toggleTheme() {
   dark.value = !dark.value
   try {
     localStorage.setItem(STORAGE_KEY, dark.value ? 'dark' : 'light')
-  } catch {}
+  } catch {
+    // penyimpanan tidak tersedia — abaikan
+  }
   apply()
 }
 

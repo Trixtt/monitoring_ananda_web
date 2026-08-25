@@ -35,6 +35,12 @@ export function formatSkor(n) {
 }
 
 export function persen(n) {
-  if (n === null || n === undefined) return '0'
+  if (n === null || n === undefined) return '0%'
   return `${Math.round(n * 100)}%`
+}
+
+export function namaKelasSingkat(nama) {
+  if (!nama) return '-'
+  const s = String(nama).replace(/^kelas\s*/i, '').trim()
+  return s || String(nama)
 }

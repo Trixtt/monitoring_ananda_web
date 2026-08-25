@@ -192,7 +192,9 @@ onMounted(async () => {
   try {
     const { data } = await api.get('/artikel/kategori')
     kategoriList.value = data.list
-  } catch {}
+  } catch {
+    // gagal memuat kategori — abaikan
+  }
   load()
 })
 </script>

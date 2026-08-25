@@ -120,13 +120,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../../services/api'
-import { useAuthStore } from '../../stores/auth'
 import { useGuruKelas } from '../../composables/useGuruKelas'
 import { useToastStore } from '../../stores/toast'
 import { formatTanggal } from '../../utils/format'
 import EmptyState from '../../components/EmptyState.vue'
 
-const auth = useAuthStore()
 const { params } = useGuruKelas()
 const toast = useToastStore()
 

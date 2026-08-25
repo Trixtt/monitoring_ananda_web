@@ -21,7 +21,9 @@ function toggleSidebar() {
   collapsed.value = !collapsed.value
   try {
     localStorage.setItem(STORAGE_KEY, String(collapsed.value))
-  } catch {}
+  } catch {
+    // penyimpanan tidak tersedia — abaikan
+  }
 }
 
 export function useUiStore() {

@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
   skeleton: { type: Boolean, default: false },
   variant: { type: String, default: 'default' },
   rows: { type: Number, default: 5 }

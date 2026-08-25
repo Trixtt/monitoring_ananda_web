@@ -147,7 +147,7 @@ import { useRoute } from 'vue-router'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
-import { formatSkor, formatTanggal } from '../../utils/format'
+import { formatSkor, formatTanggal, namaKelasSingkat } from '../../utils/format'
 import LoadingState from '../../components/LoadingState.vue'
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
@@ -232,12 +232,6 @@ function namaFile() {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
   return `${slug}-${laporan.value?.id ?? ''}.pdf`
-}
-
-function namaKelasSingkat(nama) {
-  if (!nama) return '-'
-  const s = String(nama).replace(/^kelas\s*/i, '').trim()
-  return s || String(nama)
 }
 
 let logoPngCache = null
