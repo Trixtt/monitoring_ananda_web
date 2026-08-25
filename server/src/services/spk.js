@@ -39,7 +39,8 @@ export function hitungSkorData({ nilaiAngka = [], hadirStatus = [], sikapAngka =
   const skorKehadiran = total ? jumlahHadir / total : 0
 
   const rataSikap = sikapAngka.length ? sikapAngka.reduce((a, b) => a + b, 0) / sikapAngka.length : 0
-  const skorSikap = sikapAngka.length ? rataSikap / 4 : 0
+  // Tanpa catatan sikap = tidak ada masalah -> dianggap sempurna (filosofi pencatatan insiden)
+  const skorSikap = sikapAngka.length ? rataSikap / 4 : 1
 
   const skor =
     skorAkademik * setting.bobotAkademik + skorKehadiran * setting.bobotKehadiran + skorSikap * setting.bobotSikap

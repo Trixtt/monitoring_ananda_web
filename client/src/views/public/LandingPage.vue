@@ -755,7 +755,7 @@ const alur = ref([
     label: 'Nilai',
     icon: 'menu_book',
     step: 'Langkah 1',
-    desc: 'Guru memasukkan nilai akademik setiap penilaian — ulangan harian, UTS, dan UAS — secara real-time dari dashboard wali kelas.',
+    desc: 'Guru memasukkan nilai akademik setiap penilaian ulangan harian, UTS, dan UAS secara real-time dari dashboard wali kelas.',
     preview: []
   },
   {

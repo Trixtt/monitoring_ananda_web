@@ -51,9 +51,9 @@ describe('hasilAbk', () => {
 })
 
 describe('hitungSkorData', () => {
-  test('data kosong menghasilkan skor nol dan berisiko', () => {
+  test('data kosong: akademik & kehadiran nol, sikap dianggap sempurna (0.2)', () => {
     const h = hitungSkorData({}, setting)
-    assert.equal(h.skor, 0)
+    assert.equal(h.skor, 0.2)
     assert.equal(h.kategori.kode, 'berisiko')
     assert.deepEqual(h.detail, { rataNilai: 0, totalHari: 0, jumlahHadir: 0, rataSikap: 0 })
   })
@@ -82,6 +82,15 @@ describe('hitungSkorData', () => {
     )
     assert.equal(h.skor, 1)
     assert.equal(h.kategori.kode, 'aman')
+  })
+
+  test('tanpa catatan sikap, skorSikap dianggap sempurna (filosofi insiden)', () => {
+    const h = hitungSkorData(
+      { nilaiAngka: [80], hadirStatus: ['hadir'], sikapAngka: [] },
+      setting
+    )
+    assert.equal(h.skorSikap, 1)
+    assert.equal(h.skor, Number((0.8 * 0.5 + 1 * 0.3 + 1 * 0.2).toFixed(4)))
   })
 
   test('status kehadiran selain hadir tidak dihitung hadir', () => {
