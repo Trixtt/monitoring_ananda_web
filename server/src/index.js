@@ -1,6 +1,8 @@
 import express from 'express'
 import http from 'node:http'
 import cors from 'cors'
+import helmet from 'helmet'
+import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
@@ -23,9 +25,20 @@ async function main() {
     cors: { origin: env.appDomain, credentials: true }
   })
 
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token
-    if (!token) return next(new Error('unauthorized'))
+function parseCookieHeader(header) {
+  const out = {}
+  for (const part of String(header).split(';')) {
+    const idx = part.indexOf('=')
+    if (idx === -1) continue
+    out[part.slice(0, idx).trim()] = part.slice(idx + 1).trim()
+  }
+  return out
+}
+
+io.use((socket, next) => {
+  const cookies = parseCookieHeader(socket.handshake.headers?.cookie || '')
+  const token = cookies.token || socket.handshake.auth?.token || null
+  if (!token) return next(new Error('unauthorized'))
     try {
       const payload = jwt.verify(token, env.jwtSecret)
       socket.userId = payload.id
@@ -42,6 +55,7 @@ async function main() {
 
   setIo(io)
 
+  app.use(helmet())
   app.use(
     cors({
       origin: env.appDomain,
@@ -50,6 +64,7 @@ async function main() {
   )
   app.use(express.json({ limit: '2mb' }))
   app.use(express.urlencoded({ extended: true }))
+  app.use(cookieParser())
 
   app.use('/uploads', express.static(path.resolve(__dirname, env.uploadDir)))
 

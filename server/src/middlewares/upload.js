@@ -15,12 +15,29 @@ const storage = multer.diskStorage({
   }
 })
 
+const MIME_OK = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+])
+
 export const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /\.(png|jpe?g|gif|webp|pdf|docx?|xlsx?)$/i.test(file.originalname)
-    cb(ok ? null : new Error('Jenis file tidak didukung.'), ok)
+    const okExt = /\.(png|jpe?g|gif|webp|pdf|docx?|xlsx?)$/i.test(file.originalname || '')
+    const mime = (file.mimetype || '').toLowerCase()
+    const okMime = MIME_OK.has(mime)
+    cb(
+      okExt && okMime ? null : new Error('Jenis file tidak didukung.'),
+      okExt && okMime
+    )
   }
 })
 

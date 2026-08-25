@@ -1,4 +1,4 @@
-import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User } from '../models/index.js'
+import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User, sequelize } from '../models/index.js'
 import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
@@ -149,23 +149,26 @@ export async function guruKehadiranBulk(req, res) {
   const valid = ['hadir', 'izin', 'sakit', 'alpa']
 
   let tersimpan = 0
-  for (const item of daftar) {
-    if (!item.siswaId || !valid.includes(item.status)) continue
-    const [row] = await Kehadiran.findOrCreate({
-      where: { siswaId: item.siswaId, tanggal },
-      defaults: {
-        status: item.status,
-        keterangan: item.keterangan || null,
-        tahunAjaranId: ta?.id || null
+  await sequelize.transaction(async (t) => {
+    for (const item of daftar) {
+      if (!item.siswaId || !valid.includes(item.status)) continue
+      const [row] = await Kehadiran.findOrCreate({
+        where: { siswaId: item.siswaId, tanggal },
+        defaults: {
+          status: item.status,
+          keterangan: item.keterangan || null,
+          tahunAjaranId: ta?.id || null
+        },
+        transaction: t
+      })
+      if (row.status !== item.status) {
+        row.status = item.status
+        row.keterangan = item.keterangan || null
+        await row.save({ transaction: t })
       }
-    })
-    if (row.status !== item.status) {
-      row.status = item.status
-      row.keterangan = item.keterangan || null
-      await row.save()
+      tersimpan++
     }
-    tersimpan++
-  }
+  })
 
   return res.json({ message: `${tersimpan} catatan kehadiran disimpan.` })
 }
@@ -194,18 +197,20 @@ export async function guruSikapBulk(req, res) {
   const valid = [1, 2, 3, 4]
 
   let tersimpan = 0
-  for (const item of daftar) {
-    if (!item.siswaId || !valid.includes(Number(item.nilai))) continue
-    await Sikap.create({
-      siswaId: item.siswaId,
-      jenis: item.jenis === 'sosial' ? 'sosial' : 'spiritual',
-      nilai: Number(item.nilai),
-      catatan: item.catatan || null,
-      tanggal: item.tanggal || new Date().toISOString().slice(0, 10),
-      tahunAjaranId: ta?.id || null
-    })
-    tersimpan++
-  }
+  await sequelize.transaction(async (t) => {
+    for (const item of daftar) {
+      if (!item.siswaId || !valid.includes(Number(item.nilai))) continue
+      await Sikap.create({
+        siswaId: item.siswaId,
+        jenis: item.jenis === 'sosial' ? 'sosial' : 'spiritual',
+        nilai: Number(item.nilai),
+        catatan: item.catatan || null,
+        tanggal: item.tanggal || new Date().toISOString().slice(0, 10),
+        tahunAjaranId: ta?.id || null
+      }, { transaction: t })
+      tersimpan++
+    }
+  })
   return res.json({ message: `${tersimpan} penilaian sikap disimpan.` })
 }
 

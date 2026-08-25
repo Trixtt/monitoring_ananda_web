@@ -57,7 +57,10 @@ Laporan.belongsTo(User, { as: 'dibuatOleh', foreignKey: 'userId' })
 User.hasMany(Laporan, { as: 'laporan', foreignKey: 'userId' })
 
 export async function initDb() {
-  await sequelize.sync()
+  // DB_SYNC=none -> lewati sync (skema dikelola migrasi sequelize-cli)
+  if (process.env.DB_SYNC !== 'none') {
+    await sequelize.sync()
+  }
   return sequelize
 }
 
