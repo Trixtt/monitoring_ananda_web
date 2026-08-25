@@ -5,7 +5,7 @@
       <p class="page-subtitle">{{ data?.siswa?.nama }} &middot; Kelas {{ data?.siswa?.kelas?.nama }} &middot; {{ data?.tahunAjaran || '' }}</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="cards" /></div>
 
     <div v-else-if="data" class="space-y-6">
       <!-- Ringkasan skor -->

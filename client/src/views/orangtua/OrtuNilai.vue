@@ -5,7 +5,7 @@
       <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
 
     <template v-else>
       <div v-for="r in rekap" :key="r.mapel" class="card overflow-hidden">

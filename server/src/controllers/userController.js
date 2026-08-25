@@ -9,6 +9,19 @@ const LABEL_ROLE = {
   orang_tua: 'Orang Tua'
 }
 
+async function syncWaliKelas({ kelasIdBaru, namaBaru, kelasIdLama = null, namaLama = null, jadiWali = true }) {
+  if (kelasIdLama && (!jadiWali || kelasIdLama !== kelasIdBaru)) {
+    const lama = await Kelas.findByPk(kelasIdLama)
+    if (lama && (lama.waliKelas === namaLama || lama.waliKelas === namaBaru)) {
+      await lama.update({ waliKelas: null })
+    }
+  }
+  if (jadiWali && kelasIdBaru) {
+    const baru = await Kelas.findByPk(kelasIdBaru)
+    if (baru) await baru.update({ waliKelas: namaBaru })
+  }
+}
+
 export async function listAkun(req, res) {
   const { role, q, page = 1, limit = 25 } = req.query
   const where = {}
@@ -76,6 +89,10 @@ export async function createAkun(req, res) {
     mustChangePassword: role === 'orang_tua'
   })
 
+  if (role === 'wali_kelas' && kelasId) {
+    await syncWaliKelas({ kelasIdBaru: Number(kelasId), namaBaru: name })
+  }
+
   return res.status(201).json({
     message: 'Akun dibuat.',
     user: { id: user.id, username: user.username, role: user.role, mustChangePassword: user.mustChangePassword },
@@ -87,6 +104,10 @@ export async function updateAkun(req, res) {
   const user = await User.findByPk(req.params.id)
   if (!user) return res.status(404).json({ message: 'Akun tidak ditemukan.' })
 
+  const namaLama = user.name
+  const roleLama = user.role
+  const kelasLama = user.kelasId
+
   const { name, phone, email, role, kelasId, siswaId, active } = req.body
   if (name !== undefined) user.name = name
   if (phone !== undefined) user.phone = phone
@@ -96,6 +117,15 @@ export async function updateAkun(req, res) {
   if (siswaId !== undefined) user.siswaId = siswaId
   if (active !== undefined) user.active = Boolean(active)
   await user.save()
+
+  await syncWaliKelas({
+    kelasIdBaru: user.role === 'wali_kelas' ? user.kelasId : null,
+    namaBaru: user.name,
+    kelasIdLama: roleLama === 'wali_kelas' ? kelasLama : null,
+    namaLama,
+    jadiWali: user.role === 'wali_kelas'
+  })
+
   return res.json({ message: 'Akun diperbarui.', user })
 }
 

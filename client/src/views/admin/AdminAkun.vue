@@ -28,7 +28,7 @@
       </select>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
 
     <div v-else-if="list.length" class="card overflow-hidden">
       <div class="table-shell">
@@ -147,6 +147,16 @@
         </div>
       </form>
     </ModalDialog>
+
+    <ConfirmDialog
+      v-if="resetTarget"
+      title="Reset Password"
+      :message="`Reset password ${resetTarget.username} ke password awal?`"
+      confirm-label="Reset"
+      :loading="saving"
+      @confirm="doResetPwd"
+      @cancel="resetTarget = null"
+    />
   </div>
 </template>
 
@@ -157,6 +167,7 @@ import { useToastStore } from '../../stores/toast'
 import LoadingState from '../../components/LoadingState.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ModalDialog from '../../components/ModalDialog.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import PaginationBar from '../../components/PaginationBar.vue'
 import { exportCsv } from '../../utils/exportCsv'
 
@@ -175,6 +186,7 @@ const total = ref(0)
 
 const kosong = { open: false, id: null, name: '', username: '', password: '', role: 'orang_tua', phone: '', email: '', kelasId: null, siswaId: null }
 const form = ref({ ...kosong })
+const resetTarget = ref(null)
 
 function openForm(u) {
   form.value = u
@@ -275,12 +287,18 @@ async function toggleAktif(u) {
   }
 }
 
-async function resetPwd(u) {
-  if (!confirm(`Reset password ${u.username} ke password awal?`)) return
+function resetPwd(u) {
+  resetTarget.value = u
+}
+
+async function doResetPwd() {
+  const u = resetTarget.value
+  if (!u || saving.value) return
   saving.value = true
   try {
     const { data } = await api.post(`/admin/akun/${u.id}/reset-password`)
     toast.success(`Password ${u.username} direset ke: ${data.passwordBaru}`)
+    resetTarget.value = null
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal reset password.')
   } finally {

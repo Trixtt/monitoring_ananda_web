@@ -30,6 +30,7 @@ const routes = [
       { path: 'kepsek/rekap', name: 'kepsek-rekap', component: () => import('../views/kepsek/KepsekRekap.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Rekap per Kelas' } },
       { path: 'kepsek/rekap/:kelasId', name: 'kepsek-rekap-detail', component: () => import('../views/kepsek/KepsekRekapDetail.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Detail Kelas' } },
       { path: 'kepsek/laporan', name: 'kepsek-laporan', component: () => import('../views/kepsek/KepsekLaporan.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Laporan & Riwayat' } },
+      { path: 'kepsek/laporan/:id', name: 'kepsek-laporan-detail', component: () => import('../views/kepsek/KepsekLaporanDetail.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Detail Laporan' } },
       { path: 'kepsek/siswa/:id', name: 'kepsek-siswa-detail', component: () => import('../views/kepsek/KepsekSiswaDetail.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Detail Siswa' } },
       { path: 'kepsek/rapor/:siswaId', name: 'kepsek-rapor', component: () => import('../views/kepsek/KepsekRapor.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Rapor Siswa' } },
 

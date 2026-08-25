@@ -1,4 +1,4 @@
-import { Siswa, Nilai, Kehadiran, Sikap, Mapel, TahunAjaran } from '../models/index.js'
+import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
 import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from './spk.js'
 
 export async function susunRapor({ siswaId, tahunAjaranId }) {

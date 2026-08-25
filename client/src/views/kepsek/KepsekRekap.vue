@@ -5,7 +5,7 @@
       <p class="page-subtitle">Kondisi siswa per kelas &middot; {{ data?.tahunAjaran || '' }}</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
 
     <div v-else-if="data">
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">

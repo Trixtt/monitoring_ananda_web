@@ -48,66 +48,13 @@
       </form>
     </div>
 
-    <!-- Hasil -->
-    <div v-if="current" class="card overflow-hidden print-area" ref="printArea">
-      <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10 flex flex-col md:flex-row md:items-center md:justify-between gap-3 print-header">
-        <div>
-          <p class="font-headline-md text-deep-navy dark:text-ice-white">SD Negeri 4 Keling</p>
-          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">{{ current.laporan.judul }}</p>
-          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">
-            {{ current.laporan.kelasNama }} &middot; {{ kategoriLabel(current.laporan.kategori) }} &middot; {{ periodeLabel(current.laporan) }} &middot; dibuat {{ formatTanggal(current.laporan.createdAt) }}
-          </p>
-        </div>
-        <button class="btn-secondary print-hide" @click="cetak">
-          <span class="material-symbols-outlined text-[18px]">print</span>
-          Cetak
-        </button>
-      </div>
-      <div class="table-shell">
-        <table class="table-base">
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>NISN</th>
-              <th>Nama</th>
-              <th>Kelas</th>
-              <th>Skor</th>
-              <th>Mapel Terlemah</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, i) in current.list" :key="item.siswa.id">
-              <td>{{ i + 1 }}</td>
-              <td>{{ item.siswa.nisn }}</td>
-              <td class="font-label-md text-deep-navy dark:text-ice-white">
-                {{ item.siswa.nama }}
-                <span v-if="item.siswa.statusABK" class="badge bg-status-abk/15 text-status-abk">ABK</span>
-              </td>
-              <td>{{ item.siswa.kelas?.nama || '-' }}</td>
-              <td>{{ item.skor.abk ? '-' : formatSkor(item.skor.skor) }}</td>
-              <td class="text-on-surface-variant dark:text-ice-white/60">{{ item.mapelTerlemah || '-' }}</td>
-              <td>
-                <router-link :to="`/kepsek/siswa/${item.siswa.id}`" class="btn-ghost !px-2 print-hide" aria-label="Lihat detail">
-                  <span class="material-symbols-outlined text-[20px]">visibility</span>
-                </router-link>
-              </td>
-            </tr>
-            <tr v-if="!current.list.length">
-              <td colspan="7" class="text-center text-on-surface-variant dark:text-ice-white/60 py-8">Tidak ada siswa yang cocok dengan filter</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- Riwayat -->
     <div class="card overflow-hidden">
       <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10 flex items-center justify-between">
         <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Riwayat Laporan</h2>
         <span class="badge bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal">{{ riwayat.length }} laporan</span>
       </div>
-      <div v-if="riwayatLoading"><LoadingState /></div>
+      <div v-if="riwayatLoading"><LoadingState skeleton variant="table" /></div>
       <div v-else class="table-shell">
         <table class="table-base">
           <thead>
@@ -133,12 +80,9 @@
               <td>{{ l.dibuatOleh?.name || '-' }}</td>
               <td>
                 <div class="flex items-center justify-end gap-1">
-                  <button class="btn-ghost !px-2" aria-label="Lihat laporan" @click="lihat(l.id)">
+                  <router-link :to="`/kepsek/laporan/${l.id}`" class="btn-ghost !px-2" aria-label="Buka laporan">
                     <span class="material-symbols-outlined text-[20px]">visibility</span>
-                  </button>
-                  <button class="btn-ghost !px-2" aria-label="Cetak laporan" @click="cetakLaporan(l.id)">
-                    <span class="material-symbols-outlined text-[20px]">print</span>
-                  </button>
+                  </router-link>
                   <button class="btn-ghost !px-2 text-error dark:text-red-300" aria-label="Hapus laporan" @click="hapus(l.id)">
                     <span class="material-symbols-outlined text-[20px]">delete</span>
                   </button>
@@ -152,27 +96,38 @@
         </table>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-if="hapusTarget !== null"
+      message="Hapus laporan ini dari riwayat?"
+      :loading="deleting"
+      @confirm="doDelete"
+      @cancel="hapusTarget = null"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../services/api'
 import { useToastStore } from '../../stores/toast'
-import { formatSkor, formatTanggal } from '../../utils/format'
+import { formatTanggal } from '../../utils/format'
 import LoadingState from '../../components/LoadingState.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 
+const router = useRouter()
 const toast = useToastStore()
 
 const kelasOptions = ref([])
 const filter = ref({ judul: '', kelasId: '', kategori: '', tanggalMulai: '', tanggalAkhir: '' })
 
-const current = ref(null)
 const generating = ref(false)
-const printArea = ref(null)
 
 const riwayat = ref([])
 const riwayatLoading = ref(true)
+const hapusTarget = ref(null)
+const deleting = ref(false)
 
 const kategoriLabels = {
   '': 'Semua Kondisi',
@@ -217,10 +172,8 @@ async function generate() {
       tanggalAkhir: filter.value.tanggalAkhir || undefined
     }
     const { data } = await api.post('/kepsek/laporan', body)
-    current.value = data
     toast.success('Laporan berhasil dibuat dan disimpan.')
-    await loadRiwayat()
-    scrollToResult()
+    router.push({ name: 'kepsek-laporan-detail', params: { id: data.laporan.id } })
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal membuat laporan.')
   } finally {
@@ -228,71 +181,26 @@ async function generate() {
   }
 }
 
-async function lihat(id) {
-  try {
-    const { data } = await api.get(`/kepsek/laporan/${id}`)
-    current.value = data
-    scrollToResult()
-  } catch (e) {
-    toast.error(e.response?.data?.message || 'Gagal memuat laporan.')
-  }
+function hapus(id) {
+  hapusTarget.value = id
 }
 
-async function cetakLaporan(id) {
+async function doDelete() {
+  if (deleting.value) return
+  deleting.value = true
   try {
-    const { data } = await api.get(`/kepsek/laporan/${id}`)
-    current.value = data
-    await nextTick()
-    cetak()
-  } catch (e) {
-    toast.error(e.response?.data?.message || 'Gagal memuat laporan.')
-  }
-}
-
-function cetak() {
-  window.print()
-}
-
-async function hapus(id) {
-  if (!confirm('Hapus laporan ini dari riwayat?')) return
-  try {
-    await api.delete(`/kepsek/laporan/${id}`)
+    await api.delete(`/kepsek/laporan/${hapusTarget.value}`)
     toast.success('Laporan dihapus.')
-    if (current.value?.laporan?.id === id) current.value = null
+    hapusTarget.value = null
     await loadRiwayat()
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal menghapus laporan.')
+  } finally {
+    deleting.value = false
   }
-}
-
-function scrollToResult() {
-  nextTick(() => {
-    printArea.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
 }
 
 onMounted(async () => {
   await Promise.all([loadKelas(), loadRiwayat()])
 })
 </script>
-
-<style scoped>
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .print-area,
-  .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    inset: 0;
-    box-shadow: none;
-    border: none;
-  }
-  .print-hide {
-    display: none !important;
-  }
-}
-</style>

@@ -1,10 +1,13 @@
 <template>
   <div class="min-h-screen bg-background dark:bg-deep-navy">
     <!-- Sidebar (desktop) -->
-    <aside class="hidden lg:flex fixed inset-y-0 left-0 w-sidebar-width bg-deep-navy dark:bg-[#051238] flex-col z-40">
-      <div class="h-16 flex items-center gap-2.5 px-5 border-b border-white/10">
+    <aside
+      class="hidden lg:flex fixed inset-y-0 left-0 bg-deep-navy dark:bg-[#051238] flex-col z-40 transition-[width] duration-300 ease-in-out"
+      :class="ui.collapsed ? 'w-sidebar-collapsed-width' : 'w-sidebar-width'"
+    >
+      <div class="h-16 flex items-center shrink-0 border-b border-white/10" :class="ui.collapsed ? 'justify-center' : 'gap-2.5 px-5'">
         <img src="/logo.svg" alt="SD Negeri 4 Keling" width="36" height="36" class="w-9 h-9 shrink-0 drop-shadow" />
-        <div>
+        <div v-if="!ui.collapsed">
           <p class="font-headline-md text-white text-sm leading-tight">SD Negeri 4 Keling</p>
           <p class="text-[11px] text-ice-white/60">Monitoring Siswa</p>
         </div>
@@ -12,31 +15,44 @@
 
       <nav class="flex-1 overflow-y-auto px-3 py-4">
         <template v-for="group in menuGroups" :key="group.label || group.items[0].to">
-          <p v-if="group.label" class="px-3 pt-4 pb-2 font-label-sm uppercase tracking-wider text-ice-white/40 text-[11px]">
+          <p v-if="group.label && !ui.collapsed" class="px-3 pt-4 pb-2 font-label-sm uppercase tracking-wider text-ice-white/40 text-[11px]">
             {{ group.label }}
           </p>
           <router-link
             v-for="item in group.items"
             :key="item.to"
             :to="item.to"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-label-md transition-all"
-            :class="isActive(item)
-              ? 'bg-gradient-to-r from-dark-teal to-light-teal text-white shadow-card'
-              : 'text-ice-white/70 hover:bg-white/5 hover:text-white'"
+            class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-label-md transition-all"
+            :class="[
+              isActive(item)
+                ? 'bg-gradient-to-r from-dark-teal to-light-teal text-white shadow-card'
+                : 'text-ice-white/70 hover:bg-white/5 hover:text-white',
+              ui.collapsed && 'justify-center px-0 mb-1'
+            ]"
+            @mouseenter="showTip($event, item)"
+            @mouseleave="hideTip"
           >
             <span class="material-symbols-outlined text-[20px]">{{ item.icon }}</span>
-            {{ item.label }}
+            <span v-if="!ui.collapsed">{{ item.label }}</span>
           </router-link>
         </template>
       </nav>
 
-      <div class="p-4 border-t border-white/10">
+      <div class="p-4 border-t border-white/10 space-y-1">
         <button
-          class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-label-sm text-ice-white/70 hover:bg-white/5 hover:text-white transition-colors"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-label-sm text-ice-white/70 hover:bg-white/5 hover:text-white transition-colors"
+          :aria-label="ui.collapsed ? 'Perbesar menu' : 'Perkecil menu'"
+          @click="toggleCollapse"
+        >
+          <span class="material-symbols-outlined text-[18px]">{{ ui.collapsed ? 'chevron_right' : 'chevron_left' }}</span>
+          <span v-if="!ui.collapsed">Perkecil</span>
+        </button>
+        <button
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-label-sm text-ice-white/70 hover:bg-white/5 hover:text-white transition-colors"
           @click="logout"
         >
           <span class="material-symbols-outlined text-[18px]">logout</span>
-          Keluar
+          <span v-if="!ui.collapsed">Keluar</span>
         </button>
       </div>
     </aside>
@@ -85,9 +101,12 @@
     </transition>
 
     <!-- Kolom utama -->
-    <div class="lg:pl-sidebar-width">
+    <div class="transition-[padding] duration-300 ease-in-out" :class="ui.collapsed ? 'lg:pl-sidebar-collapsed-width' : 'lg:pl-sidebar-width'">
       <!-- Navbar -->
-      <header class="fixed top-0 right-0 left-0 lg:left-sidebar-width z-30 h-16 bg-white/85 dark:bg-[#0a1a4a]/85 backdrop-blur-md border-b border-surface-variant/70 dark:border-white/10">
+      <header
+        class="fixed top-0 right-0 left-0 z-30 h-16 bg-white/85 dark:bg-[#0a1a4a]/85 backdrop-blur-md border-b border-surface-variant/70 dark:border-white/10 transition-[left] duration-300 ease-in-out"
+        :class="ui.collapsed ? 'lg:left-sidebar-collapsed-width' : 'lg:left-sidebar-width'"
+      >
         <div class="flex items-center justify-between h-full px-4 lg:px-8 gap-3">
           <div class="flex items-center gap-3 min-w-0">
             <button class="lg:hidden p-2 -ml-2 rounded-lg text-deep-navy dark:text-ice-white hover:bg-surface-container-low dark:hover:bg-white/10" @click="drawer = true" aria-label="Buka menu">
@@ -134,6 +153,17 @@
         <span class="material-symbols-outlined">keyboard_arrow_up</span>
       </button>
     </transition>
+
+    <!-- Tooltip menu saat sidebar dikecilkan -->
+    <transition name="fade">
+      <div
+        v-if="tip.show"
+        class="fixed z-[70] pointer-events-none -translate-y-1/2 px-3 py-1.5 rounded-lg bg-deep-navy dark:bg-black/90 text-ice-white text-xs font-label-sm shadow-lift-md whitespace-nowrap border border-white/10"
+        :style="{ left: tip.x + 'px', top: tip.y + 'px' }"
+      >
+        {{ tip.text }}
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -143,6 +173,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotifStore } from '../stores/notifikasi'
 import { useThemeStore } from '../stores/theme'
+import { useUiStore } from '../stores/ui'
 import NotificationBell from '../components/NotificationBell.vue'
 import UserMenu from '../components/UserMenu.vue'
 
@@ -151,8 +182,25 @@ const router = useRouter()
 const auth = useAuthStore()
 const notif = useNotifStore()
 const theme = useThemeStore()
+const ui = useUiStore()
 const drawer = ref(false)
 const showScrollTop = ref(false)
+const tip = ref({ show: false, text: '', x: 0, y: 0 })
+
+function showTip(event, item) {
+  if (!ui.collapsed) return
+  const rect = event.currentTarget.getBoundingClientRect()
+  tip.value = { show: true, text: item.label, x: rect.right + 12, y: rect.top + rect.height / 2 }
+}
+
+function hideTip() {
+  tip.value.show = false
+}
+
+function toggleCollapse() {
+  hideTip()
+  ui.toggleSidebar()
+}
 
 function onScroll() {
   showScrollTop.value = window.scrollY > 300

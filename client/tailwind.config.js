@@ -60,7 +60,8 @@ export default {
         'card-padding': '1.5rem',
         'section-padding': '4rem',
         'container-max': '1280px',
-        'sidebar-width': '250px'
+        'sidebar-width': '250px',
+        'sidebar-collapsed-width': '72px'
       },
       fontFamily: {
         sans: ['Hanken Grotesk', 'system-ui', 'sans-serif'],

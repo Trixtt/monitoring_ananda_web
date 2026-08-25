@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 const STORAGE_KEY = 'sd4-theme'
 
@@ -31,5 +31,5 @@ function toggleTheme() {
 }
 
 export function useThemeStore() {
-  return { dark, initTheme, toggleTheme }
+  return reactive({ dark, initTheme, toggleTheme })
 }

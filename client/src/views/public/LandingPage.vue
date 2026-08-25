@@ -83,7 +83,7 @@
             Sistem informasi monitoring perkembangan siswa berbasis sistem pendukung keputusan. Guru, wali kelas, dan orang tua dapat memantau nilai akademik, kehadiran, dan sikap siswa secara transparan.
           </p>
           <div class="flex flex-wrap gap-3">
-            <button v-magnet @click="scrollTo('tentang')" class="btn bg-gradient-to-r from-dark-teal to-light-teal text-white hover:brightness-110 shadow-card">
+            <button v-magnet @click="scrollTo('fitur')" class="btn bg-gradient-to-r from-dark-teal to-light-teal text-white hover:brightness-110 shadow-card">
               <span class="material-symbols-outlined text-[18px]">school</span>
               Kenali Sistemnya
             </button>
@@ -152,17 +152,76 @@
       </div>
     </section>
 
-    <!-- Tentang -->
+    <!-- Tentang (Profil Sekolah) -->
     <section id="tentang" class="snap-start scroll-mt-16 min-h-[calc(100svh-4rem)] flex items-center py-20 bg-pure-white dark:bg-[#0a1a4a] relative overflow-hidden">
       <div class="blob-parallax absolute -top-20 -right-24 w-96 h-96 rounded-full bg-light-teal/10 blur-3xl pointer-events-none" data-speed="0.3"></div>
       <div class="blob-parallax absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-dark-teal/10 blur-3xl pointer-events-none" data-speed="0.45"></div>
       <div class="container-site relative">
+        <div class="reveal text-center mb-12">
+          <p class="font-label-md text-dark-teal dark:text-light-teal mb-2">TENTANG</p>
+          <h2 class="font-headline-lg text-deep-navy dark:text-ice-white">Profil Sekolah</h2>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-6 items-start">
+          <div class="card p-6 md:p-8 reveal">
+            <div class="flex items-center gap-3 mb-5">
+              <img src="/logo.svg" alt="Logo SD Negeri 4 Keling" width="48" height="48" class="w-12 h-12 shrink-0 drop-shadow" />
+              <div>
+                <h3 class="font-title-lg text-deep-navy dark:text-ice-white leading-tight">SD Negeri 4 Keling</h3>
+                <p class="font-label-sm text-on-surface-variant dark:text-ice-white/50">Kec. Keling, Kab. Jepara, Jawa Tengah</p>
+              </div>
+            </div>
+            <p class="font-body-md text-on-surface-variant dark:text-ice-white/70 mb-6">{{ profil.deskripsi }}</p>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div v-for="info in profil.info" :key="info.label" class="flex items-start gap-2.5 rounded-xl bg-surface-container-low dark:bg-white/5 px-3.5 py-3">
+                <span class="material-symbols-outlined text-[20px] text-dark-teal dark:text-light-teal">{{ info.icon }}</span>
+                <div class="min-w-0">
+                  <p class="text-[11px] text-on-surface-variant dark:text-ice-white/50">{{ info.label }}</p>
+                  <p class="font-label-md text-deep-navy dark:text-ice-white leading-tight mt-0.5">{{ info.value }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6 md:p-8 reveal" style="transition-delay: 100ms">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="material-symbols-outlined text-[22px] text-dark-teal dark:text-light-teal" data-fill="true">flag</span>
+              <h3 class="font-title-lg text-deep-navy dark:text-ice-white">Visi Sekolah</h3>
+            </div>
+            <p class="font-body-md text-on-surface-variant dark:text-ice-white/70 italic border-l-4 border-light-teal pl-4 mb-8">{{ profil.visi }}</p>
+
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-[22px] text-dark-teal dark:text-light-teal" data-fill="true">checklist</span>
+              <h3 class="font-title-lg text-deep-navy dark:text-ice-white">Misi Sekolah</h3>
+            </div>
+            <ul class="space-y-2.5">
+              <li v-for="m in profil.misi" :key="m" class="flex items-start gap-2.5 font-body-md text-on-surface-variant dark:text-ice-white/70">
+                <span class="material-symbols-outlined text-[18px] text-dark-teal dark:text-light-teal mt-0.5">check_circle</span>
+                {{ m }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fitur -->
+    <section id="fitur" class="snap-start scroll-mt-16 min-h-[calc(100svh-4rem)] flex items-center py-20 relative overflow-hidden">
+      <div class="blob-parallax absolute top-10 -left-24 w-80 h-80 rounded-full bg-light-teal/10 blur-3xl pointer-events-none" data-speed="0.3"></div>
+      <div class="blob-parallax absolute bottom-10 -right-24 w-96 h-96 rounded-full bg-dark-teal/10 blur-3xl pointer-events-none" data-speed="0.5"></div>
+      <div class="container-site relative">
+        <div class="reveal text-center mb-12">
+          <p class="font-label-md text-dark-teal dark:text-light-teal mb-2">FITUR</p>
+          <h2 class="font-headline-lg text-deep-navy dark:text-ice-white">Sistem Monitoring Perkembangan Siswa</h2>
+          <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mt-3 max-w-2xl mx-auto">
+            Pantau nilai akademik, kehadiran, dan sikap siswa secara transparan berbasis sistem pendukung keputusan metode SAW.
+          </p>
+        </div>
+
         <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center mb-16">
           <div class="reveal">
-            <p class="font-label-md text-dark-teal dark:text-light-teal mb-2">TENTANG</p>
-            <h2 class="font-headline-lg text-deep-navy dark:text-ice-white mb-4">Apa itu Sistem Monitoring Siswa?</h2>
             <p class="font-body-lg text-on-surface-variant dark:text-ice-white/70 mb-6">
-              Sistem ini membantu sekolah menerapkan deteksi dini terhadap kesulitan belajar melalui metode SAW. Setiap siswa diklasifikasikan ke dalam kondisi Baik/Aman, Perlu Perhatian, atau Berisiko berdasarkan nilai akademik, kehadiran, dan sikap, dengan penanganan khusus untuk siswa berkebutuhan khusus.
+              Sistem ini membantu sekolah menerapkan deteksi dini terhadap kesulitan belajar melalui metode SAW. Setiap siswa diklasifikasikan ke dalam kondisi Baik/Aman, Perlu Perhatian, atau Berisiko berdasarkan tiga aspek utama berikut, dengan penanganan khusus untuk siswa berkebutuhan khusus.
             </p>
             <div class="grid sm:grid-cols-3 gap-3">
               <div v-for="a in aspek" :key="a.label" class="flex items-center gap-2 rounded-xl bg-ice-white dark:bg-white/5 border border-light-teal/30 dark:border-white/10 px-3 py-2.5">
@@ -233,7 +292,7 @@
           </div>
         </div>
 
-        <div class="grid md:grid-cols-3 gap-6">
+        <div class="grid md:grid-cols-3 gap-6 mb-12">
           <div v-for="(f, i) in fitur" :key="f.title" class="card card-hover p-6 reveal" :style="{ transitionDelay: i * 90 + 'ms' }">
             <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-dark-teal to-light-teal text-white flex items-center justify-center mb-4 shadow-card">
               <span class="material-symbols-outlined">{{ f.icon }}</span>
@@ -242,42 +301,15 @@
             <p class="font-body-md text-on-surface-variant dark:text-ice-white/60">{{ f.desc }}</p>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Fitur Peran -->
-    <section id="fitur" class="snap-start scroll-mt-16 min-h-[calc(100svh-4rem)] flex items-center py-20 relative overflow-hidden">
-      <div class="blob-parallax absolute top-10 -left-24 w-80 h-80 rounded-full bg-light-teal/10 blur-3xl pointer-events-none" data-speed="0.3"></div>
-      <div class="blob-parallax absolute bottom-10 -right-24 w-96 h-96 rounded-full bg-dark-teal/10 blur-3xl pointer-events-none" data-speed="0.5"></div>
-      <div class="container-site relative">
-        <div class="reveal text-center mb-12">
-          <p class="font-label-md text-dark-teal dark:text-light-teal mb-2">FITUR</p>
-          <h2 class="font-headline-lg text-deep-navy dark:text-ice-white">Hak Akses Setiap Pengguna</h2>
-          <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mt-3 max-w-2xl mx-auto">
-            Setiap peran memiliki porsi kendali yang berbeda, dari pengelolaan data hingga pantauan harian perkembangan anak.
-          </p>
-        </div>
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div v-for="(r, i) in roles" :key="r.title" class="card card-hover p-6 border-t-4 reveal" :class="r.accent" :style="{ transitionDelay: i * 80 + 'ms' }">
-            <span class="material-symbols-outlined text-dark-teal dark:text-light-teal mb-3 block text-3xl">{{ r.icon }}</span>
-            <h3 class="font-title-lg text-deep-navy dark:text-ice-white mb-2">{{ r.title }}</h3>
-            <ul class="space-y-2">
-              <li v-for="f in r.items" :key="f" class="flex items-start gap-2 font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm">
-                <span class="material-symbols-outlined text-[16px] text-dark-teal dark:text-light-teal mt-0.5">check_circle</span>
-                {{ f }}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="reveal mt-12">
-          <div class="rounded-2xl border border-surface-variant dark:border-white/10 bg-ice-white/60 dark:bg-white/5 p-5 md:p-6">
+        <div class="reveal">
+          <div class="card p-5 md:p-6">
             <p class="font-label-md text-deep-navy dark:text-ice-white mb-4 flex items-center gap-2">
               <span class="material-symbols-outlined text-[20px] text-dark-teal dark:text-light-teal">grade</span>
               Empat kondisi hasil penilaian
             </p>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div v-for="s in status" :key="s.label" class="flex items-start gap-2.5 rounded-xl bg-pure-white dark:bg-[#0d2357] border px-3.5 py-3" :class="s.cls">
+              <div v-for="s in status" :key="s.label" class="flex items-start gap-2.5 rounded-xl border px-3.5 py-3" :class="s.cls">
                 <span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" :class="s.dot"></span>
                 <div class="min-w-0">
                   <p class="font-label-md text-deep-navy dark:text-ice-white leading-tight">{{ s.label }}</p>
@@ -684,32 +716,24 @@ const fitur = [
   { icon: 'insights', title: 'Rekomendasi Tindak Lanjut', desc: 'Setiap klasifikasi disertai rekomendasi tindakan konkret bagi guru dan orang tua.' }
 ]
 
-const roles = [
-  {
-    title: 'Admin / Operator',
-    icon: 'manage_accounts',
-    accent: 'border-light-teal',
-    items: ['Kelola data siswa, kelas, mapel', 'Kelola akun pengguna', 'Atur bobot penilaian SPK', 'Kelola artikel berita']
-  },
-  {
-    title: 'Wali Kelas',
-    icon: 'school',
-    accent: 'border-dark-teal',
-    items: ['Input nilai & unggah berkas', 'Rekap kehadiran harian', 'Penilaian sikap spiritual-sosial', 'Pantau rekap kondisi kelas']
-  },
-  {
-    title: 'Kepala Sekolah',
-    icon: 'account_balance',
-    accent: 'border-status-abk',
-    items: ['Laporan kondisi keseluruhan', 'Identifikasi siswa berisiko', 'Evaluasi kinerja per kelas']
-  },
-  {
-    title: 'Orang Tua',
-    icon: 'family_restroom',
-    accent: 'border-status-aman',
-    items: ['Pantau nilai & kehadiran', 'Lihat penilaian sikap', 'Dapatkan rekomendasi belajar', 'Terima notifikasi WhatsApp']
-  }
-]
+const profil = {
+  deskripsi:
+    'SD Negeri 4 Keling adalah sekolah dasar negeri yang berlokasi di Kecamatan Keling, Kabupaten Jepara, Jawa Tengah. Sekolah berkomitmen memberikan pendidikan dasar yang bermutu bagi seluruh peserta didik melalui pembelajaran yang aktif, kreatif, dan menyenangkan, serta membentuk karakter siswa yang beriman, mandiri, dan berakhlak mulia.',
+  info: [
+    { label: 'Jenjang', value: 'Sekolah Dasar (SD)', icon: 'school' },
+    { label: 'Status', value: 'Negeri', icon: 'account_balance' },
+    { label: 'Alamat', value: 'Kec. Keling, Kab. Jepara', icon: 'location_on' },
+    { label: 'Kurikulum', value: 'Kurikulum Merdeka', icon: 'auto_stories' }
+  ],
+  visi:
+    'Terwujudnya peserta didik yang cerdas, berprestasi, berakhlak mulia, mandiri, serta siap menghadapi perkembangan zaman.',
+  misi: [
+    'Menyelenggarakan pembelajaran yang aktif, inovatif, dan menyenangkan',
+    'Membiasakan ibadah serta menanamkan nilai religius dan moral kepada siswa',
+    'Mengembangkan bakat dan minat siswa melalui kegiatan akademik maupun non-akademik',
+    'Menghadirkan lingkungan belajar yang aman, nyaman, dan ramah anak'
+  ]
+}
 
 const stats = [
   { icon: 'door_sliding', label: 'Kelas', value: 10, suffix: '+' },
