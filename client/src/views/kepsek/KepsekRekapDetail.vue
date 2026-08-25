@@ -113,7 +113,7 @@ function exportData() {
     LABEL_KONDISI[item.skor.kategori.kode] || item.skor.kategori.kode,
     item.mapelTerlemah || ''
   ])
-  exportCsv(`rekap-${kelas.value.nama}.csv`.replace(/[^\w\-]+/g, '-'), ['Absen', 'NISN', 'Nama', 'Skor', 'Kondisi', 'Mapel Terlemah'], rows)
+  exportCsv(`rekap-${kelas.value.nama}.csv`.replace(/[^\w-]+/g, '-'), ['Absen', 'NISN', 'Nama', 'Skor', 'Kondisi', 'Mapel Terlemah'], rows)
 }
 
 onMounted(async () => {

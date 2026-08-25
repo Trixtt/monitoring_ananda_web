@@ -176,7 +176,7 @@ function formatNilai(n) {
 
 function exportNilai() {
   const rows = activeGroup.value.rows.map((r) => [r.siswa.nomorAbsen, r.siswa.nama, r.nilai === null ? '' : formatNilai(r.nilai)])
-  exportCsv(`nilai-${mapelNama.value}-${activeGroup.value.judul}.csv`.replace(/[^\w\-]+/g, '-'), ['Absen', 'Nama', 'Nilai'], rows)
+  exportCsv(`nilai-${mapelNama.value}-${activeGroup.value.judul}.csv`.replace(/[^\w-]+/g, '-'), ['Absen', 'Nama', 'Nilai'], rows)
 }
 
 async function pilihMapel(id) {
