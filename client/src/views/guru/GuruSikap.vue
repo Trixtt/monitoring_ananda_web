@@ -3,6 +3,10 @@
     <div>
       <h1 class="page-title">Penilaian Sikap</h1>
       <p class="page-subtitle">Input sikap spiritual dan sosial per siswa (1=Kurang, 2=Cukup, 3=Baik, 4=Sangat Baik)</p>
+      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+        Semua siswa terisi Baik secara default, cukup ubah nilai siswa yang bermasalah.
+        Siswa yang tidak diubah tidak dicatat dan dihitung sikapnya baik.
+      </p>
     </div>
 
     <div class="card p-5 flex flex-col md:flex-row md:items-end gap-4">
@@ -17,11 +21,14 @@
         <label class="label">Tanggal</label>
         <input v-model="tanggal" type="date" class="input md:w-56" />
       </div>
-      <button class="btn-primary" :disabled="saving || !rows.length" @click="simpan">
+      <button class="btn-primary" :disabled="saving || !tercatat" @click="simpan">
         <span v-if="saving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
         <span class="material-symbols-outlined text-[18px]" v-else>save</span>
         Simpan Penilaian
       </button>
+      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 md:ml-auto">
+        {{ tercatat }} siswa akan dicatat
+      </p>
     </div>
 
     <div v-if="loading"><LoadingState /></div>
@@ -68,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../../services/api'
 import { useGuruKelas } from '../../composables/useGuruKelas'
 import { useToastStore } from '../../stores/toast'
@@ -83,6 +90,7 @@ const tanggal = ref(new Date().toISOString().slice(0, 10))
 const rows = ref([])
 const loading = ref(true)
 const saving = ref(false)
+const tercatat = computed(() => rows.value.filter((r) => Number(r.nilai) !== 3).length)
 
 async function load() {
   loading.value = true
@@ -95,8 +103,11 @@ async function load() {
 }
 
 async function simpan() {
-  const daftar = rows.value.filter((r) => r.nilai)
-  if (!daftar.length) return
+  const daftar = rows.value.filter((r) => Number(r.nilai) !== 3)
+  if (!daftar.length) {
+    toast.error('Tidak ada perubahan nilai untuk disimpan.')
+    return
+  }
   saving.value = true
   try {
     await api.post('/guru/sikap', {
