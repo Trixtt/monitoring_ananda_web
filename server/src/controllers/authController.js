@@ -29,6 +29,23 @@ function signToken(user) {
   return jwt.sign({ id: user.id, role: user.role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn })
 }
 
+function jwtMaxAgeMs() {
+  const m = /^(\d+)([smhd])$/.exec(env.jwtExpiresIn || '12h')
+  if (!m) return 12 * 3600 * 1000
+  const mult = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[m[2]]
+  return Number(m[1]) * mult
+}
+
+export function setAuthCookie(res, token) {
+  res.cookie('token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.nodeEnv === 'production',
+    path: '/',
+    maxAge: jwtMaxAgeMs()
+  })
+}
+
 export async function login(req, res) {
   const { username, password } = req.body
   if (!username || !password) {
@@ -45,17 +62,23 @@ export async function login(req, res) {
     return res.status(401).json({ message: 'Username atau password salah.' })
   }
 
+  setAuthCookie(res, signToken(user))
+
   let detail = null
   if (user.role === 'orang_tua' && user.siswaId) {
     detail = await Siswa.findByPk(user.siswaId, { include: [{ association: 'kelas' }] })
   }
 
   return res.json({
-    token: signToken(user),
     user: publicUser(user),
     redirect: ROUTES[user.role],
     detail
   })
+}
+
+export async function logout(req, res) {
+  res.clearCookie('token', { path: '/' })
+  return res.json({ message: 'Logout berhasil.' })
 }
 
 export async function me(req, res) {

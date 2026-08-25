@@ -11,6 +11,7 @@ import {
   kepsekRapor
 } from '../controllers/kepsekController.js'
 import { auth, rbac } from '../middlewares/auth.js'
+import { validate, laporanSchema } from '../validators/index.js'
 
 const router = Router()
 
@@ -23,7 +24,7 @@ router.get('/siswa-risiko', kepsekSiswaRisiko)
 router.get('/kelas/:kelasId', kepsekDetailKelas)
 
 router.get('/laporan', kepsekRiwayatLaporan)
-router.post('/laporan', kepsekGenerateLaporan)
+router.post('/laporan', validate(laporanSchema), kepsekGenerateLaporan)
 router.get('/laporan/:id', kepsekDetailLaporan)
 router.delete('/laporan/:id', kepsekHapusLaporan)
 

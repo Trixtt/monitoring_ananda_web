@@ -9,6 +9,7 @@ import {
 } from '../controllers/artikelController.js'
 import { auth, rbac } from '../middlewares/auth.js'
 import { uploadSingle } from '../middlewares/upload.js'
+import { validate, artikelSchema, artikelUpdateSchema } from '../validators/index.js'
 
 const router = Router()
 
@@ -24,8 +25,8 @@ router.get('/:id', (req, res, next) => {
 }, detailArtikel)
 
 // CRUD khusus admin
-router.post('/', auth, rbac('admin'), uploadSingle, createArtikel)
-router.put('/:id', auth, rbac('admin'), uploadSingle, updateArtikel)
+router.post('/', auth, rbac('admin'), uploadSingle, validate(artikelSchema), createArtikel)
+router.put('/:id', auth, rbac('admin'), uploadSingle, validate(artikelUpdateSchema), updateArtikel)
 router.delete('/:id', auth, rbac('admin'), deleteArtikel)
 
 export default router

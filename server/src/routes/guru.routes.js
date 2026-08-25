@@ -20,6 +20,7 @@ import {
 } from '../controllers/masterController.js'
 import { auth, rbac } from '../middlewares/auth.js'
 import { uploadSingle } from '../middlewares/upload.js'
+import { validate, nilaiSchema, kehadiranBulkSchema, sikapBulkSchema, abkSchema } from '../validators/index.js'
 
 const router = Router()
 
@@ -29,16 +30,16 @@ router.get('/dashboard', guruDashboard)
 router.get('/monitoring', guruMonitoring)
 router.get('/siswa', guruSiswa)
 router.get('/siswa/:id', guruSiswaDetail)
-router.patch('/siswa/:id/abk', updateAbk)
+router.patch('/siswa/:id/abk', validate(abkSchema), updateAbk)
 
-router.post('/nilai', uploadSingle, guruNilaiUnggah)
+router.post('/nilai', uploadSingle, validate(nilaiSchema), guruNilaiUnggah)
 router.get('/nilai/mapel', guruNilaiPerMapel)
 router.get('/nilai', daftarNilaiUntukWali)
 
-router.post('/kehadiran', guruKehadiranBulk)
+router.post('/kehadiran', validate(kehadiranBulkSchema), guruKehadiranBulk)
 router.get('/kehadiran', guruKehadiranByDate)
 
-router.post('/sikap', guruSikapBulk)
+router.post('/sikap', validate(sikapBulkSchema), guruSikapBulk)
 router.get('/sikap/:siswaId', guruSikapBySiswa)
 
 router.get('/mapel', mapelList)

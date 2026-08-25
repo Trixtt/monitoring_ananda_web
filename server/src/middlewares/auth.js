@@ -5,7 +5,8 @@ import { User } from '../models/index.js'
 export async function auth(req, res, next) {
   try {
     const header = req.headers.authorization || ''
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null
+    const bearer = header.startsWith('Bearer ') ? header.slice(7) : null
+    const token = req.cookies?.token || bearer
     if (!token) return res.status(401).json({ message: 'Tidak ada sesi. Silakan login kembali.' })
 
     const payload = jwt.verify(token, env.jwtSecret)
