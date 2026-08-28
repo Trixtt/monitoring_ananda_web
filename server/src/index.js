@@ -39,14 +39,14 @@ io.use((socket, next) => {
   const cookies = parseCookieHeader(socket.handshake.headers?.cookie || '')
   const token = cookies.token || socket.handshake.auth?.token || null
   if (!token) return next(new Error('unauthorized'))
-    try {
-      const payload = jwt.verify(token, env.jwtSecret)
-      socket.userId = payload.id
-      next()
-    } catch {
-      next(new Error('unauthorized'))
-    }
-  })
+  try {
+    const payload = jwt.verify(token, env.jwtSecret)
+    socket.userId = payload.id
+    next()
+  } catch {
+    next(new Error('unauthorized'))
+  }
+})
 
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`)

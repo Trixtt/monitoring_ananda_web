@@ -118,7 +118,9 @@ function exportData() {
 
 onMounted(async () => {
   try {
-    const { data: res } = await api.get(`/kepsek/kelas/${route.params.kelasId}`)
+    const { data: res } = await api.get(`/kepsek/kelas/${route.params.kelasId}`, {
+      params: { tahunAjaranId: route.query.tahun || undefined }
+    })
     data.value = res
     kelas.value = res.kelas
   } finally {

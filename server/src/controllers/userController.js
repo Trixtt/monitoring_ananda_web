@@ -9,6 +9,13 @@ const LABEL_ROLE = {
   orang_tua: 'Orang Tua'
 }
 
+// Password awal orang tua = tanggal lahir format DDMMYYYY (sesuai ketentuan login)
+const tglLahirKePasswordAwal = (tanggalLahir) => {
+  const t = String(tanggalLahir)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null
+  return `${t.slice(8, 10)}${t.slice(5, 7)}${t.slice(0, 4)}`
+}
+
 async function syncWaliKelas({ kelasIdBaru, namaBaru, kelasIdLama = null, namaLama = null, jadiWali = true }) {
   if (kelasIdLama && (!jadiWali || kelasIdLama !== kelasIdBaru)) {
     const lama = await Kelas.findByPk(kelasIdLama)
@@ -72,7 +79,7 @@ export async function createAkun(req, res) {
   if (role === 'orang_tua' && siswaId) {
     const siswa = await Siswa.findByPk(siswaId)
     if (siswa?.tanggalLahir) {
-      passwordAwal = siswa.tanggalLahir.replaceAll('-', '')
+      passwordAwal = tglLahirKePasswordAwal(siswa.tanggalLahir) || passwordAwal
     }
   }
 
@@ -138,7 +145,7 @@ export async function resetPassword(req, res) {
   if (user.role === 'orang_tua' && user.siswaId) {
     const siswa = await Siswa.findByPk(user.siswaId)
     if (siswa?.tanggalLahir) {
-      passwordBaru = siswa.tanggalLahir.replaceAll('-', '')
+      passwordBaru = tglLahirKePasswordAwal(siswa.tanggalLahir) || passwordBaru
     }
   }
 

@@ -9,6 +9,9 @@
     "start": "node src/index.js",
     "db:migrate": "sequelize db:migrate",
     "db:migrate:undo": "sequelize db:migrate:undo",
+    "db:seed": "node src/seed.js",
+    "db:backup": "pwsh scripts/backup.ps1",
+    "db:restore": "pwsh scripts/restore.ps1",
     "test": "node --test",
     "lint": "eslint src test"
   },
