@@ -4,10 +4,18 @@ import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, hitungSem
 import { susunRapor } from '../services/rapor.js'
 
 export async function kepsekRingkasan(req, res) {
-  const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const taId = req.query.tahunAjaranId ? Number(req.query.tahunAjaranId) : null
+  const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
 
   const kelasList = await Kelas.findAll({ order: [['tingkat', 'ASC'], ['nama', 'ASC']] })
+  const siswaWhere = {}
+  if (taId) {
+    siswaWhere.tahunAjaranId = taId
+  } else if (ta) {
+    siswaWhere.tahunAjaranId = ta.id
+  }
   const siswaList = await Siswa.findAll({
+    where: siswaWhere,
     include: [{ association: 'kelas' }],
     order: [['kelasId', 'ASC'], ['nomorAbsen', 'ASC']]
   })
@@ -39,7 +47,9 @@ export async function kepsekRingkasan(req, res) {
     total.siswa += ringkas.total
   }
 
-  return res.json({ perKelas, total, tahunAjaran: ta?.nama || null })
+  const semuaTahunAjaran = await TahunAjaran.findAll({ order: [['id', 'DESC']] })
+
+  return res.json({ perKelas, total, tahunAjaran: ta?.nama || null, tahunAjaranId: ta?.id || null, daftarTahunAjaran: semuaTahunAjaran })
 }
 
 export async function kepsekSiswaDetail(req, res) {
@@ -55,7 +65,8 @@ export async function kepsekSiswaDetail(req, res) {
 }
 
 export async function kepsekSiswaRisiko(req, res) {
-  const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const taId = req.query.tahunAjaranId ? Number(req.query.tahunAjaranId) : null
+  const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
   const { kategori = 'berisiko', kelasId } = req.query
 
   const kelasWhere = kelasId ? { id: kelasId } : {}
@@ -79,7 +90,8 @@ export async function kepsekDetailKelas(req, res) {
   const kelas = await Kelas.findByPk(req.params.kelasId)
   if (!kelas) return res.status(404).json({ message: 'Kelas tidak ditemukan.' })
 
-  const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const taId = Number(req.query.tahunAjaranId) || null
+  const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
   const { hasilList, ringkas } = await rekapKelas(kelas.id, ta?.id)
 
   const detail = await Promise.all(

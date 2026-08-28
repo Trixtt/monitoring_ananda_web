@@ -1,8 +1,17 @@
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="page-title">Rekap per Kelas</h1>
-      <p class="page-subtitle">Kondisi siswa per kelas &middot; {{ data?.tahunAjaran || '' }}</p>
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="page-title">Rekap per Kelas</h1>
+        <p class="page-subtitle">Kondisi siswa per kelas &middot; {{ data?.tahunAjaran || '' }}</p>
+      </div>
+      <div class="flex items-end gap-2">
+        <label class="label !mb-1" for="tahunAjaran">Tahun Ajaran</label>
+        <select id="tahunAjaran" class="input w-auto" :value="tahunAjaranId" @change="gantiTahunAjaran($event.target.value)">
+          <option :value="''">Semua Tahun</option>
+          <option v-for="t in daftarTahunAjaran" :key="t.id" :value="t.id">{{ t.nama }}</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="loading"><LoadingState skeleton variant="table" /></div>
@@ -34,7 +43,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="k in data.perKelas" :key="k.kelas.id" class="cursor-pointer" @click="$router.push(`/kepsek/rekap/${k.kelas.id}`)">
+              <tr v-for="k in data.perKelas" :key="k.kelas.id" class="cursor-pointer" @click="$router.push(`/kepsek/rekap/${k.kelas.id}?tahun=${tahunAjaranId || ''}`)">
                 <td class="font-label-md text-deep-navy dark:text-ice-white">{{ k.kelas.nama }}</td>
                 <td>{{ k.kelas.waliKelas || '-' }}</td>
                 <td class="text-status-aman font-label-md">{{ k.aman }}</td>
@@ -64,13 +73,27 @@ import EmptyState from '../../components/EmptyState.vue'
 
 const data = ref(null)
 const loading = ref(true)
+const tahunAjaranId = ref('')
+const daftarTahunAjaran = ref([])
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
   try {
-    const { data: res } = await api.get('/kepsek/ringkasan')
+    const { data: res } = await api.get('/kepsek/ringkasan', {
+      params: { tahunAjaranId: tahunAjaranId.value || undefined }
+    })
     data.value = res
+    if (!tahunAjaranId.value && res.tahunAjaranId) tahunAjaranId.value = res.tahunAjaranId
+    daftarTahunAjaran.value = res.daftarTahunAjaran || []
   } finally {
     loading.value = false
   }
-})
+}
+
+function gantiTahunAjaran(v) {
+  tahunAjaranId.value = v
+  load()
+}
+
+onMounted(load)
 </script>

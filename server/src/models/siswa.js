@@ -12,7 +12,8 @@ const Siswa = sequelize.define(
     tahunAngkatan: { type: DataTypes.INTEGER, allowNull: true },
     nomorAbsen: { type: DataTypes.INTEGER, allowNull: true },
     statusABK: { type: DataTypes.BOOLEAN, defaultValue: false },
-    catatanABK: { type: DataTypes.TEXT, allowNull: true }
+    catatanABK: { type: DataTypes.TEXT, allowNull: true },
+    tahunAjaranId: { type: DataTypes.INTEGER, allowNull: true }
   },
   { tableName: 'siswa' }
 )

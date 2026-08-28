@@ -1,8 +1,17 @@
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="page-title">Dashboard Kepala Sekolah</h1>
-      <p class="page-subtitle">Rekap kondisi siswa seluruh kelas &middot; {{ data?.tahunAjaran || '' }}</p>
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="page-title">Dashboard Kepala Sekolah</h1>
+        <p class="page-subtitle">Rekap kondisi siswa seluruh kelas &middot; {{ data?.tahunAjaran || '' }}</p>
+      </div>
+      <div class="flex items-end gap-2">
+        <label class="label !mb-1" for="tahunAjaran">Tahun Ajaran</label>
+        <select id="tahunAjaran" class="input w-auto" :value="tahunAjaranId" @change="gantiTahunAjaran($event.target.value)">
+          <option :value="''">Semua Tahun</option>
+          <option v-for="t in daftarTahunAjaran" :key="t.id" :value="t.id">{{ t.nama }}</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="loading"><LoadingState skeleton variant="cards" /></div>
@@ -83,6 +92,8 @@ import EmptyState from '../../components/EmptyState.vue'
 
 const data = ref(null)
 const loading = ref(true)
+const tahunAjaranId = ref('')
+const daftarTahunAjaran = ref([])
 
 const distBars = computed(() => {
   if (!data.value) return {}
@@ -100,12 +111,24 @@ const distBars = computed(() => {
   }))
 })
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
   try {
-    const { data: res } = await api.get('/kepsek/ringkasan')
+    const { data: res } = await api.get('/kepsek/ringkasan', {
+      params: { tahunAjaranId: tahunAjaranId.value || undefined }
+    })
     data.value = res
+    if (!tahunAjaranId.value && res.tahunAjaranId) tahunAjaranId.value = res.tahunAjaranId
+    daftarTahunAjaran.value = res.daftarTahunAjaran || []
   } finally {
     loading.value = false
   }
-})
+}
+
+function gantiTahunAjaran(v) {
+  tahunAjaranId.value = v
+  load()
+}
+
+onMounted(load)
 </script>
