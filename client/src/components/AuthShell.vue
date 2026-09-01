@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen lg:grid lg:grid-cols-2">
-    <!-- Panel kiri: visual -->
-    <div class="relative overflow-hidden bg-gradient-to-br from-deep-navy via-[#06306a] to-dark-teal text-white flex flex-col p-6 lg:p-12">
+    <!-- Panel kiri: visual (disembunyikan di mobile) -->
+    <div class="relative overflow-hidden bg-gradient-to-br from-deep-navy via-[#06306a] to-dark-teal text-white hidden lg:flex flex-col p-6 lg:p-12">
       <div class="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-light-teal/20 blur-3xl pointer-events-none"></div>
       <div class="absolute top-1/3 -right-32 w-96 h-96 rounded-full bg-light-teal/15 blur-3xl pointer-events-none"></div>
       <div class="absolute bottom-0 left-1/3 w-72 h-72 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
@@ -58,20 +58,23 @@
         </div>
       </div>
 
-      <p class="relative hidden lg:flex items-center gap-2 font-label-sm text-ice-white/60">
+      <p class="relative flex items-center gap-2 font-label-sm text-ice-white/60">
         <span class="material-symbols-outlined text-[18px]">verified_user</span>
         Sistem Monitoring Perkembangan Siswa &middot; SD Negeri 4 Keling
-      </p>
-
-      <p class="relative lg:hidden mt-8 font-body-lg font-semibold leading-snug">
-        Pantau tumbuh kembang putra-putri Anda — nilai, kehadiran, dan sikap dalam satu tempat.
       </p>
     </div>
 
     <!-- Panel kanan: form -->
-    <div class="flex items-center justify-center px-4 py-10 lg:px-12 bg-background dark:bg-deep-navy relative overflow-hidden">
-      <div class="absolute inset-0 opacity-40 dark:opacity-20 pointer-events-none" style="background-image: radial-gradient(circle at 85% 15%, rgba(55,183,195,0.25) 0, transparent 40%), radial-gradient(circle at 10% 90%, rgba(7,25,82,0.12) 0, transparent 45%)"></div>
-      <div class="relative w-full max-w-md">
+    <div class="relative flex flex-col items-center justify-center min-h-[100svh] lg:min-h-0 overflow-y-auto px-4 py-8 lg:py-10 lg:px-12 bg-background dark:bg-deep-navy">
+      <div class="lg:hidden absolute inset-0 bg-gradient-to-br from-deep-navy via-[#06306a] to-dark-teal pointer-events-none"></div>
+      <div class="lg:hidden absolute inset-0 pointer-events-none" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 32px), repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 32px);"></div>
+      <div class="lg:hidden absolute -top-24 -right-24 w-80 h-80 rounded-full bg-light-teal/20 blur-3xl pointer-events-none"></div>
+      <div class="lg:hidden absolute bottom-0 -left-24 w-96 h-96 rounded-full bg-light-teal/10 blur-3xl pointer-events-none"></div>
+      <div class="relative w-full max-w-md flex flex-col">
+        <router-link to="/" class="lg:hidden flex items-center justify-center gap-2.5 mb-6 w-full">
+          <img src="/logo.svg" alt="SD Negeri 4 Keling" width="36" height="36" class="w-9 h-9 shrink-0 drop-shadow" />
+          <span class="font-headline-md text-white">SD Negeri 4 Keling</span>
+        </router-link>
         <slot />
       </div>
     </div>

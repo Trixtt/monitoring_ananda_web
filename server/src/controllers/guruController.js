@@ -1,4 +1,5 @@
 import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User, sequelize } from '../models/index.js'
+import { Op } from 'sequelize'
 import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
@@ -277,6 +278,39 @@ export async function guruMonitoring(req, res) {
   }
 
   return res.json({ list: rows, tahunAjaran: ta?.nama || null, kelasId })
+}
+
+export async function guruKehadiranKalender(req, res) {
+  const kelasId = kelasAktif(req)
+  if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
+  const ta = await tahunAktif()
+
+  let y = new Date().getFullYear()
+  let m = new Date().getMonth()
+  const md = String(req.query.bulan || '').match(/^(\d{4})-(\d{2})$/)
+  if (md) {
+    y = Number(md[1])
+    m = Number(md[2]) - 1
+  }
+  const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
+
+  const siswaList = await Siswa.findAll({ where: { kelasId } })
+  const rows = await Kehadiran.findAll({
+    where: { tahunAjaranId: ta?.id, tanggal: { [Op.like]: `${prefix}%` } },
+    include: [{ association: 'siswa', where: { kelasId } }]
+  })
+
+  const map = {}
+  rows.forEach((k) => {
+    if (!map[k.tanggal]) map[k.tanggal] = { tanggal: k.tanggal, hadir: 0, izin: 0, sakit: 0, alpa: 0 }
+    map[k.tanggal][k.status]++
+  })
+
+  return res.json({
+    bulan: prefix,
+    totalSiswa: siswaList.length,
+    kehadiran: Object.values(map)
+  })
 }
 
 export { kelasDariUser }

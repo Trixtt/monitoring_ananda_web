@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { ortuDashboard, ortuRekapNilai, ortuKehadiran, ortuSikap, ortuProfil, ortuRapor } from '../controllers/ortuController.js'
+import { ortuDashboard, ortuRekapNilai, ortuKehadiran, ortuSikap, ortuProfil, ortuRapor, ortuMonitoring } from '../controllers/ortuController.js'
 import { auth, rbac } from '../middlewares/auth.js'
 
 const router = Router()
@@ -12,5 +12,6 @@ router.get('/kehadiran', ortuKehadiran)
 router.get('/sikap', ortuSikap)
 router.get('/rapor', ortuRapor)
 router.get('/profil', ortuProfil)
+router.get('/monitoring', ortuMonitoring)
 
 export default router

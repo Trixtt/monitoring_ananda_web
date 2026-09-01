@@ -1,8 +1,15 @@
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="page-title">Rekap Perkembangan</h1>
-      <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="page-title">Rekap Perkembangan</h1>
+        <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
+      </div>
+      <button class="btn-secondary" :disabled="downloading" @click="unduhPdf">
+        <span v-if="downloading" class="w-4 h-4 border-2 border-dark-teal border-t-transparent rounded-full animate-spin"></span>
+        <span class="material-symbols-outlined text-[18px]" v-else>picture_as_pdf</span>
+        Unduh Rapor (PDF)
+      </button>
     </div>
 
     <div v-if="loading"><LoadingState /></div>
@@ -50,17 +57,20 @@
         </div>
       </div>
 
-      <!-- Rekomendasi -->
-      <div v-if="data.rekomendasi" class="card p-6 border-l-4 border-dark-teal">
-        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-2">Rekomendasi untuk Ananda</h2>
+      <!-- Section Rekomendasi (di bawah semua rekap) -->
+      <section v-if="data.rekomendasi" class="card p-6">
+        <div class="mb-4">
+          <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Rekomendasi</h2>
+          <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mt-1">Saran tindak lanjut yang dapat dilakukan untuk mendukung perkembangan Ananda.</p>
+        </div>
         <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mb-3">{{ data.rekomendasi.pesan }}</p>
         <ul class="space-y-2">
           <li v-for="r in data.rekomendasi.daftar" :key="r" class="flex items-start gap-2 font-body-md text-on-surface text-sm">
-            <span class="material-symbols-outlined text-[18px] text-dark-teal mt-0.5">favorite</span>
+            <span class="material-symbols-outlined text-[18px] text-dark-teal mt-0.5">check_circle</span>
             {{ r }}
           </li>
         </ul>
-      </div>
+      </section>
     </template>
 
     <EmptyState v-else title="Data belum tersedia" message="Data siswa belum tertaut ke akun Anda. Hubungi admin sekolah." icon="assessment" />
@@ -71,16 +81,20 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../../services/api'
 import { formatSkor, persen } from '../../utils/format'
+import { unduhRaporPdf } from '../../utils/raporPdf'
 import { useOrtuProfil } from '../../composables/useOrtuProfil'
+import { useToastStore } from '../../stores/toast'
 import StatusBadge from '../../components/StatusBadge.vue'
 import LoadingState from '../../components/LoadingState.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
 const { siswa, tahunAjaran } = useOrtuProfil()
+const toast = useToastStore()
 
 const data = ref(null)
 const rekap = ref([])
 const loading = ref(true)
+const downloading = ref(false)
 
 const skorBars = computed(() => {
   if (!data.value || data.value.skor.abk) return []
@@ -91,6 +105,19 @@ const skorBars = computed(() => {
     { key: 'sikap', label: 'Sikap', value: s.skorSikap, color: 'bg-purple-600' }
   ]
 })
+
+async function unduhPdf() {
+  downloading.value = true
+  try {
+    const { data: res } = await api.get('/ortu/rapor')
+    await unduhRaporPdf(res.rapor)
+    toast.success('PDF berhasil diunduh.')
+  } catch (e) {
+    toast.error(e?.response?.data?.message || 'Gagal mengunduh PDF rapor.')
+  } finally {
+    downloading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
