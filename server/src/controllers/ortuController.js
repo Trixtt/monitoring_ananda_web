@@ -1,3 +1,4 @@
+import { Op } from 'sequelize'
 import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran, Mapel } from '../models/index.js'
 import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
@@ -121,4 +122,60 @@ export async function ortuRapor(req, res) {
   if (!rapor) return res.status(404).json({ message: 'Data siswa tidak ditemukan.' })
 
   return res.json({ rapor })
+}
+
+export async function ortuMonitoring(req, res) {
+  const siswaId = req.user.siswaId
+  if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
+
+  const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+
+  let y = new Date().getFullYear()
+  let m = new Date().getMonth()
+  const md = String(req.query.bulan || '').match(/^(\d{4})-(\d{2})$/)
+  if (md) {
+    y = Number(md[1])
+    m = Number(md[2]) - 1
+  }
+  const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
+  const base = { tahunAjaranId: ta?.id, tanggal: { [Op.like]: `${prefix}%` } }
+
+  const [kehadiran, sikap] = await Promise.all([
+    Kehadiran.findAll({
+      where: { siswaId, ...base },
+      order: [['tanggal', 'ASC']]
+    }),
+    Sikap.findAll({
+      where: { siswaId, ...base },
+      order: [['tanggal', 'ASC'], ['createdAt', 'ASC']]
+    })
+  ])
+
+  const kehadiranMap = {}
+  kehadiran.forEach((k) => {
+    kehadiranMap[k.tanggal] = { tanggal: k.tanggal, status: k.status, keterangan: k.keterangan }
+  })
+
+  const sikapMap = {}
+  sikap.forEach((s) => {
+    const key = s.tanggal
+    if (!sikapMap[key]) {
+      sikapMap[key] = { tanggal: key, total: 0, jumlah: 0, catatan: null }
+    }
+    sikapMap[key].total += Number(s.nilai)
+    sikapMap[key].jumlah++
+    if (s.catatan && !sikapMap[key].catatan) sikapMap[key].catatan = s.catatan
+  })
+
+  const sikapList = Object.values(sikapMap).map((s) => ({
+    tanggal: s.tanggal,
+    nilaiRata: s.jumlah ? Math.round((s.total / s.jumlah) * 10) / 10 : null,
+    catatan: s.catatan || null
+  }))
+
+  return res.json({
+    bulan: prefix,
+    kehadiran: Object.values(kehadiranMap),
+    sikap: sikapList
+  })
 }

@@ -23,7 +23,8 @@ const routes = [
       { path: 'guru/monitoring', name: 'guru-monitoring', component: () => import('../views/guru/GuruMonitoring.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Monitoring Perkembangan' } },
       { path: 'guru/nilai', name: 'guru-nilai', component: () => import('../views/guru/GuruNilai.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Input Nilai' } },
       { path: 'guru/nilai/riwayat', name: 'guru-nilai-riwayat', component: () => import('../views/guru/GuruNilaiRiwayat.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Riwayat Nilai' } },
-      { path: 'guru/kehadiran', name: 'guru-kehadiran', component: () => import('../views/guru/GuruKehadiran.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Kehadiran' } },
+      { path: 'guru/kehadiran', name: 'guru-kehadiran', component: () => import('../views/guru/GuruKehadiran.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Input Kehadiran' } },
+      { path: 'guru/kehadiran/kalender', name: 'guru-kehadiran-kalender', component: () => import('../views/guru/GuruKehadiranKalender.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Kalender Kehadiran' } },
       { path: 'guru/sikap', name: 'guru-sikap', component: () => import('../views/guru/GuruSikap.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Penilaian Sikap' } },
 
       { path: 'kepsek', name: 'kepsek-dashboard', component: () => import('../views/kepsek/KepsekDashboard.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Dashboard Kepala Sekolah' } },
@@ -36,10 +37,9 @@ const routes = [
 
       { path: 'orangtua', name: 'ortu-dashboard', component: () => import('../views/orangtua/OrtuDashboard.vue'), meta: { roles: ['orang_tua'], title: 'Perkembangan Anak' } },
       { path: 'orangtua/nilai', name: 'ortu-nilai', component: () => import('../views/orangtua/OrtuNilai.vue'), meta: { roles: ['orang_tua'], title: 'Nilai Akademik' } },
-      { path: 'orangtua/kehadiran', name: 'ortu-kehadiran', component: () => import('../views/orangtua/OrtuKehadiran.vue'), meta: { roles: ['orang_tua'], title: 'Kehadiran' } },
-      { path: 'orangtua/sikap', name: 'ortu-sikap', component: () => import('../views/orangtua/OrtuSikap.vue'), meta: { roles: ['orang_tua'], title: 'Sikap' } },
+      { path: 'orangtua/nilai/:mapel', name: 'ortu-nilai-detail', component: () => import('../views/orangtua/OrtuNilaiDetail.vue'), meta: { roles: ['orang_tua'], title: 'Nilai Mata Pelajaran' } },
+      { path: 'orangtua/monitoring', name: 'ortu-monitoring', component: () => import('../views/orangtua/OrtuMonitoring.vue'), meta: { roles: ['orang_tua'], title: 'Monitor Anak' } },
       { path: 'orangtua/rekap', name: 'ortu-rekap', component: () => import('../views/orangtua/OrtuRekap.vue'), meta: { roles: ['orang_tua'], title: 'Rekap Perkembangan' } },
-      { path: 'orangtua/rapor', name: 'ortu-rapor', component: () => import('../views/orangtua/OrtuRapor.vue'), meta: { roles: ['orang_tua'], title: 'Rapor Perkembangan' } },
 
       { path: 'admin', name: 'admin-dashboard', component: () => import('../views/admin/AdminDashboard.vue'), meta: { roles: ['admin'], title: 'Dashboard Admin' } },
       { path: 'admin/siswa', name: 'admin-siswa', component: () => import('../views/admin/AdminSiswa.vue'), meta: { roles: ['admin'], title: 'Data Siswa' } },

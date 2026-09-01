@@ -226,13 +226,6 @@ watch(
   }
 )
 
-const pageTitle = computed(() => route.meta.title || 'Dashboard')
-
-const pageSubtitle = computed(() => {
-  if (route.name === 'admin-masuk-guru') return 'Melihat kelas sebagai wali kelas'
-  return 'Monitoring Perkembangan Siswa SD Negeri 4 Keling'
-})
-
 const menuGroups = computed(() => {
   const profil = [{ to: '/profile', label: 'Profil & Kata Sandi', icon: 'person' }]
   const map = {
@@ -279,7 +272,8 @@ const menuGroups = computed(() => {
         items: [
           { to: '/guru/nilai', label: 'Input Nilai', icon: 'edit_note', exact: true },
           { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
-          { to: '/guru/kehadiran', label: 'Kehadiran', icon: 'how_to_reg' },
+          { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg' },
+          { to: '/guru/kehadiran/kalender', label: 'Kalender Kehadiran', icon: 'calendar_month' },
           { to: '/guru/sikap', label: 'Penilaian Sikap', icon: 'favorite' }
         ]
       },
@@ -302,10 +296,8 @@ const menuGroups = computed(() => {
         label: 'Pemantauan',
         items: [
           { to: '/orangtua/nilai', label: 'Nilai Akademik', icon: 'menu_book' },
-          { to: '/orangtua/kehadiran', label: 'Kehadiran', icon: 'how_to_reg' },
-          { to: '/orangtua/sikap', label: 'Sikap', icon: 'favorite' },
-          { to: '/orangtua/rekap', label: 'Rekap', icon: 'assessment' },
-          { to: '/orangtua/rapor', label: 'Rapor', icon: 'description' }
+          { to: '/orangtua/monitoring', label: 'Monitor Anak', icon: 'how_to_reg' },
+          { to: '/orangtua/rekap', label: 'Rekap & Rapor', icon: 'assessment' }
         ]
       },
       { label: 'Akun', items: profil }

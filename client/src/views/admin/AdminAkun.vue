@@ -18,7 +18,7 @@
     </div>
 
     <div class="flex flex-col md:flex-row gap-3">
-      <input v-model="q" class="input md:w-64" placeholder="Cari nama / username..." @keyup.enter="applyFilter" />
+      <input v-model="q" class="input md:w-64" placeholder="Cari nama / username / nama anak..." @keyup.enter="applyFilter" />
       <select v-model="fRole" class="input md:w-52" @change="applyFilter">
         <option value="">Semua Role</option>
         <option value="admin">Admin</option>
@@ -133,7 +133,7 @@
           </select>
           <div v-if="form.siswaId" class="mt-3 rounded-lg bg-ice-white dark:bg-white/5 border border-light-teal/50 dark:border-white/10 p-3 space-y-1 font-label-sm text-on-surface-variant dark:text-ice-white/70">
             <p><span class="text-dark-teal dark:text-light-teal font-label-md">Username:</span> {{ form.username }}</p>
-            <p><span class="text-dark-teal dark:text-light-teal font-label-md">Password awal:</span> {{ form.password || 'tanggal lahir (YYYYMMDD)' }} (wajib diganti saat login)</p>
+            <p><span class="text-dark-teal dark:text-light-teal font-label-md">Password awal:</span> {{ form.password || 'tanggal lahir (DDMMYYYY)' }} (wajib diganti saat login)</p>
           </div>
         </div>
 
@@ -151,12 +151,31 @@
     <ConfirmDialog
       v-if="resetTarget"
       title="Reset Password"
-      :message="`Reset password ${resetTarget.username} ke password awal?`"
+      :message="`Reset password ${resetTarget.username} ke password awal? Katakan kepada orang tua untuk menghubungi Anda bila perlu bantuan.`"
       confirm-label="Reset"
       :loading="saving"
       @confirm="doResetPwd"
       @cancel="resetTarget = null"
     />
+
+    <ModalDialog v-if="resetResult" title="Password Direset" @close="resetResult = null">
+      <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mb-4">
+        Password awal akun <span class="font-label-md text-deep-navy dark:text-ice-white">{{ resetResult.username }}</span> telah direset. Sampaikan password ini kepada orang tua secara langsung / via WhatsApp.
+      </p>
+      <div class="flex items-center justify-between gap-3 rounded-lg bg-ice-white dark:bg-white/5 border border-light-teal/50 dark:border-white/10 p-4">
+        <div>
+          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mb-1">Password Baru</p>
+          <p class="font-headline-md text-deep-navy dark:text-ice-white tracking-widest">{{ resetResult.passwordBaru }}</p>
+        </div>
+        <button class="btn-secondary" @click="salinPassword">
+          <span class="material-symbols-outlined text-[18px]">content_copy</span>
+          Salin
+        </button>
+      </div>
+      <div class="flex justify-end gap-3 pt-5">
+        <button class="btn-primary" @click="resetResult = null">Selesai</button>
+      </div>
+    </ModalDialog>
   </div>
 </template>
 
@@ -187,6 +206,7 @@ const total = ref(0)
 const kosong = { open: false, id: null, name: '', username: '', password: '', role: 'orang_tua', phone: '', email: '', kelasId: null, siswaId: null }
 const form = ref({ ...kosong })
 const resetTarget = ref(null)
+const resetResult = ref(null)
 
 function openForm(u) {
   form.value = u
@@ -199,7 +219,8 @@ function autofill() {
   if (!siswa) return
   form.value.username = `${siswa.tahunAngkatan}${String(siswa.nomorAbsen).padStart(3, '0')}`
   if (siswa.tanggalLahir) {
-    form.value.password = siswa.tanggalLahir.replaceAll('-', '')
+    const digits = siswa.tanggalLahir.replaceAll('-', '')
+    form.value.password = digits.slice(6, 8) + digits.slice(4, 6) + digits.slice(0, 4)
   }
 }
 
@@ -297,12 +318,22 @@ async function doResetPwd() {
   saving.value = true
   try {
     const { data } = await api.post(`/admin/akun/${u.id}/reset-password`)
-    toast.success(`Password ${u.username} direset ke: ${data.passwordBaru}`)
     resetTarget.value = null
+    resetResult.value = { username: u.username, passwordBaru: data.passwordBaru }
+    toast.success(`Password ${u.username} direset ke password awal.`)
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal reset password.')
   } finally {
     saving.value = false
+  }
+}
+
+async function salinPassword() {
+  try {
+    await navigator.clipboard.writeText(resetResult.value?.passwordBaru || '')
+    toast.success('Password baru disalin.')
+  } catch {
+    toast.error('Gagal menyalin password.')
   }
 }
 

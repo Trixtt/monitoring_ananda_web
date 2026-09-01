@@ -1,8 +1,8 @@
 <template>
   <AuthShell>
-    <div class="mb-8 lg:hidden">
-      <p class="font-headline-lg text-deep-navy dark:text-ice-white mb-1">Lupa Password</p>
-      <p class="page-subtitle">Hubungi admin sekolah untuk reset password</p>
+    <div class="mb-8 lg:hidden text-center">
+      <p class="font-headline-lg text-white mb-1">Lupa Password</p>
+      <p class="font-label-md text-ice-white/80">Hubungi admin sekolah untuk reset password</p>
     </div>
 
     <div class="card p-6 md:p-8">
@@ -20,7 +20,7 @@
           <li class="flex gap-2"><span class="text-dark-teal dark:text-light-teal font-bold">3.</span> Login kembali dan buat password baru.</li>
         </ol>
         <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 pt-2 border-t border-surface-variant dark:border-white/10">
-          Password awal orang tua adalah tanggal lahir anak tanpa tanda hubung (contoh: lahir 12 Januari 2010 = <code class="text-dark-teal dark:text-light-teal">20100112</code>). Wajib diganti saat pertama kali masuk.
+          Password awal orang tua adalah tanggal lahir anak tanpa tanda hubung dalam format DDMMYYYY (contoh: lahir 12 Januari 2010 = <code class="text-dark-teal dark:text-light-teal">12012010</code>). Wajib diganti saat pertama kali masuk.
         </p>
       </div>
 

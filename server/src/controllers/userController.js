@@ -35,7 +35,7 @@ export async function listAkun(req, res) {
   if (role) where.role = role
   if (q) {
     const s = `%${q}%`
-    where[Op.or] = [{ name: { [Op.like]: s } }, { username: { [Op.like]: s } }]
+    where[Op.or] = [{ name: { [Op.like]: s } }, { username: { [Op.like]: s } }, { '$siswa.nama$': { [Op.like]: s } }]
   }
 
   const offset = (Number(page) - 1) * Number(limit)

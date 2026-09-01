@@ -11,7 +11,8 @@ import {
   guruSikapBySiswa,
   daftarNilaiUntukWali,
   mapelList,
-  guruMonitoring
+  guruMonitoring,
+  guruKehadiranKalender
 } from '../controllers/guruController.js'
 import {
   listKelas,
@@ -37,6 +38,7 @@ router.get('/nilai/mapel', guruNilaiPerMapel)
 router.get('/nilai', daftarNilaiUntukWali)
 
 router.post('/kehadiran', validate(kehadiranBulkSchema), guruKehadiranBulk)
+router.get('/kehadiran/kalender', guruKehadiranKalender)
 router.get('/kehadiran', guruKehadiranByDate)
 
 router.post('/sikap', validate(sikapBulkSchema), guruSikapBulk)

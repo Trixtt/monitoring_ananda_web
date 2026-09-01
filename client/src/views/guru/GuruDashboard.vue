@@ -21,18 +21,6 @@
         <StatCard label="ABK" :value="data.ringkas.abk" icon="accessibility_new" tone="purple" />
       </div>
 
-      <!-- Chart ringkas -->
-      <div class="card p-6 animate-fade-up" style="animation-delay: 100ms">
-        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Kondisi Siswa</h2>
-        <div class="flex items-end gap-2 h-40">
-          <div v-for="(bar, kode) in chartBars" :key="kode" class="flex-1 flex flex-col items-center gap-2">
-            <span class="font-headline-md text-deep-navy dark:text-ice-white">{{ bar.count }}</span>
-            <div class="w-full rounded-t-xl transition-all" :class="bar.color" :style="{ height: bar.height }"></div>
-            <span class="font-label-sm text-on-surface-variant dark:text-ice-white/60 text-center">{{ bar.label }}</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Daftar siswa -->
       <div class="card overflow-hidden">
         <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10 flex items-center justify-between">
@@ -79,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { useGuruKelas } from '../../composables/useGuruKelas'
@@ -95,22 +83,6 @@ const { kelasId, setKelas } = useGuruKelas()
 const data = ref(null)
 const loading = ref(true)
 const kelasOptions = ref([])
-
-const chartBars = computed(() => {
-  if (!data.value) return []
-  const total = data.value.ringkas.total || 1
-  const defs = [
-    { kode: 'aman', label: 'Baik/Aman', color: 'bg-status-aman' },
-    { kode: 'perhatian', label: 'Perhatian', color: 'bg-status-perhatian' },
-    { kode: 'berisiko', label: 'Berisiko', color: 'bg-status-berisiko' },
-    { kode: 'abk', label: 'ABK', color: 'bg-status-abk' }
-  ]
-  return defs.map((d) => ({
-    ...d,
-    count: data.value.ringkas[d.kode],
-    height: `${Math.max((data.value.ringkas[d.kode] / total) * 100, 4)}%`
-  }))
-})
 
 async function load() {
   loading.value = true

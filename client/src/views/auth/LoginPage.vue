@@ -1,8 +1,8 @@
 <template>
   <AuthShell>
-    <div class="mb-8 lg:hidden">
-      <p class="font-headline-lg text-deep-navy dark:text-ice-white mb-1">Masuk ke Aplikasi</p>
-      <p class="page-subtitle">Sistem Monitoring Perkembangan Siswa</p>
+    <div class="mb-8 lg:hidden text-center">
+      <p class="font-headline-lg text-white mb-1">Masuk ke Aplikasi</p>
+      <p class="font-label-md text-ice-white/80">Sistem Monitoring Perkembangan Siswa</p>
     </div>
 
     <div class="card p-6 md:p-8">
@@ -44,7 +44,7 @@
       <p>Admin: <code class="text-dark-teal dark:text-light-teal">admin / admin123</code></p>
       <p>Kepala Sekolah: <code class="text-dark-teal dark:text-light-teal">kepsek / password123</code></p>
       <p>Wali Kelas: <code class="text-dark-teal dark:text-light-teal">wali1 / password123</code> (Kelas 1)</p>
-      <p>Orang Tua: <code class="text-dark-teal dark:text-light-teal">2025001 / 20100112</code> (password awal wajib diganti)</p>
+      <p>Orang Tua: <code class="text-dark-teal dark:text-light-teal">2025001 / 12012010</code> (password awal wajib diganti)</p>
     </div>
   </AuthShell>
 </template>
