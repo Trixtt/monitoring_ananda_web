@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading && !rows.length"><LoadingState /></div>
 
     <div v-else-if="rows.length" class="card overflow-hidden">
       <div class="table-shell">

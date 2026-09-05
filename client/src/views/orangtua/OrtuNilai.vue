@@ -6,7 +6,7 @@
       <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Pilih mata pelajaran untuk melihat rincian nilainya.</p>
     </div>
 
-    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
+    <div v-if="loading && !rekap.length"><LoadingState skeleton variant="table" /></div>
 
     <template v-else>
       <div v-if="rekap.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

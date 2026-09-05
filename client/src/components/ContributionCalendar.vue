@@ -1,12 +1,17 @@
 <template>
-  <div class="card p-6">
-    <div class="flex items-center justify-between gap-3 mb-4">
+  <div class="card p-6 w-full">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h2 class="font-title-lg text-deep-navy dark:text-ice-white">{{ title }}</h2>
       <div class="flex items-center gap-1">
         <button class="icon-btn" @click="shift(-1)" aria-label="Bulan sebelumnya">
           <span class="material-symbols-outlined">chevron_left</span>
         </button>
-        <span class="font-label-md text-deep-navy dark:text-ice-white px-3 min-w-[120px] text-center">{{ bulanNama[bulan] }} {{ tahun }}</span>
+        <select class="input !h-10 !w-auto !py-0 !px-2 text-label-md" :value="bulan" aria-label="Pilih bulan" @change="go(tahun, Number($event.target.value))">
+          <option v-for="(nama, i) in bulanNama" :key="nama" :value="i">{{ nama }}</option>
+        </select>
+        <select class="input !h-10 !w-auto !py-0 !px-2 text-label-md" :value="tahun" aria-label="Pilih tahun" @change="go(Number($event.target.value), bulan)">
+          <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+        </select>
         <button class="icon-btn" @click="shift(1)" aria-label="Bulan berikutnya">
           <span class="material-symbols-outlined">chevron_right</span>
         </button>
@@ -21,7 +26,7 @@
       <div
         v-for="slot in grid"
         :key="slot.key"
-        class="aspect-square min-h-[34px] rounded-md flex items-center justify-center cursor-default transition-colors"
+        class="min-h-[38px] h-11 rounded-md flex items-center justify-center cursor-default transition-colors"
         :class="slot.cell ? slot.cell.cls + ' cursor-pointer hover:brightness-110' : 'bg-surface-variant/60 dark:bg-white/5'"
         :title="slot.cell?.tip || ''"
         @click="slot.cell && $emit('click-day', slot.date, slot.cell.info)"
@@ -83,8 +88,21 @@ const grid = computed(() => {
   }
   const trailing = (7 - (slots.length % 7)) % 7
   for (let i = 0; i < trailing; i++) slots.push({ key: `post-${i}`, date: null })
+  let i = trailing
+  while (slots.length < 42) slots.push({ key: `post-${i++}`, date: null })
   return slots
 })
+
+const years = computed(() => {
+  const list = []
+  for (let y = props.tahun - 5; y <= props.tahun + 2; y++) list.push(y)
+  return list
+})
+
+function go(year, month) {
+  if (year === props.tahun && month === props.bulan) return
+  emit('change-bulan', year, month)
+}
 
 function shift(delta) {
   let m = props.bulan + delta

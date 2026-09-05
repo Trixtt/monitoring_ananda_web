@@ -11,7 +11,7 @@
       </button>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading && !list.length"><LoadingState /></div>
 
     <div v-else-if="list.length" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div v-for="k in list" :key="k.id" class="card p-5 flex flex-col">

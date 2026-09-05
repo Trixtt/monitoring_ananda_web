@@ -6,6 +6,13 @@ import { useThemeStore } from './stores/theme'
 import { useUiStore } from './stores/ui'
 import './assets/main.css'
 
+if (document.fonts?.load) {
+  document.fonts
+    .load('1rem "Material Symbols Outlined"')
+    .then(() => document.documentElement.classList.add('icons-ready'))
+    .catch(() => {})
+}
+
 router.afterEach((to) => {
   const suffix = 'SD Negeri 4 Keling'
   const title = to.meta.title ? `${to.meta.title} - ${suffix}` : `Sistem Monitoring Perkembangan Siswa - ${suffix}`

@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div v-if="loading"><LoadingState skeleton variant="table" /></div>
+    <div v-if="loading && !data"><LoadingState skeleton variant="table" /></div>
 
     <div v-else-if="data">
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
