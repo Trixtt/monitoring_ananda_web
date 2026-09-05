@@ -6,7 +6,19 @@
       <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Pantau kehadiran dan sikap Ananda setiap hari selama satu bulan.</p>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading && !data"><LoadingState /></div>
+
+    <EmptyState
+      v-else-if="error && !data"
+      title="Gagal memuat data"
+      message="Data monitoring tidak bisa dimuat. Periksa koneksi Anda, lalu coba lagi."
+      icon="cloud_off"
+    >
+      <button class="btn-primary" @click="load">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        Muat Ulang
+      </button>
+    </EmptyState>
 
     <template v-else>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -85,6 +97,7 @@ import { formatTanggal, labelSikap } from '../../utils/format'
 import { useOrtuProfil } from '../../composables/useOrtuProfil'
 import ContributionCalendar from '../../components/ContributionCalendar.vue'
 import LoadingState from '../../components/LoadingState.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
 const { siswa, tahunAjaran } = useOrtuProfil()
 
@@ -92,6 +105,7 @@ const tahun = ref(new Date().getFullYear())
 const bulan = ref(new Date().getMonth())
 const data = ref(null)
 const loading = ref(true)
+const error = ref(false)
 const detailKehadiran = ref(null)
 const detailSikap = ref(null)
 
@@ -174,9 +188,12 @@ function gantiBulan(y, m) {
 
 async function load() {
   loading.value = true
+  error.value = false
   try {
     const { data: d } = await api.get('/ortu/monitoring', { params: { bulan: bulanParam() } })
     data.value = d
+  } catch {
+    error.value = true
   } finally {
     loading.value = false
   }

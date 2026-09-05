@@ -11,7 +11,7 @@
       </button>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading && !data"><LoadingState /></div>
 
     <RaporCard v-else-if="data" :rapor="data" />
 

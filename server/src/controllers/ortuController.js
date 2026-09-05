@@ -138,7 +138,9 @@ export async function ortuMonitoring(req, res) {
     m = Number(md[2]) - 1
   }
   const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
-  const base = { tahunAjaranId: ta?.id, tanggal: { [Op.like]: `${prefix}%` } }
+  const firstDate = `${prefix}-01`
+  const lastDate = `${prefix}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
+  const base = { tahunAjaranId: ta?.id, tanggal: { [Op.between]: [firstDate, lastDate] } }
 
   const [kehadiran, sikap] = await Promise.all([
     Kehadiran.findAll({

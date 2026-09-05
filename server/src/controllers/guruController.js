@@ -293,17 +293,28 @@ export async function guruKehadiranKalender(req, res) {
     m = Number(md[2]) - 1
   }
   const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
+  const firstDate = `${prefix}-01`
+  const lastDate = `${prefix}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
 
   const siswaList = await Siswa.findAll({ where: { kelasId } })
   const rows = await Kehadiran.findAll({
-    where: { tahunAjaranId: ta?.id, tanggal: { [Op.like]: `${prefix}%` } },
+    where: { tahunAjaranId: ta?.id, tanggal: { [Op.between]: [firstDate, lastDate] } },
     include: [{ association: 'siswa', where: { kelasId } }]
   })
 
   const map = {}
   rows.forEach((k) => {
-    if (!map[k.tanggal]) map[k.tanggal] = { tanggal: k.tanggal, hadir: 0, izin: 0, sakit: 0, alpa: 0 }
+    if (!map[k.tanggal]) map[k.tanggal] = { tanggal: k.tanggal, hadir: 0, izin: 0, sakit: 0, alpa: 0, daftar: [] }
     map[k.tanggal][k.status]++
+    if (k.status !== 'hadir') {
+      map[k.tanggal].daftar.push({
+        id: k.siswa.id,
+        nomorAbsen: k.siswa.nomorAbsen,
+        nama: k.siswa.nama,
+        status: k.status,
+        keterangan: k.keterangan || null
+      })
+    }
   })
 
   return res.json({

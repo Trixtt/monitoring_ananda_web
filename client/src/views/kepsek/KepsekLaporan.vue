@@ -54,7 +54,7 @@
         <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Riwayat Laporan</h2>
         <span class="badge bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal">{{ riwayat.length }} laporan</span>
       </div>
-      <div v-if="riwayatLoading"><LoadingState skeleton variant="table" /></div>
+      <div v-if="riwayatLoading && !riwayat.length"><LoadingState skeleton variant="table" /></div>
       <div v-else class="table-shell">
         <table class="table-base">
           <thead>

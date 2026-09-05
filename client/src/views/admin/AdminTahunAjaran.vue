@@ -11,7 +11,7 @@
       </button>
     </div>
 
-    <div v-if="loading"><LoadingState /></div>
+    <div v-if="loading && !list.length"><LoadingState /></div>
 
     <div v-else-if="list.length" class="card overflow-hidden">
       <div class="table-shell">

@@ -272,7 +272,7 @@ const menuGroups = computed(() => {
         items: [
           { to: '/guru/nilai', label: 'Input Nilai', icon: 'edit_note', exact: true },
           { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
-          { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg' },
+          { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg', exact: true },
           { to: '/guru/kehadiran/kalender', label: 'Kalender Kehadiran', icon: 'calendar_month' },
           { to: '/guru/sikap', label: 'Penilaian Sikap', icon: 'favorite' }
         ]
