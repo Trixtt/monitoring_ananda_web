@@ -174,6 +174,8 @@ import { useAuthStore } from '../stores/auth'
 import { useNotifStore } from '../stores/notifikasi'
 import { useThemeStore } from '../stores/theme'
 import { useUiStore } from '../stores/ui'
+import { useGuruKelas } from '../composables/useGuruKelas'
+import api from '../services/api'
 import NotificationBell from '../components/NotificationBell.vue'
 import UserMenu from '../components/UserMenu.vue'
 
@@ -183,9 +185,29 @@ const auth = useAuthStore()
 const notif = useNotifStore()
 const theme = useThemeStore()
 const ui = useUiStore()
+const { kelasId } = useGuruKelas()
 const drawer = ref(false)
 const showScrollTop = ref(false)
 const tip = ref({ show: false, text: '', x: 0, y: 0 })
+
+const adminKepsek = ref(localStorage.getItem('adminKepsekMasuk') === '1')
+const kelasOptions = ref([])
+const kelasTerpilih = computed(() => kelasOptions.value.find((k) => k.id === kelasId.value))
+const profil = [{ to: '/profile', label: 'Profil & Kata Sandi', icon: 'person' }]
+
+async function initAdminAkses() {
+  if (auth.role !== 'admin') return
+  try {
+    const { data: res } = await api.get('/guru/kelas')
+    kelasOptions.value = res.list || []
+  } catch {
+    // abaikan — label kelas opsional
+  }
+  if (route.path.startsWith('/kepsek')) {
+    adminKepsek.value = true
+    localStorage.setItem('adminKepsekMasuk', '1')
+  }
+}
 
 function showTip(event, item) {
   if (!ui.collapsed) return
@@ -213,6 +235,7 @@ function scrollTop() {
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
+  initAdminAkses()
 })
 
 onBeforeUnmount(() => {
@@ -226,38 +249,82 @@ watch(
   }
 )
 
+watch(
+  () => route.path,
+  (path) => {
+    if (auth.role === 'admin' && path.startsWith('/kepsek')) {
+      adminKepsek.value = true
+      localStorage.setItem('adminKepsekMasuk', '1')
+    }
+  }
+)
+
+function adminNav() {
+  const guru = kelasId.value
+    ? [
+        {
+          label: kelasTerpilih.value ? `Wali Kelas · ${kelasTerpilih.value.nama}` : 'Wali Kelas',
+          items: [
+            { to: '/guru', label: 'Dashboard', icon: 'dashboard', exact: true },
+            { to: '/guru/siswa', label: 'Data Siswa', icon: 'groups' },
+            { to: '/guru/monitoring', label: 'Monitoring Perkembangan', icon: 'monitoring' }
+          ]
+        },
+        {
+          label: 'Input Nilai',
+          items: [
+            { to: '/guru/nilai', label: 'Input Nilai', icon: 'edit_note', exact: true },
+            { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
+            { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg', exact: true },
+            { to: '/guru/kehadiran/kalender', label: 'Kalender Kehadiran', icon: 'calendar_month' },
+            { to: '/guru/sikap', label: 'Penilaian Sikap', icon: 'favorite' }
+          ]
+        }
+      ]
+    : []
+
+  const kepsek = adminKepsek.value
+    ? [
+        {
+          label: 'Rekap & Laporan',
+          items: [
+            { to: '/kepsek/rekap', label: 'Rekap per Kelas', icon: 'door_sliding' },
+            { to: '/kepsek/laporan', label: 'Laporan & Riwayat', icon: 'summarize' }
+          ]
+        }
+      ]
+    : []
+
+  return [
+    { label: 'Menu Utama', items: [{ to: '/admin', label: 'Dashboard', icon: 'dashboard', exact: true }] },
+    {
+      label: 'Data Master',
+      items: [
+        { to: '/admin/siswa', label: 'Data Siswa', icon: 'groups' },
+        { to: '/admin/kelas', label: 'Kelas', icon: 'door_sliding' },
+        { to: '/admin/mapel', label: 'Mata Pelajaran', icon: 'menu_book' },
+        { to: '/admin/tahun-ajaran', label: 'Tahun Ajaran', icon: 'calendar_month' }
+      ]
+    },
+    {
+      label: 'Manajemen',
+      items: [
+        { to: '/admin/akun', label: 'Manajemen Akun', icon: 'manage_accounts' },
+        { to: '/admin/spk', label: 'Konfigurasi SPK', icon: 'tune' },
+        { to: '/admin/artikel', label: 'Artikel & Berita', icon: 'article' }
+      ]
+    },
+    { label: 'Akun Guru', items: [{ to: '/admin/guru', label: 'Masuk sebagai Guru', icon: 'supervisor_account' }] },
+    ...guru,
+    { label: 'Akun Kepala Sekolah', items: [{ to: '/kepsek', label: 'Masuk sebagai Kepala Sekolah', icon: 'school' }] },
+    ...kepsek,
+    { label: 'Akun', items: profil }
+  ]
+}
+
 const menuGroups = computed(() => {
-  const profil = [{ to: '/profile', label: 'Profil & Kata Sandi', icon: 'person' }]
   const map = {
-    admin: [
-      { label: 'Menu Utama', items: [{ to: '/admin', label: 'Dashboard', icon: 'dashboard', exact: true }] },
-      {
-        label: 'Data Master',
-        items: [
-          { to: '/admin/siswa', label: 'Data Siswa', icon: 'groups' },
-          { to: '/admin/kelas', label: 'Kelas', icon: 'door_sliding' },
-          { to: '/admin/mapel', label: 'Mata Pelajaran', icon: 'menu_book' },
-          { to: '/admin/tahun-ajaran', label: 'Tahun Ajaran', icon: 'calendar_month' }
-        ]
-      },
-      {
-        label: 'Manajemen',
-        items: [
-          { to: '/admin/akun', label: 'Manajemen Akun', icon: 'manage_accounts' },
-          { to: '/admin/spk', label: 'Konfigurasi SPK', icon: 'tune' },
-          { to: '/admin/artikel', label: 'Artikel & Berita', icon: 'article' }
-        ]
-      },
-      {
-        label: 'Akses Operasional',
-        items: [
-          { to: '/admin/guru', label: 'Masuk sebagai Guru', icon: 'supervisor_account' },
-          { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
-          { to: '/kepsek', label: 'Dashboard Kepala Sekolah', icon: 'school' }
-        ]
-      },
-      { label: 'Akun', items: profil }
-    ],
+    admin: adminNav(),
     wali_kelas: [
       {
         label: 'Menu Utama',

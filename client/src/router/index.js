@@ -49,7 +49,7 @@ const routes = [
       { path: 'admin/akun', name: 'admin-akun', component: () => import('../views/admin/AdminAkun.vue'), meta: { roles: ['admin'], title: 'Manajemen Akun' } },
       { path: 'admin/spk', name: 'admin-spk', component: () => import('../views/admin/AdminSpk.vue'), meta: { roles: ['admin'], title: 'Konfigurasi SPK' } },
       { path: 'admin/artikel', name: 'admin-artikel', component: () => import('../views/admin/AdminArtikel.vue'), meta: { roles: ['admin'], title: 'Artikel & Berita' } },
-      { path: 'admin/guru/:kelasId?', name: 'admin-masuk-guru', component: () => import('../views/guru/GuruDashboard.vue'), meta: { roles: ['admin'], title: 'Masuk sebagai Wali Kelas' } }
+      { path: 'admin/guru', name: 'admin-pilih-kelas', component: () => import('../views/admin/AdminPilihKelas.vue'), meta: { roles: ['admin'], title: 'Masuk sebagai Wali Kelas' } }
     ]
   }
 ]

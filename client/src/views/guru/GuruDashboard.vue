@@ -3,12 +3,12 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <h1 class="page-title">Dashboard Kelas</h1>
-        <p class="page-subtitle">Rekap kondisi siswa {{ auth.role === 'admin' ? `kelas ${kelasId}` : 'kelas Anda' }} &middot; {{ data?.tahunAjaran || 'TA aktif' }}</p>
+        <p class="page-subtitle">Rekap kondisi siswa {{ namaKelas || (auth.role === 'admin' ? 'belum memilih kelas' : 'kelas Anda') }} &middot; {{ data?.tahunAjaran || 'TA aktif' }}</p>
       </div>
-      <select v-if="auth.role === 'admin'" :value="kelasId" class="input md:w-56" @change="setKelas($event.target.value)">
-        <option :value="0" disabled>Pilih kelas</option>
-        <option v-for="k in kelasOptions" :key="k.id" :value="k.id">{{ k.nama }}</option>
-      </select>
+      <button v-if="auth.role === 'admin'" class="btn-secondary" @click="$router.push('/admin/guru')">
+        <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+        Ganti Kelas
+      </button>
     </div>
 
     <div v-if="loading"><LoadingState skeleton variant="cards" /></div>
@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { useGuruKelas } from '../../composables/useGuruKelas'
@@ -83,6 +83,7 @@ const { kelasId, setKelas } = useGuruKelas()
 const data = ref(null)
 const loading = ref(true)
 const kelasOptions = ref([])
+const namaKelas = computed(() => kelasOptions.value.find((k) => k.id === kelasId.value)?.nama || '')
 
 async function load() {
   loading.value = true

@@ -23,7 +23,7 @@ export function useGuruKelas() {
   function setKelas(id) {
     if (auth.role === 'admin') {
       localStorage.setItem(STORAGE_KEY, String(id))
-      router.replace({ path: `/admin/guru/${id}` })
+      router.replace('/guru')
     }
   }
 
