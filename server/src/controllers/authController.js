@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { User, Siswa, Kelas, Notifikasi } from '../models/index.js'
+import { generateCsrfToken, setCsrfCookie } from '../middlewares/csrf.js'
 
 const ROUTES = {
   admin: '/admin',
@@ -63,6 +64,7 @@ export async function login(req, res) {
   }
 
   setAuthCookie(res, signToken(user))
+  const csrfToken = setCsrfCookie(res, generateCsrfToken())
 
   let detail = null
   if (user.role === 'orang_tua' && user.siswaId) {
@@ -72,6 +74,7 @@ export async function login(req, res) {
   return res.json({
     user: publicUser(user),
     redirect: ROUTES[user.role],
+    csrfToken,
     detail
   })
 }
@@ -85,7 +88,8 @@ export async function me(req, res) {
   const user = await User.findByPk(req.user.id, {
     include: [{ association: 'kelas' }, { association: 'siswa', include: [{ association: 'kelas' }] }]
   })
-  return res.json({ user: publicUser(user), kelas: user.kelas, siswa: user.siswa })
+  const csrfToken = req.cookies?.csrfToken || setCsrfCookie(res, generateCsrfToken())
+  return res.json({ user: publicUser(user), kelas: user.kelas, siswa: user.siswa, csrfToken })
 }
 
 export async function changePassword(req, res) {

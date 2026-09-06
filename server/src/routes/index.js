@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { apiRateLimit } from '../middlewares/rateLimit.js'
+import { csrfProtect } from '../middlewares/csrf.js'
 import authRoutes from './auth.routes.js'
 import artikelRoutes from './artikel.routes.js'
 import guruRoutes from './guru.routes.js'
@@ -9,6 +11,8 @@ import adminRoutes from './admin.routes.js'
 const router = Router()
 
 router.get('/health', (req, res) => res.json({ ok: true }))
+router.use(apiRateLimit)
+router.use(csrfProtect)
 router.use('/auth', authRoutes)
 router.use('/artikel', artikelRoutes)
 router.use('/guru', guruRoutes)

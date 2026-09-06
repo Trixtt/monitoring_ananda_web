@@ -20,6 +20,7 @@ watch(
     if (val) {
       notif.connect()
       notif.fetch()
+      auth.me().catch(() => {})
     } else {
       notif.disconnect()
     }
