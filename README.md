@@ -127,7 +127,7 @@ monitoring-sd-n-4-keling/
 | `kepala_sekolah` | `/kepsek` | Rekap seluruh kelas, laporan, ekspor PDF, rapor |
 | `orang_tua` | `/orangtua` | Skor & rekomendasi anak, notifikasi |
 
-**Login orang tua**: username = tahun angkatan + nomor absen (3 digit), contoh `2025001`. Password awal = tanggal lahir siswa format `DDMMYYYY`. Wajib ganti password saat login pertama kali (untuk orang tua, `mustChangePassword = true`).
+**Login orang tua**: username = tahun angkatan + nomor absen (3 digit), contoh `2025001`. Password awal dibuat acak oleh admin dan hanya ditampilkan sekali; pengguna wajib mengganti password saat login pertama kali (`mustChangePassword = true`).
 
 ---
 
@@ -184,18 +184,24 @@ Mengisi data contoh: admin, kepala sekolah, 6 wali kelas, siswa + akun orang tua
 npm run db:seed --prefix server
 ```
 
-**Akun demo:**
+**Akun demo** (hanya muncul di frontend bila `VITE_DEMO_MODE=true`):
 
 | Role | Username | Password |
 |---|---|---|
-| Admin | `admin` | `admin123` |
-| Kepala Sekolah | `kepsek` | `password123` |
-| Wali Kelas 1-6 | `wali1` … `wali6` | `password123` |
-| Orang Tua | lihat di bawah | tanggal lahir `DDMMYYYY` |
+| Admin | `admin` | `Admin#2026` |
+| Kepala Sekolah | `kepsek` | `Kepsek#2026` |
+| Wali Kelas 1-6 | `wali1` … `wali6` | `Wali#2026` |
+| Orang Tua | lihat di bawah | `Ortu#2026` |
 
-**Login orang tua demo**: username = `2025` + nomor absen (3 digit), contoh `2025001`, `2025002`, dst. Password awal = tanggal lahir siswa dalam format `DDMMYYYY` (contoh: lahir `2010-01-12` → `12012010`), wajib diganti pada login pertama.
+Password demo dapat diganti lewat variabel `DEMO_ADMIN_PASSWORD`, `DEMO_KEPSEK_PASSWORD`, `DEMO_WALI_PASSWORD`, dan `DEMO_ORANGTUA_PASSWORD` sebelum seed. Seed **menolak berjalan** saat `NODE_ENV=production` kecuali `SEED_ALLOW_PRODUCTION=true` diisi secara eksplisit.
 
-> Seed **idempoten** — jika data demo sudah ada, seed akan dilewati. Untuk mengisi ulang dari nol: `SEED_FORCE=true npm run db:seed --prefix server`.
+**Login orang tua demo**: username = `2025` + nomor absen (3 digit), contoh `2025001`, `2025002`, dst.
+
+> Seed **idempoten** — jika data demo sudah ada, seed akan dilewati. Untuk mereset data demo (tanpa menghapus skema/migrasi): `SEED_FORCE=true npm run db:seed --prefix server`.
+>
+> Bila database sudah berisi data demo lama dan hanya password akun yang perlu diselaraskan dengan tabel di atas, jalankan `npm run db:demo-passwords --prefix server`. Skrip ini menolak berjalan di produksi dan hanya menyentuh akun demo yang dikenal.
+
+> **Untuk demo lokal/offline**, buat `client/.env` berisi `VITE_DEMO_MODE=true` agar kredensial demo tampil di halaman login. Jangan aktifkan di produksi.
 
 ---
 
@@ -206,13 +212,18 @@ Konfigurasi produksi disediakan di `server/.env.production.example` (salin sebag
 1. **`NODE_ENV=production`** → memaksa validasi `JWT_SECRET` (minimal 32 karakter acak). Server menolak berjalan tanpa ini.
 2. **`DB_SYNC=none`** → menonaktifkan auto-sync supaya skema dikelola eksklusif lewat migrasi. Jangan pakai auto-sync di produksi.
 3. **Jalankan migrasi sekali** di server produksi: `npm run db:migrate --prefix server`.
-4. **`APP_DOMAIN`** → set ke domain frontend Anda (dipakai untuk CORS & link notifikasi).
-5. **Build frontend** dan sajikan sebagai file statik:
+4. **`APP_DOMAIN` / `CORS_ORIGIN`** → set ke domain frontend Anda (dipakai untuk CORS & link notifikasi). Bisa lebih dari satu origin, dipisah koma.
+5. **`DEMO_MODE=false`** dan **`VITE_DEMO_MODE` tidak diisi** → kredensial demo tidak pernah tampil di produksi.
+6. **Build frontend** dan sajikan sebagai file statik:
    ```bash
    npm run build --prefix client
    ```
-   Hasil build di `client/dist`. Anda bisa menyajikannya lewat server statik (nginx / Apache) atau `Vite preview`.
-6. **Cookie secure**: pada produksi, cookie token otomatis diberi atribut `Secure` (HTTPS).
+   Hasil build di `client/dist`. Anda bisa menyajikannya lewat server statik (nginx / Apache) atau `Vite preview`. Atur `VITE_SITE_URL` sebelum build agar canonical/OG/sitemap memakai domain yang benar.
+7. **Cookie secure**: pada produksi, cookie token otomatis diberi atribut `Secure` (HTTPS) dan memakai prefix `__Host-`.
+8. **Reverse proxy**: set `TRUST_PROXY=1` bila di belakang nginx/Caddy agar rate limit memakai IP klien yang benar.
+9. **Rotasi rahasia**: `JWT_SECRET` dan `FONNTE_TOKEN` yang pernah masuk riwayat git publik harus dianggap bocor. Ganti keduanya sebelum produksi.
+10. **Instalasi produksi**: gunakan `npm ci --omit=dev --prefix server` agar dependensi dev/build (termasuk `sqlite3`) tidak terpasang. Produksi memakai MySQL.
+11. **Hak akses database**: gunakan user MySQL khusus aplikasi dengan hak minimum; jalankan migrasi memakai user yang berhak DDL, lalu kembalikan ke hak operasional.
 
 Langkah umum deploy (misal VPS + nginx):
 
@@ -230,7 +241,10 @@ NODE_ENV=production npm start --prefix server
 Skrip disediakan di `server/scripts/` (membaca kredensial dari `.env`).
 
 ```bash
-# Backup (mysqldump) ke server/backups/ - otomatis hapus backup > 14 hari
+# Backup (mysqldump) ke folder BACKUP_DIR (default server/backups/)
+# - password dikirim lewat MYSQL_PWD, bukan argumen CLI
+# - checksum SHA-256 dibuat otomatis
+# - backup > 14 hari dihapus otomatis
 npm run db:backup --prefix server
 
 # Restore dari dump terbaru (AKAN MENIMPA database)
@@ -239,7 +253,31 @@ npm run db:restore --prefix server
 pwsh server/scripts/restore.ps1 -File server/backups/monitoring_siswa_20260201_100000.sql
 ```
 
-> Pastikan `mysqldump`/`mysql` berada di PATH, atau tentukan path lengkap XAMPP: `C:\xampp\mysql\bin\mysqldump.exe`.
+> Pastikan `mysqldump`/`mysql` berada di PATH. Jika memakai XAMPP, skrip otomatis mencoba `C:\xampp\mysql\bin\`.
+>
+> File backup berisi data pribadi siswa. Folder `backups/` sudah masuk `.gitignore`; simpan salinan di lokasi terenkripsi dan jangan pernah commit ke git. Detail prosedur ada di [`docs/backup-restore.md`](docs/backup-restore.md).
+
+---
+
+## Keamanan
+
+Ringkasan pengendalian keamanan yang sudah diterapkan:
+
+- **Autentikasi**: JWT HS256 di cookie `httpOnly` (prefix `__Host-` saat HTTPS), issuer/audience diverifikasi, dan token otomatis tidak berlaku setelah password diganti (sidik jari `pv`).
+- **Otorisasi**: RBAC per role + validasi akses kelas/siswa di server (bukan hanya di UI).
+- **CSRF**: double-submit cookie dengan token bertanda tangan HMAC dan perbandingan timing-safe.
+- **Rate limit**: per IP, per IP+username, dan per akun untuk login; rate limit terpisah untuk API dan unggahan.
+- **Password**: minimal 8 karakter, wajib huruf+angka, tidak boleh memuat username/nama/tanggal lahir, dan password sementara dibuat secara kriptografis.
+- **Wajib ganti password**: akun baru/reset password memakai `mustChangePassword` yang ditegakkan di server.
+- **Upload**: nama file acak, validasi MIME + magic bytes, batas ukuran, dan penyajian statis dengan `nosniff`.
+- **Audit**: aksi sensitif (login, perubahan akun, reset password, CRUD data, artikel) dicatat ke tabel `audit_logs` secara best-effort.
+- **Hardening HTTP**: Helmet, CSP, CORS allowlist, body limit, `frame-ancestors 'none'`, timeout server, graceful shutdown, dan error tanpa membocorkan detail internal.
+- **Privasi data**: dump SQL berisi PII tidak lagi dilacak git; kredensial demo hanya aktif lewat `DEMO_MODE`/`VITE_DEMO_MODE`.
+- **Dependensi**: `npm audit --omit=dev` bersih (0 kerentanan produksi) untuk server maupun client; `sqlite3` hanya dipakai di lingkungan dev.
+
+Catatan lengkap dan checklist demo: [`docs/security-notes.md`](docs/security-notes.md) dan [`docs/demo-checklist.md`](docs/demo-checklist.md).
+
+> Tidak ada sistem yang 100% aman. Untuk produksi, wajib HTTPS, rotasi `JWT_SECRET`/`FONNTE_TOKEN`, backup terenkripsi, pembatasan akses database, dan pemantauan log.
 
 ---
 

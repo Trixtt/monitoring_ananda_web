@@ -49,6 +49,7 @@ import { useRoute } from 'vue-router'
 import api from '../../services/api'
 import LoadingState from '../../components/LoadingState.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import { setSeo, absoluteUrl } from '../../utils/seo'
 
 const route = useRoute()
 const artikel = ref(null)
@@ -62,8 +63,26 @@ onMounted(async () => {
   try {
     const { data } = await api.get(`/artikel/${route.params.id}`)
     artikel.value = data.artikel
-    if (data.artikel?.judul) {
-      document.title = `${data.artikel.judul} - SD Negeri 4 Keling`
+    if (data.artikel) {
+      const a = data.artikel
+      const deskripsi = String(a.isi || '').replace(/\s+/g, ' ').slice(0, 160)
+      setSeo({
+        title: `${a.judul} - SD Negeri 4 Keling`,
+        description: deskripsi,
+        path: route.path,
+        image: a.gambar || undefined,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'NewsArticle',
+          headline: a.judul,
+          description: deskripsi,
+          datePublished: a.publishedAt || undefined,
+          image: a.gambar ? [absoluteUrl(a.gambar)] : undefined,
+          author: { '@type': 'Person', name: a.author?.name || 'Admin' },
+          publisher: { '@type': 'Organization', name: 'SD Negeri 4 Keling' },
+          mainEntityOfPage: absoluteUrl(route.path)
+        }
+      })
     }
   } catch {
     artikel.value = null

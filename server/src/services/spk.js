@@ -150,14 +150,8 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
 }
 
 export async function rekapKelas(kelasId, tahunAjaranId) {
-  const setting = await SettingSpk.findOne()
-  const siswaList = await Siswa.findAll({ where: { kelasId } })
-
-  const hasilList = []
-  for (const siswa of siswaList) {
-    const hasil = await hitungSkorSiswa(siswa.id, tahunAjaranId, setting)
-    hasilList.push({ siswa, hasil })
-  }
+  const siswaList = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
+  const hasilList = await hitungSemuaSiswa(siswaList, tahunAjaranId)
 
   const ringkas = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: hasilList.length }
   for (const { hasil } of hasilList) {

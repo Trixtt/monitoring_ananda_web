@@ -11,10 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/hanken-grotesk": "^5.3.0",
     "@headlessui/vue": "^1.7.23",
     "axios": "^1.7.9",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "material-symbols": "^0.48.3",
     "pinia": "^2.3.0",
     "socket.io-client": "^4.8.1",
     "vue": "^3.5.13",

@@ -20,7 +20,7 @@
           <li class="flex gap-2"><span class="text-dark-teal dark:text-light-teal font-bold">3.</span> Login kembali dan buat password baru.</li>
         </ol>
         <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 pt-2 border-t border-surface-variant dark:border-white/10">
-          Password awal orang tua adalah tanggal lahir anak tanpa tanda hubung dalam format DDMMYYYY (contoh: lahir 12 Januari 2010 = <code class="text-dark-teal dark:text-light-teal">12012010</code>). Wajib diganti saat pertama kali masuk.
+          Password awal hanya diberikan sekali oleh admin sekolah. Demi keamanan, password sementara wajib diganti saat pertama kali masuk. Admin tidak dapat melihat password lama Anda.
         </p>
       </div>
 

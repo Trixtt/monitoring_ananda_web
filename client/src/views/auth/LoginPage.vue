@@ -39,12 +39,13 @@
       </div>
     </div>
 
-    <div class="mt-5 rounded-xl bg-ice-white dark:bg-white/5 border border-light-teal/40 dark:border-white/10 text-on-surface-variant dark:text-ice-white/70 p-4 text-sm">
-      <p class="font-label-md text-deep-navy dark:text-ice-white mb-2">Akun percobaan</p>
-      <p>Admin: <code class="text-dark-teal dark:text-light-teal">admin / admin123</code></p>
-      <p>Kepala Sekolah: <code class="text-dark-teal dark:text-light-teal">kepsek / password123</code></p>
-      <p>Wali Kelas: <code class="text-dark-teal dark:text-light-teal">wali1 / password123</code> (Kelas 1)</p>
-      <p>Orang Tua: <code class="text-dark-teal dark:text-light-teal">2025001 / 12012010</code> (password awal wajib diganti)</p>
+    <div v-if="demoMode" class="mt-5 rounded-xl bg-ice-white dark:bg-white/5 border border-light-teal/40 dark:border-white/10 text-on-surface-variant dark:text-ice-white/70 p-4 text-sm">
+      <p class="font-label-md text-deep-navy dark:text-ice-white mb-2">Akun demo (khusus demo lokal)</p>
+      <p>Admin: <code class="text-dark-teal dark:text-light-teal">admin / Admin#2026</code></p>
+      <p>Kepala Sekolah: <code class="text-dark-teal dark:text-light-teal">kepsek / Kepsek#2026</code></p>
+      <p>Wali Kelas: <code class="text-dark-teal dark:text-light-teal">wali1 / Wali#2026</code> (Kelas 1)</p>
+      <p>Orang Tua: <code class="text-dark-teal dark:text-light-teal">2025001 / Ortu#2026</code></p>
+      <p class="font-label-sm mt-2 text-outline dark:text-ice-white/50">Ganti password demo melalui menu Profil sebelum dipakai dengan data asli.</p>
     </div>
   </AuthShell>
 </template>
@@ -53,21 +54,25 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useNotifStore } from '../../stores/notifikasi'
 import AuthShell from '../../components/AuthShell.vue'
 import PasswordInput from '../../components/PasswordInput.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const notif = useNotifStore()
 
 const form = ref({ username: '', password: '' })
 const error = ref('')
 const loading = ref(false)
+const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 
 async function submit() {
   error.value = ''
   loading.value = true
   try {
     const data = await auth.login(form.value.username.trim(), form.value.password)
+    notif.loginSuccess()
     router.push(data.redirect || auth.homePath)
   } catch (e) {
     error.value = e.response?.data?.message || 'Gagal masuk. Periksa koneksi internet.'

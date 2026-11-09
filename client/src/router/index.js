@@ -5,10 +5,10 @@ const routes = [
   { path: '/', name: 'landing', component: () => import('../views/public/LandingPage.vue'), meta: { public: true, title: 'Beranda', description: 'Sistem monitoring perkembangan siswa SD Negeri 4 Keling. Nilai, kehadiran, dan sikap dalam satu tempat.' } },
   { path: '/artikel', name: 'artikel-list', component: () => import('../views/public/ArticleList.vue'), meta: { public: true, title: 'Berita Sekolah', description: 'Berita dan pengumuman terbaru dari SD Negeri 4 Keling.' } },
   { path: '/artikel/:id', name: 'artikel-detail', component: () => import('../views/public/ArticleDetail.vue'), meta: { public: true, title: 'Artikel', description: 'Artikel dan berita SD Negeri 4 Keling.' } },
-  { path: '/login', name: 'login', component: () => import('../views/auth/LoginPage.vue'), meta: { public: true, title: 'Masuk' } },
-  { path: '/lupa-password', name: 'lupa-password', component: () => import('../views/auth/ForgotPassword.vue'), meta: { public: true, title: 'Lupa Password' } },
-  { path: '/ganti-password', name: 'ganti-password', component: () => import('../views/auth/ForceChangePassword.vue'), meta: { auth: true, title: 'Buat Password Baru' } },
-  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFound.vue'), meta: { public: true, title: 'Halaman Tidak Ditemukan' } },
+  { path: '/login', name: 'login', component: () => import('../views/auth/LoginPage.vue'), meta: { public: true, noindex: true, title: 'Masuk' } },
+  { path: '/lupa-password', name: 'lupa-password', component: () => import('../views/auth/ForgotPassword.vue'), meta: { public: true, noindex: true, title: 'Lupa Password' } },
+  { path: '/ganti-password', name: 'ganti-password', component: () => import('../views/auth/ForceChangePassword.vue'), meta: { auth: true, noindex: true, title: 'Buat Password Baru' } },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFound.vue'), meta: { public: true, noindex: true, title: 'Halaman Tidak Ditemukan' } },
 
   {
     path: '/',
@@ -49,7 +49,7 @@ const routes = [
       { path: 'admin/akun', name: 'admin-akun', component: () => import('../views/admin/AdminAkun.vue'), meta: { roles: ['admin'], title: 'Manajemen Akun' } },
       { path: 'admin/spk', name: 'admin-spk', component: () => import('../views/admin/AdminSpk.vue'), meta: { roles: ['admin'], title: 'Konfigurasi SPK' } },
       { path: 'admin/artikel', name: 'admin-artikel', component: () => import('../views/admin/AdminArtikel.vue'), meta: { roles: ['admin'], title: 'Artikel & Berita' } },
-      { path: 'admin/guru', name: 'admin-pilih-kelas', component: () => import('../views/admin/AdminPilihKelas.vue'), meta: { roles: ['admin'], title: 'Masuk sebagai Wali Kelas' } }
+      { path: 'admin/guru', name: 'admin-pilih-kelas', component: () => import('../views/admin/AdminPilihKelas.vue'), meta: { roles: ['admin'], title: 'Masuk sebagai Guru' } }
     ]
   }
 ]

@@ -17,64 +17,81 @@
     <div v-if="loading"><LoadingState skeleton variant="cards" /></div>
 
     <template v-else-if="data">
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-up">
-    <StatCard label="Total Siswa" :value="data.total.siswa" icon="groups" tone="teal" />
-    <StatCard label="Baik / Aman" :value="data.total.aman" icon="check_circle" tone="green" />
-    <StatCard label="Perlu Perhatian" :value="data.total.perhatian" icon="priority_high" tone="amber" />
-    <StatCard label="Berisiko" :value="data.total.berisiko" icon="warning" tone="red" />
-    <StatCard label="ABK" :value="data.total.abk" icon="accessibility_new" tone="purple" />
+      <div class="grid grid-cols-3 gap-2 sm:gap-4 animate-fade-up">
+        <StatCard compact label="Total Siswa" :value="data.total.siswa" icon="groups" tone="teal" />
+        <StatCard compact label="Total Kelas" :value="data.perKelas.length" icon="door_sliding" tone="blue" />
+        <StatCard compact label="Baik / Aman" :value="data.total.aman" icon="check_circle" tone="green" />
+        <StatCard compact label="Perlu Perhatian" :value="data.total.perhatian" icon="priority_high" tone="amber" />
+        <StatCard compact label="Berisiko" :value="data.total.berisiko" icon="warning" tone="red" />
+        <StatCard compact label="ABK" :value="data.total.abk" icon="accessibility_new" tone="purple" />
       </div>
 
-      <div class="grid lg:grid-cols-3 gap-6 animate-fade-up" style="animation-delay: 100ms">
-        <!-- Ringkasan per kelas -->
-        <div class="card overflow-hidden lg:col-span-2">
-          <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10 flex items-center justify-between">
-            <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Kondisi per Kelas</h2>
-            <router-link to="/kepsek/laporan" class="btn-ghost">
-              Detail
-              <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </router-link>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="card p-6 animate-fade-up" style="animation-delay: 100ms">
+          <div class="mb-5">
+            <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Distribusi Kondisi</h2>
+            <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Sebaran kondisi seluruh siswa</p>
           </div>
-          <div class="table-shell">
-            <table class="table-base">
-              <thead>
-                <tr>
-                  <th>Kelas</th>
-                  <th>Wali Kelas</th>
-                  <th>Aman</th>
-                  <th>Perhatian</th>
-                  <th>Berisiko</th>
-                  <th>ABK</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="k in data.perKelas" :key="k.kelas.id">
-                  <td class="font-label-md text-deep-navy dark:text-ice-white">{{ k.kelas.nama }}</td>
-                  <td>{{ k.kelas.waliKelas || '-' }}</td>
-                  <td class="text-status-aman font-label-md">{{ k.aman }}</td>
-                  <td class="text-yellow-700 font-label-md">{{ k.perhatian }}</td>
-                  <td class="text-status-berisiko font-label-md">{{ k.berisiko }}</td>
-                  <td class="text-status-abk font-label-md">{{ k.abk }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <DonutChart
+            v-if="data.total.siswa"
+            :segments="distribusi"
+            :total="data.total.siswa"
+            center-label="Siswa"
+          />
+          <p v-else class="font-body-md text-on-surface-variant dark:text-ice-white/60">Belum ada data siswa.</p>
         </div>
 
-        <!-- Ringkasan distribusi -->
-        <div class="card p-6">
-          <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Distribusi Kondisi</h2>
-          <div v-if="data.total.siswa" class="flex flex-col gap-3">
-            <div v-for="(seg, kode) in distBars" :key="kode" class="flex items-center gap-3">
-              <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="seg.color"></span>
-              <span class="font-body-md text-on-surface-variant dark:text-ice-white/60 flex-1">{{ seg.label }}</span>
-              <span class="font-label-md text-deep-navy dark:text-ice-white">{{ seg.count }} ({{ seg.pct }}%)</span>
+        <div class="card p-6 lg:col-span-2 animate-fade-up" style="animation-delay: 150ms">
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+            <div>
+              <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Komposisi Kondisi per Kelas</h2>
+              <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Panjang bar menunjukkan jumlah siswa pada kelas</p>
             </div>
-            <div class="h-3 rounded-full bg-surface-variant dark:bg-white/10 overflow-hidden flex mt-2">
-              <div v-for="(seg, kode) in distBars" :key="kode" class="h-full" :class="seg.color" :style="{ width: seg.pct + '%' }"></div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1.5">
+              <span v-for="seg in distribusi" :key="seg.key" class="inline-flex items-center gap-1.5 font-label-sm text-on-surface-variant dark:text-ice-white/60">
+                <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: seg.color }"></span>
+                {{ seg.label }}
+              </span>
             </div>
           </div>
-          <p v-else class="font-body-md text-on-surface-variant dark:text-ice-white/60">Belum ada data siswa.</p>
+          <HorizontalBarChart :rows="kelasRows" />
+        </div>
+      </div>
+
+      <div class="card overflow-hidden animate-fade-up" style="animation-delay: 200ms">
+        <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10 flex items-center justify-between">
+          <div>
+            <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Rincian per Kelas</h2>
+            <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Jumlah siswa berdasarkan kondisi perkembangan</p>
+          </div>
+          <router-link to="/kepsek/laporan" class="btn-ghost">
+            Detail
+            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </router-link>
+        </div>
+        <div class="table-shell">
+          <table class="table-base">
+            <thead>
+              <tr>
+                <th>Kelas</th>
+                <th>Wali Kelas</th>
+                <th>Aman</th>
+                <th>Perhatian</th>
+                <th>Berisiko</th>
+                <th>ABK</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="k in data.perKelas" :key="k.kelas.id">
+                <td class="font-label-md text-deep-navy dark:text-ice-white">{{ k.kelas.nama }}</td>
+                <td>{{ k.kelas.waliKelas || '-' }}</td>
+                <td class="text-status-aman font-label-md">{{ k.aman }}</td>
+                <td class="text-yellow-700 font-label-md">{{ k.perhatian }}</td>
+                <td class="text-status-berisiko font-label-md">{{ k.berisiko }}</td>
+                <td class="text-status-abk font-label-md">{{ k.abk }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
@@ -89,26 +106,42 @@ import api from '../../services/api'
 import StatCard from '../../components/StatCard.vue'
 import LoadingState from '../../components/LoadingState.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import DonutChart from '../../components/charts/DonutChart.vue'
+import HorizontalBarChart from '../../components/charts/HorizontalBarChart.vue'
 
 const data = ref(null)
 const loading = ref(true)
 const tahunAjaranId = ref('')
 const daftarTahunAjaran = ref([])
 
-const distBars = computed(() => {
-  if (!data.value) return {}
-  const total = data.value.total.siswa || 1
-  const defs = [
-    { kode: 'aman', label: 'Baik / Aman', color: 'bg-status-aman' },
-    { kode: 'perhatian', label: 'Perlu Perhatian', color: 'bg-status-perhatian' },
-    { kode: 'berisiko', label: 'Berisiko', color: 'bg-status-berisiko' },
-    { kode: 'abk', label: 'ABK', color: 'bg-status-abk' }
-  ]
-  return defs.map((d) => ({
-    ...d,
-    count: data.value.total[d.kode],
-    pct: Math.round((data.value.total[d.kode] / total) * 100)
+const definisiKondisi = [
+  { key: 'aman', label: 'Baik / Aman', color: '#22C55E' },
+  { key: 'perhatian', label: 'Perlu Perhatian', color: '#FACC15' },
+  { key: 'berisiko', label: 'Berisiko', color: '#EF4444' },
+  { key: 'abk', label: 'ABK', color: '#A855F7' }
+]
+
+const distribusi = computed(() =>
+  definisiKondisi.map((item) => ({
+    ...item,
+    value: Number(data.value?.total?.[item.key] || 0)
   }))
+)
+
+const kelasRows = computed(() => {
+  if (!data.value) return []
+  return data.value.perKelas.map((kelas) => {
+    const segments = definisiKondisi.map((item) => ({
+      ...item,
+      value: Number(kelas[item.key] || 0)
+    }))
+    return {
+      key: kelas.kelas.id,
+      label: kelas.kelas.nama,
+      total: segments.reduce((jumlah, item) => jumlah + item.value, 0),
+      segments
+    }
+  })
 })
 
 async function load() {

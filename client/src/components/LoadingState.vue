@@ -1,11 +1,11 @@
 <template>
   <!-- Skeleton: kartu statistik -->
   <div v-if="skeleton && variant === 'cards'" class="space-y-4">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div v-for="i in 4" :key="i" class="card p-5">
-        <div class="skeleton h-12 w-12 rounded-xl mb-3"></div>
-        <div class="skeleton h-4 w-24 mb-2"></div>
-        <div class="skeleton h-6 w-16"></div>
+    <div class="grid grid-cols-3 gap-2 sm:gap-4">
+      <div v-for="i in 6" :key="i" class="card p-3 sm:p-5">
+        <div class="skeleton h-9 w-9 sm:h-12 sm:w-12 rounded-xl mb-3"></div>
+        <div class="skeleton h-3 w-full sm:h-4 sm:w-24 mb-2"></div>
+        <div class="skeleton h-5 w-12 sm:h-6 sm:w-16"></div>
       </div>
     </div>
     <div class="card p-5 space-y-3">

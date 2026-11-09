@@ -1,6 +1,6 @@
 import { Kelas, Siswa, TahunAjaran, Laporan } from '../models/index.js'
 import { Op } from 'sequelize'
-import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, hitungSemuaSiswa } from '../services/spk.js'
+import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, hitungSemuaSiswa } from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
 
 export async function kepsekRingkasan(req, res) {
@@ -71,17 +71,21 @@ export async function kepsekSiswaRisiko(req, res) {
 
   const kelasWhere = kelasId ? { id: kelasId } : {}
   const kelasList = await Kelas.findAll({ where: kelasWhere, order: [['tingkat', 'ASC']] })
+  if (!kelasList.length) return res.json({ list: [], kategori })
 
-  const hasil = []
-  for (const kelas of kelasList) {
-    const { hasilList } = await rekapKelas(kelas.id, ta?.id)
-    for (const { siswa, hasil: skor } of hasilList) {
-      if (skor.kategori.kode === kategori) {
-        const lemah = await mapelTerlemah(siswa.id, ta?.id)
-        hasil.push({ siswa, skor, mapelTerlemah: lemah?.nama || null })
-      }
-    }
-  }
+  const siswaList = await Siswa.findAll({
+    where: { kelasId: { [Op.in]: kelasList.map((k) => k.id) } },
+    include: [{ association: 'kelas' }],
+    order: [['kelasId', 'ASC'], ['nomorAbsen', 'ASC']]
+  })
+
+  const hasil = (await hitungSemuaSiswa(siswaList, ta?.id))
+    .filter(({ hasil: skor }) => skor.kategori.kode === kategori)
+    .map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
+      siswa,
+      skor,
+      mapelTerlemah: lemah?.nama || null
+    }))
 
   return res.json({ list: hasil, kategori })
 }
@@ -92,15 +96,24 @@ export async function kepsekDetailKelas(req, res) {
 
   const taId = Number(req.query.tahunAjaranId) || null
   const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  const { hasilList, ringkas } = await rekapKelas(kelas.id, ta?.id)
+  const siswaList = await Siswa.findAll({
+    where: { kelasId: kelas.id },
+    include: [{ association: 'kelas' }],
+    order: [['nomorAbsen', 'ASC']]
+  })
+  const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id)
 
-  const detail = await Promise.all(
-    hasilList.map(async ({ siswa, hasil: skor }) => {
-      const lemah = await mapelTerlemah(siswa.id, ta?.id)
-      const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
-      return { siswa, skor, mapelTerlemah: lemah?.nama || null, rekomendasi }
-    })
-  )
+  const ringkas = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: hasilSemua.length }
+  for (const { hasil } of hasilSemua) {
+    if (hasil.kategori.kode in ringkas) ringkas[hasil.kategori.kode]++
+  }
+
+  const detail = hasilSemua.map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
+    siswa,
+    skor,
+    mapelTerlemah: lemah?.nama || null,
+    rekomendasi: rekomendasiUntuk(skor, lemah?.nama)
+  }))
 
   return res.json({ kelas, ringkas, list: detail, tahunAjaran: ta?.nama || null })
 }

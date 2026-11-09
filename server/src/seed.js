@@ -11,7 +11,10 @@ import {
   Artikel,
   Nilai,
   Kehadiran,
-  Sikap
+  Sikap,
+  Notifikasi,
+  Laporan,
+  AuditLog
 } from './models/index.js'
 import { Op } from 'sequelize'
 
@@ -23,8 +26,15 @@ const NAMA_L = ['Ahmad Budi Santoso', 'Budi Santoso', 'Citra Dewi Maharani', 'Di
 const NAMA_P = ['Siti Aminah', 'Nur Aisyah', 'Dewi Lestari', 'Rina Wulandari', 'Maya Sari', 'Intan Permata', 'Laila Nurjanah', 'Putri Amelia', 'Ratna Dewi', 'Sri Rahayu', 'Winda Astuti', 'Zahra Alia']
 
 const hash = (pw) => bcrypt.hashSync(pw, 10)
-// Password awal orang tua = tanggal lahir DDMMYYYY
-const tglLahirKePasswordAwal = (t) => `${t.slice(8, 10)}${t.slice(5, 7)}${t.slice(0, 4)}`
+
+// Kredensial demo. Hanya dipakai oleh seed, dan seed menolak berjalan
+// di produksi kecuali SEED_ALLOW_PRODUCTION=true secara eksplisit.
+const DEMO_PASSWORD = {
+  admin: process.env.DEMO_ADMIN_PASSWORD || 'Admin#2026',
+  kepsek: process.env.DEMO_KEPSEK_PASSWORD || 'Kepsek#2026',
+  wali: process.env.DEMO_WALI_PASSWORD || 'Wali#2026',
+  orangTua: process.env.DEMO_ORANGTUA_PASSWORD || 'Ortu#2026'
+}
 const waliNama = [
   'Budi Santoso, S.Pd',
   'Siti Nurhaliza, S.Pd',
@@ -38,14 +48,39 @@ async function cari(where) {
   return (await User.findOne({ where })) != null
 }
 
+async function hapusDataDemo() {
+  // Hapus data demo tanpa menjatuhkan skema. Urutan penting: tabel anak
+  // lebih dulu agar tidak melanggar foreign key. Migrasi & audit_logs
+  // tetap utuh.
+  const urutan = [
+    Notifikasi,
+    Laporan,
+    Artikel,
+    Nilai,
+    Kehadiran,
+    Sikap,
+    AuditLog,
+    User,
+    Siswa,
+    Mapel,
+    Kelas,
+    TahunAjaran,
+    SettingSpk
+  ]
+  for (const Model of urutan) {
+    await Model.destroy({ where: {} })
+  }
+}
+
 async function seed() {
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error('Seed demo ditolak di produksi. Set SEED_ALLOW_PRODUCTION=true hanya jika benar-benar disengaja.')
+  }
   const force = process.env.SEED_FORCE === 'true'
   await initDb()
-  // Hanya sync skema (drop+create untuk force) bila TIDAK memakai mode migrasi.
-  // DB_SYNC=none => skema dikelola eksklusif oleh sequelize-cli (db:migrate).
-  if (process.env.DB_SYNC !== 'none') {
-    await sequelize.sync(force ? { force: true } : {})
-  }
+  // Skema dikelola oleh migrasi (DB_SYNC=none) atau sequelize.sync() non-destruktif.
+  // SEED_FORCE hanya menghapus baris data demo, bukan tabel.
+  if (force) await hapusDataDemo()
 
   const sudahAda = await cari({ username: 'admin' })
   if (sudahAda && !force) {
@@ -82,7 +117,7 @@ async function seed() {
     }
     const u = await User.create({
       username,
-      password: hash('password123'),
+      password: hash(DEMO_PASSWORD.wali),
       role: 'wali_kelas',
       name: waliNama[i],
       phone: `0812000000${i + 1}`,
@@ -97,7 +132,7 @@ async function seed() {
   if (!(await cari({ username: 'kepsek' }))) {
     await User.create({
       username: 'kepsek',
-      password: hash('password123'),
+      password: hash(DEMO_PASSWORD.kepsek),
       role: 'kepala_sekolah',
       name: 'Dr. H. Ahmad Fauzi, M.Pd',
       phone: '081299999999',
@@ -110,7 +145,7 @@ async function seed() {
   if (!(await cari({ username: 'admin' }))) {
     admin = await User.create({
       username: 'admin',
-      password: hash('admin123'),
+      password: hash(DEMO_PASSWORD.admin),
       role: 'admin',
       name: 'Admin Sekolah (Operator)',
       phone: '081288888888',
@@ -149,12 +184,12 @@ async function seed() {
       if (!(await cari({ username }))) {
         await User.create({
           username,
-          password: hash(tglLahirKePasswordAwal(siswaBaru.tanggalLahir)),
+          password: hash(DEMO_PASSWORD.orangTua),
           role: 'orang_tua',
           name: `Orang Tua ${nama}`,
           phone: `0813${String(10000000 + no * 7).padStart(8, '0').slice(0, 8)}`,
           siswaId: siswaBaru.id,
-          mustChangePassword: true,
+          mustChangePassword: false,
           active: true
         })
       }
@@ -241,11 +276,13 @@ async function seed() {
   }
 
   console.log('Seed selesai.')
-  console.log('Login demo:')
-  console.log('  admin / admin123')
-  console.log('  kepsek / password123')
-  for (let i = 0; i < 6; i++) console.log(`  wali${i + 1} / password123 (${NAMA_KELAS[i]})`)
-  console.log('  Orang tua: username = tahun angkatan + no absen (mis. 2025001), password awal = tanggal lahir DDMMYYYY, wajib diganti.')
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Login demo (hanya untuk lingkungan demo):')
+    console.log(`  admin / ${DEMO_PASSWORD.admin}`)
+    console.log(`  kepsek / ${DEMO_PASSWORD.kepsek}`)
+    for (let i = 0; i < 6; i++) console.log(`  wali${i + 1} / ${DEMO_PASSWORD.wali} (${NAMA_KELAS[i]})`)
+    console.log(`  Orang tua: username = tahun angkatan + no absen (mis. 2025001), password demo = ${DEMO_PASSWORD.orangTua}`)
+  }
 
   await sequelize.close()
 }

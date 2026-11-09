@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { rateLimit } from '../src/middlewares/rateLimit.js'
+import { rateLimit, loginRateLimit } from '../src/middlewares/rateLimit.js'
 import { csrfProtect, generateCsrfToken, setCsrfCookie } from '../src/middlewares/csrf.js'
 
 function fakeReq(over = {}) {
@@ -22,6 +22,10 @@ function fakeRes() {
     cookie(name, value, options) {
       this.cookieLast = { name, value, options }
       return this
+    },
+    set(name, value) {
+      this.headers = { ...this.headers, [name]: value }
+      return this
     }
   }
 }
@@ -39,6 +43,34 @@ describe('rateLimit', () => {
     limit(fakeReq(), res, next)
     assert.equal(ok, 2)
     assert.equal(res.statusCode, 429)
+  })
+
+  test('respons 429 menyertakan Retry-After', () => {
+    const limit = rateLimit({ windowMs: 60_000, max: 1 })
+    const next = () => {}
+    limit(fakeReq(), fakeRes(), next)
+    const res = fakeRes()
+    limit(fakeReq(), res, next)
+    assert.equal(res.statusCode, 429)
+    assert.ok(Number(res.headers['Retry-After']) > 0)
+  })
+
+  test('kuota login dipisah per IP dan username', () => {
+    const next = () => {}
+    for (let i = 0; i < 10; i += 1) {
+      loginRateLimit(fakeReq({ body: { username: 'budi' } }), fakeRes(), next)
+    }
+    const res = fakeRes()
+    loginRateLimit(fakeReq({ body: { username: 'budi' } }), res, next)
+    assert.equal(res.statusCode, 429)
+
+    const resLain = fakeRes()
+    loginRateLimit(fakeReq({ body: { username: 'sari' } }), resLain, next)
+    assert.equal(resLain.statusCode, null)
+
+    const resIpLain = fakeRes()
+    loginRateLimit(fakeReq({ ip: '8.8.8.8', body: { username: 'budi' } }), resIpLain, next)
+    assert.equal(resIpLain.statusCode, null)
   })
 
   test('kuota bersifat per-IP', () => {
@@ -86,9 +118,10 @@ describe('csrfProtect', () => {
   })
 
   test('header yang cocok lolos', () => {
+    const token = generateCsrfToken()
     let ok = false
     csrfProtect(
-      fakeReq({ method: 'POST', cookies: { token: 'x', csrfToken: 'abc' }, headers: { 'x-csrf-token': 'abc' } }),
+      fakeReq({ method: 'POST', cookies: { token: 'x', csrfToken: token }, headers: { 'x-csrf-token': token } }),
       fakeRes(),
       () => {
         ok = true
@@ -111,10 +144,10 @@ describe('csrfProtect', () => {
 })
 
 describe('generateCsrfToken', () => {
-  test('menghasilkan 64 karakter hex dan unik', () => {
+  test('menghasilkan token bertanda tangan dan unik', () => {
     const a = generateCsrfToken()
     const b = generateCsrfToken()
-    assert.match(a, /^[0-9a-f]{64}$/)
+    assert.match(a, /^[0-9a-f]{64}\.[0-9a-f]{64}$/)
     assert.notEqual(a, b)
   })
 })

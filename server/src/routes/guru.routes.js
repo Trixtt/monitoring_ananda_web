@@ -20,7 +20,6 @@ import {
   suggestUsername
 } from '../controllers/masterController.js'
 import { auth, rbac } from '../middlewares/auth.js'
-import { uploadSingle } from '../middlewares/upload.js'
 import { validate, nilaiSchema, kehadiranBulkSchema, sikapBulkSchema, abkSchema } from '../validators/index.js'
 
 const router = Router()
@@ -33,7 +32,7 @@ router.get('/siswa', guruSiswa)
 router.get('/siswa/:id', guruSiswaDetail)
 router.patch('/siswa/:id/abk', validate(abkSchema), updateAbk)
 
-router.post('/nilai', uploadSingle, validate(nilaiSchema), guruNilaiUnggah)
+router.post('/nilai', validate(nilaiSchema), guruNilaiUnggah)
 router.get('/nilai/mapel', guruNilaiPerMapel)
 router.get('/nilai', daftarNilaiUntukWali)
 

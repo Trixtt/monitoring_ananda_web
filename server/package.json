@@ -10,32 +10,39 @@
     "db:migrate": "sequelize db:migrate",
     "db:migrate:undo": "sequelize db:migrate:undo",
     "db:seed": "node src/seed.js",
-    "db:backup": "pwsh scripts/backup.ps1",
-    "db:restore": "pwsh scripts/restore.ps1",
+    "db:demo-passwords": "node src/resetDemoPasswords.js",
+    "db:backup": "pwsh -NoProfile -File scripts/backup.ps1",
+    "db:restore": "pwsh -NoProfile -File scripts/restore.ps1",
     "test": "node --test",
     "lint": "eslint src test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "express-async-errors": "^3.1.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.5",
     "sequelize": "^6.37.5",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7",
     "zod": "^4.4.3"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true
   },
+  "overrides": {
+    "qs": "^6.17.1",
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.9.1",
-    "sequelize-cli": "^6.6.5"
+    "sequelize-cli": "^6.6.5",
+    "sqlite3": "^5.1.7"
   }
 }

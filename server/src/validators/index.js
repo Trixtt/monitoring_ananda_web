@@ -25,8 +25,8 @@ export const loginSchema = z.object({
 
 export const changePasswordSchema = z
   .object({
-    passwordLama: z.string().max(200).optional(),
-    passwordBaru: z.string().min(6, 'Password baru minimal 6 karakter').max(200),
+    passwordLama: z.string().min(1, 'Password lama wajib diisi').max(200),
+    passwordBaru: z.string().min(8, 'Password baru minimal 8 karakter').max(200),
     konfirmasi: z.string().min(1, 'Konfirmasi password wajib diisi')
   })
   .refine((d) => d.passwordBaru === d.konfirmasi, {
@@ -75,7 +75,7 @@ export const akunSchema = z.object({
     .min(3, 'Username minimal 3 karakter')
     .max(50)
     .regex(/^[\w.-]+$/, 'Username hanya boleh huruf, angka, titik, dan garis bawah'),
-  password: z.string().min(6, 'Password minimal 6 karakter').max(200),
+  password: z.string().max(200).optional(),
   name: z.string().min(1, 'Nama wajib diisi').max(150),
   role: z.enum(['admin', 'kepala_sekolah', 'wali_kelas', 'orang_tua'], {
     message: 'Role tidak valid'
@@ -147,7 +147,7 @@ export const laporanSchema = z.object({
 
 export const artikelSchema = z.object({
   judul: z.string().min(1, 'Judul wajib diisi').max(200),
-  kategori: z.enum(['Prestasi', 'Kegiatan', 'Pengumuman']).optional(),
+  kategori: z.enum(['Prestasi', 'Kegiatan', 'Pengumuman', 'Tips']).optional(),
   isi: z.string().min(1, 'Isi artikel wajib diisi'),
   status: z.enum(['draft', 'publish']).optional()
 })

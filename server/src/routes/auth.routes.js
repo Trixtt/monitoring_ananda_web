@@ -10,14 +10,14 @@ import {
   bacaNotifikasi,
   bacaSemuaNotifikasi
 } from '../controllers/authController.js'
-import { auth } from '../middlewares/auth.js'
-import { loginRateLimit } from '../middlewares/rateLimit.js'
+import { loginRateLimiters } from '../middlewares/rateLimit.js'
 import { validate, loginSchema, changePasswordSchema, profileSchema } from '../validators/index.js'
+import { auth, optionalAuth } from '../middlewares/auth.js'
 
 const router = Router()
 
-router.post('/login', loginRateLimit, validate(loginSchema), login)
-router.post('/logout', logout)
+router.post('/login', ...loginRateLimiters, validate(loginSchema), login)
+router.post('/logout', optionalAuth, logout)
 router.get('/me', auth, me)
 router.post('/change-password', auth, validate(changePasswordSchema), changePassword)
 router.put('/profile', auth, validate(profileSchema), updateProfile)

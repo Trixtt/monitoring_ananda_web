@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6 max-w-3xl">
+  <div class="space-y-6 max-w-3xl mx-auto">
     <div class="page-header">
       <h1 class="page-title">Profil & Kata Sandi</h1>
       <p class="page-subtitle">Kelola informasi akun Anda</p>

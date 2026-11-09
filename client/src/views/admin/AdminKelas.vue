@@ -35,10 +35,6 @@
         </p>
         <div class="flex items-center justify-between mt-auto pt-3 border-t border-surface-variant dark:border-white/10">
           <span class="badge bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal">{{ k.siswaCount }} siswa</span>
-          <router-link :to="`/admin/guru/${k.id}`" class="btn-secondary !py-1.5">
-            <span class="material-symbols-outlined text-[18px]">visibility</span>
-            Masuk sebagai Wali
-          </router-link>
         </div>
       </div>
     </div>

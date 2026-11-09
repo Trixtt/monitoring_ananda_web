@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran, Mapel } from '../models/index.js'
+import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
 import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
 
@@ -51,18 +51,26 @@ export async function ortuRekapNilai(req, res) {
   if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  const mapel = await Mapel.findAll({ order: [['nama', 'ASC']] })
 
-  const rekap = []
-  for (const m of mapel) {
-    const nilai = await Nilai.findAll({
-      where: { siswaId, mapelId: m.id, tahunAjaranId: ta?.id },
-      order: [['createdAt', 'DESC']]
-    })
-    if (!nilai.length) continue
-    const rata = nilai.reduce((a, b) => a + b.nilai, 0) / nilai.length
-    rekap.push({ mapel: m.nama, daftar: nilai, rata: Math.round(rata * 10) / 10 })
+  const rows = await Nilai.findAll({
+    where: { siswaId, tahunAjaranId: ta?.id },
+    include: [{ association: 'mapel' }],
+    order: [['createdAt', 'DESC']]
+  })
+
+  const perMapel = new Map()
+  for (const n of rows) {
+    const nama = n.mapel?.nama || 'Tanpa mapel'
+    if (!perMapel.has(nama)) perMapel.set(nama, [])
+    perMapel.get(nama).push(n)
   }
+
+  const rekap = [...perMapel.entries()]
+    .map(([nama, daftar]) => {
+      const rata = daftar.reduce((a, b) => a + Number(b.nilai), 0) / daftar.length
+      return { mapel: nama, daftar, rata: Math.round(rata * 10) / 10 }
+    })
+    .sort((a, b) => a.mapel.localeCompare(b.mapel, 'id'))
 
   return res.json({ rekap })
 }

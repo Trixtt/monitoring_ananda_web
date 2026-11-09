@@ -1,8 +1,9 @@
 import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User, sequelize } from '../models/index.js'
-import { Op } from 'sequelize'
-import { rekapKelas, hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
+import { Op, fn, col } from 'sequelize'
+import { rekapKelas, hitungSkorSiswa, hitungSemuaSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
+import { cariSiswaTerakses, validasiSiswaDalamKelas } from '../services/aksesKelas.js'
 import { env } from '../config/env.js'
 
 async function tahunAktif() {
@@ -20,6 +21,31 @@ function kelasDariUser(user) {
   return user.kelasId
 }
 
+const LABEL_KEHADIRAN = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' }
+
+function tanggalIndo(value) {
+  const d = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+async function petaNamaSiswa(siswaIds) {
+  const unik = [...new Set(siswaIds.map(Number).filter(Boolean))]
+  if (!unik.length) return new Map()
+  const rows = await Siswa.findAll({ where: { id: { [Op.in]: unik } }, attributes: ['id', 'nama'] })
+  return new Map(rows.map((s) => [Number(s.id), s.nama]))
+}
+
+async function petaOrangTua(siswaIds) {
+  const unik = [...new Set(siswaIds.map(Number).filter(Boolean))]
+  if (!unik.length) return new Map()
+  const rows = await User.findAll({
+    where: { siswaId: { [Op.in]: unik }, role: 'orang_tua' },
+    attributes: ['id', 'siswaId']
+  })
+  return new Map(rows.map((u) => [Number(u.siswaId), u]))
+}
+
 export async function guruDashboard(req, res) {
   const kelasId = kelasAktif(req)
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
@@ -27,13 +53,12 @@ export async function guruDashboard(req, res) {
   const ta = await tahunAktif()
   const { hasilList, ringkas } = await rekapKelas(kelasId, ta?.id)
 
-  const detail = await Promise.all(
-    hasilList.map(async ({ siswa, hasil }) => {
-      const lemah = await mapelTerlemah(siswa.id, ta?.id)
-      const rekomendasi = rekomendasiUntuk(hasil, lemah?.nama)
-      return { siswa, hasil, mapelTerlemah: lemah?.nama || null, rekomendasi }
-    })
-  )
+  const detail = hasilList.map(({ siswa, hasil, mapelTerlemah: lemah }) => ({
+    siswa,
+    hasil,
+    mapelTerlemah: lemah?.nama || null,
+    rekomendasi: rekomendasiUntuk(hasil, lemah?.nama)
+  }))
 
   return res.json({ ringkas, list: detail, kelasId, tahunAjaran: ta?.nama })
 }
@@ -48,24 +73,20 @@ export async function guruSiswa(req, res) {
     order: [['nomorAbsen', 'ASC']]
   })
 
-  const hasil = await Promise.all(
-    list.map(async (siswa) => {
-      const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-      return { siswa, skor }
-    })
-  )
+  const hasil = (await hitungSemuaSiswa(list, ta?.id)).map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
+    siswa,
+    skor,
+    mapelTerlemah: lemah?.nama || null
+  }))
 
   return res.json({ list: hasil })
 }
 
 export async function guruSiswaDetail(req, res) {
-  const kelasId = kelasAktif(req)
   const ta = await tahunAktif()
-  const siswa = await Siswa.findByPk(req.params.id, { include: [{ association: 'kelas' }] })
-  if (!siswa) return res.status(404).json({ message: 'Siswa tidak ditemukan.' })
-  if (kelasId && siswa.kelasId !== Number(kelasId)) {
-    return res.status(403).json({ message: 'Siswa di luar kelas Anda.' })
-  }
+  const hasil = await cariSiswaTerakses(req.user, req.params.id, { include: [{ association: 'kelas' }] })
+  if (!hasil.siswa) return res.status(hasil.status).json({ message: hasil.message })
+  const siswa = hasil.siswa
 
   const skor = await hitungSkorSiswa(siswa.id, ta?.id)
   const lemah = await mapelTerlemah(siswa.id, ta?.id)
@@ -91,29 +112,30 @@ export async function guruNilaiUnggah(req, res) {
     return res.status(400).json({ message: 'Nilai harus antara 0 sampai 100.' })
   }
 
+  const hasil = await cariSiswaTerakses(req.user, siswaId)
+  if (!hasil.siswa) return res.status(hasil.status).json({ message: hasil.message })
+  const siswa = hasil.siswa
+
   const ta = await tahunAktif()
   const item = await Nilai.create({
-    siswaId,
+    siswaId: siswa.id,
     mapelId,
     judul: String(judul).trim(),
     nilai: Number(nilai),
-    filePath: req.file ? `/uploads/${req.file.filename}` : null,
     tanggal: req.body.tanggal || new Date().toISOString().slice(0, 10),
     tahunAjaranId: ta?.id || null
   })
 
-  // Notifikasi ganda ke orang tua
   const mapel = await Mapel.findByPk(mapelId)
-  const siswa = await Siswa.findByPk(siswaId)
-  const ortu = siswa ? await User.findOne({ where: { siswaId: siswa.id, role: 'orang_tua' } }) : null
+  const ortu = await User.findOne({ where: { siswaId: siswa.id, role: 'orang_tua' } })
 
   if (ortu) {
-    const link = `${env.appDomain}/orangtua`
+    const link = `${env.appDomain}/orangtua/nilai`
     await kirimNotifikasiInApp(ortu.id, {
       judul: 'Nilai baru',
       pesan: `Nilai ${item.judul} pada ${mapel?.nama} sudah keluar.`,
       tipe: 'nilai',
-      link: `${env.appDomain}/orangtua`
+      link
     })
     if (ortu.phone) {
       const pesanWa = formatPesanNilai(siswa.nama, item.judul, mapel?.nama || '', item.nilai, link)
@@ -125,8 +147,9 @@ export async function guruNilaiUnggah(req, res) {
 }
 
 export async function guruNilaiPerMapel(req, res) {
-  const { mapelId, kelasId } = req.query
-  const kId = Number(kelasId || kelasAktif(req))
+  const { mapelId } = req.query
+  const kId = kelasAktif(req)
+  if (!kId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
 
   const list = await Siswa.findAll({ where: { kelasId: kId }, order: [['nomorAbsen', 'ASC']] })
@@ -149,11 +172,15 @@ export async function guruKehadiranBulk(req, res) {
   const ta = await tahunAktif()
   const valid = ['hadir', 'izin', 'sakit', 'alpa']
 
+  const akses = await validasiSiswaDalamKelas(req.user, daftar.map((item) => item.siswaId))
+  if (akses.status) return res.status(akses.status).json({ message: akses.message })
+
   let tersimpan = 0
+  const perubahan = []
   await sequelize.transaction(async (t) => {
     for (const item of daftar) {
       if (!item.siswaId || !valid.includes(item.status)) continue
-      const [row] = await Kehadiran.findOrCreate({
+      const [row, dibuat] = await Kehadiran.findOrCreate({
         where: { siswaId: item.siswaId, tanggal },
         defaults: {
           status: item.status,
@@ -162,21 +189,54 @@ export async function guruKehadiranBulk(req, res) {
         },
         transaction: t
       })
+      const statusLama = dibuat ? null : row.status
       if (row.status !== item.status) {
         row.status = item.status
         row.keterangan = item.keterangan || null
         await row.save({ transaction: t })
       }
+      if (item.status !== 'hadir' && statusLama !== item.status) {
+        perubahan.push({
+          siswaId: Number(item.siswaId),
+          status: item.status,
+          keterangan: String(item.keterangan || '').trim() || null,
+          tanggal
+        })
+      }
       tersimpan++
     }
   })
+
+  if (perubahan.length) {
+    try {
+      const ids = perubahan.map((item) => item.siswaId)
+      const [namaMap, ortuMap] = await Promise.all([petaNamaSiswa(ids), petaOrangTua(ids)])
+      await Promise.allSettled(
+        perubahan.map((item) => {
+          const ortu = ortuMap.get(item.siswaId)
+          if (!ortu) return null
+          const nama = namaMap.get(item.siswaId) || 'Ananda'
+          const keterangan = item.keterangan ? ` Catatan: ${item.keterangan}.` : ''
+          return kirimNotifikasiInApp(ortu.id, {
+            judul: 'Perubahan kehadiran',
+            pesan: `${nama} tercatat ${LABEL_KEHADIRAN[item.status]} pada ${tanggalIndo(item.tanggal)}.${keterangan}`,
+            tipe: 'kehadiran',
+            link: `${env.appDomain}/orangtua/monitoring`
+          })
+        })
+      )
+    } catch (e) {
+      console.error('[Notifikasi] Gagal mengirim notifikasi kehadiran:', e.message)
+    }
+  }
 
   return res.json({ message: `${tersimpan} catatan kehadiran disimpan.` })
 }
 
 export async function guruKehadiranByDate(req, res) {
-  const { tanggal, kelasId } = req.query
-  const kId = Number(kelasId || kelasAktif(req))
+  const { tanggal } = req.query
+  const kId = kelasAktif(req)
+  if (!kId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
 
   const list = await Siswa.findAll({ where: { kelasId: kId }, order: [['nomorAbsen', 'ASC']] })
   const rows = []
@@ -197,29 +257,72 @@ export async function guruSikapBulk(req, res) {
   const ta = await tahunAktif()
   const valid = [1, 2, 3, 4]
 
+  const akses = await validasiSiswaDalamKelas(req.user, daftar.map((item) => item.siswaId))
+  if (akses.status) return res.status(akses.status).json({ message: akses.message })
+
   let tersimpan = 0
+  const perluNotifikasi = []
   await sequelize.transaction(async (t) => {
     for (const item of daftar) {
       if (!item.siswaId || !valid.includes(Number(item.nilai))) continue
+      const jenis = item.jenis === 'sosial' ? 'sosial' : 'spiritual'
+      const nilai = Number(item.nilai)
+      const catatan = String(item.catatan || '').trim()
+      const tanggalSikap = item.tanggal || new Date().toISOString().slice(0, 10)
       await Sikap.create({
         siswaId: item.siswaId,
-        jenis: item.jenis === 'sosial' ? 'sosial' : 'spiritual',
-        nilai: Number(item.nilai),
-        catatan: item.catatan || null,
-        tanggal: item.tanggal || new Date().toISOString().slice(0, 10),
+        jenis,
+        nilai,
+        catatan: catatan || null,
+        tanggal: tanggalSikap,
         tahunAjaranId: ta?.id || null
       }, { transaction: t })
+      if (nilai <= 2 || catatan) {
+        perluNotifikasi.push({
+          siswaId: Number(item.siswaId),
+          jenis,
+          nilai,
+          catatan,
+          tanggal: tanggalSikap
+        })
+      }
       tersimpan++
     }
   })
+
+  if (perluNotifikasi.length) {
+    try {
+      const ids = perluNotifikasi.map((item) => item.siswaId)
+      const [namaMap, ortuMap] = await Promise.all([petaNamaSiswa(ids), petaOrangTua(ids)])
+      await Promise.allSettled(
+        perluNotifikasi.map((item) => {
+          const ortu = ortuMap.get(item.siswaId)
+          if (!ortu) return null
+          const nama = namaMap.get(item.siswaId) || 'Ananda'
+          const catatan = item.catatan ? ` Catatan: ${item.catatan}.` : ''
+          return kirimNotifikasiInApp(ortu.id, {
+            judul: 'Catatan sikap',
+            pesan: `${nama}: sikap ${item.jenis} bernilai ${item.nilai} pada ${tanggalIndo(item.tanggal)}.${catatan}`,
+            tipe: 'sikap',
+            link: `${env.appDomain}/orangtua/rekap`
+          })
+        })
+      )
+    } catch (e) {
+      console.error('[Notifikasi] Gagal mengirim notifikasi sikap:', e.message)
+    }
+  }
+
   return res.json({ message: `${tersimpan} penilaian sikap disimpan.` })
 }
 
 export async function guruSikapBySiswa(req, res) {
-  const siswaId = req.params.id
+  const hasil = await cariSiswaTerakses(req.user, req.params.siswaId, { attributes: ['id', 'kelasId'] })
+  if (!hasil.siswa) return res.status(hasil.status).json({ message: hasil.message })
+
   const ta = await tahunAktif()
   const list = await Sikap.findAll({
-    where: { siswaId, tahunAjaranId: ta?.id },
+    where: { siswaId: hasil.siswa.id, tahunAjaranId: ta?.id },
     order: [['createdAt', 'DESC']]
   })
   return res.json({ list })
@@ -227,18 +330,26 @@ export async function guruSikapBySiswa(req, res) {
 
 export async function daftarNilaiUntukWali(req, res) {
   const kelasId = kelasAktif(req)
+  if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
-  const siswaList = await Siswa.findAll({ where: { kelasId } })
+  const siswaList = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
+  const ids = siswaList.map((s) => s.id)
 
-  const list = []
-  for (const siswa of siswaList) {
-    const nilai = await Nilai.findAll({
-      where: { siswaId: siswa.id, tahunAjaranId: ta?.id },
-      include: [{ association: 'mapel' }],
-      order: [['createdAt', 'DESC']]
-    })
-    list.push({ siswa, nilai })
+  const nilaiRows = ids.length
+    ? await Nilai.findAll({
+        where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+        include: [{ association: 'mapel' }],
+        order: [['createdAt', 'DESC']]
+      })
+    : []
+
+  const peta = new Map()
+  for (const n of nilaiRows) {
+    if (!peta.has(n.siswaId)) peta.set(n.siswaId, [])
+    peta.get(n.siswaId).push(n)
   }
+
+  const list = siswaList.map((siswa) => ({ siswa, nilai: peta.get(siswa.id) || [] }))
   return res.json({ list })
 }
 
@@ -253,29 +364,45 @@ export async function guruMonitoring(req, res) {
 
   const ta = await tahunAktif()
   const list = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
+  const ids = list.map((s) => s.id)
 
-  const rows = []
-  for (const siswa of list) {
-    const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-    const kehadiran = await Kehadiran.findAll({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id } })
-    const jumlahNilai = await Nilai.count({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id } })
-    const lemah = await mapelTerlemah(siswa.id, ta?.id)
-    const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
+  const [hasilSemua, kehadiranRows, nilaiCounts] = await Promise.all([
+    hitungSemuaSiswa(list, ta?.id),
+    ids.length
+      ? Kehadiran.findAll({
+          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+          attributes: ['siswaId', 'status']
+        })
+      : [],
+    ids.length
+      ? Nilai.findAll({
+          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+          attributes: ['siswaId', [fn('COUNT', col('id')), 'jumlah']],
+          group: ['siswaId'],
+          raw: true
+        })
+      : []
+  ])
 
-    const ringkasKehadiran = { hadir: 0, izin: 0, sakit: 0, alpa: 0 }
-    kehadiran.forEach((k) => {
-      if (k.status in ringkasKehadiran) ringkasKehadiran[k.status]++
-    })
-
-    rows.push({
-      siswa,
-      skor,
-      kehadiran: { ...ringkasKehadiran, total: kehadiran.length },
-      jumlahNilai,
-      mapelTerlemah: lemah?.nama || null,
-      rekomendasi
-    })
+  const kehadiranMap = new Map()
+  for (const k of kehadiranRows) {
+    if (!kehadiranMap.has(k.siswaId)) {
+      kehadiranMap.set(k.siswaId, { hadir: 0, izin: 0, sakit: 0, alpa: 0, total: 0 })
+    }
+    const r = kehadiranMap.get(k.siswaId)
+    if (k.status in r) r[k.status]++
+    r.total++
   }
+  const nilaiMap = new Map(nilaiCounts.map((n) => [Number(n.siswaId), Number(n.jumlah)]))
+
+  const rows = hasilSemua.map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
+    siswa,
+    skor,
+    kehadiran: kehadiranMap.get(siswa.id) || { hadir: 0, izin: 0, sakit: 0, alpa: 0, total: 0 },
+    jumlahNilai: nilaiMap.get(Number(siswa.id)) || 0,
+    mapelTerlemah: lemah?.nama || null,
+    rekomendasi: rekomendasiUntuk(skor, lemah?.nama)
+  }))
 
   return res.json({ list: rows, tahunAjaran: ta?.nama || null, kelasId })
 }

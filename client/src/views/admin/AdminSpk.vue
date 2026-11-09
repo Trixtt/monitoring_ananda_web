@@ -1,13 +1,13 @@
 <template>
-  <div class="space-y-6 max-w-2xl">
-    <div>
+  <div class="space-y-6 max-w-5xl mx-auto">
+    <div class="text-center">
       <h1 class="page-title">Konfigurasi SPK</h1>
       <p class="page-subtitle">Atur bobot kriteria dan interval klasifikasi metode SAW</p>
     </div>
 
     <div v-if="loading"><LoadingState /></div>
 
-    <form v-else @submit.prevent="save" class="space-y-6">
+    <form v-else @submit.prevent="save" class="grid md:grid-cols-2 gap-6 items-start">
       <div class="card p-6">
         <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Bobot Kriteria</h2>
         <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">Jumlah bobot harus sama dengan 1 (100%).</p>
@@ -44,9 +44,9 @@
         </div>
       </div>
 
-      <p v-if="error" class="rounded-md bg-error-container text-on-error-container px-3 py-2 font-label-md">{{ error }}</p>
+      <p v-if="error" class="rounded-md bg-error-container text-on-error-container px-3 py-2 font-label-md md:col-span-2 text-center">{{ error }}</p>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center justify-center gap-3 md:col-span-2">
         <button class="btn-primary" :disabled="saving">
           <span v-if="saving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           <span class="material-symbols-outlined text-[18px]" v-else>save</span>

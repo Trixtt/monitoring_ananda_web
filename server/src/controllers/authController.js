@@ -1,8 +1,16 @@
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { User, Siswa, Kelas, Notifikasi } from '../models/index.js'
-import { generateCsrfToken, setCsrfCookie } from '../middlewares/csrf.js'
+import { generateCsrfToken, setCsrfCookie, clearCsrfCookie } from '../middlewares/csrf.js'
+import {
+  AUTH_COOKIE,
+  LEGACY_AUTH_COOKIE,
+  bacaTokenDariRequest,
+  opsiCookieAuth,
+  signToken
+} from '../services/authToken.js'
+import { validasiPasswordBaru } from '../services/password.js'
+import { catatAudit } from '../services/audit.js'
 
 const ROUTES = {
   admin: '/admin',
@@ -10,6 +18,10 @@ const ROUTES = {
   kepala_sekolah: '/kepsek',
   orang_tua: '/orangtua'
 }
+
+// Hash dummy untuk membuat waktu respons login relatif sama ketika
+// username tidak ditemukan (mengurangi user enumeration lewat timing).
+const DUMMY_HASH = bcrypt.hashSync('dummy-password-tidak-dipakai', 10)
 
 function publicUser(user) {
   return {
@@ -26,10 +38,6 @@ function publicUser(user) {
   }
 }
 
-function signToken(user) {
-  return jwt.sign({ id: user.id, role: user.role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn })
-}
-
 function jwtMaxAgeMs() {
   const m = /^(\d+)([smhd])$/.exec(env.jwtExpiresIn || '12h')
   if (!m) return 12 * 3600 * 1000
@@ -38,13 +46,16 @@ function jwtMaxAgeMs() {
 }
 
 export function setAuthCookie(res, token) {
-  res.cookie('token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: env.nodeEnv === 'production',
-    path: '/',
-    maxAge: jwtMaxAgeMs()
-  })
+  res.cookie(AUTH_COOKIE, token, opsiCookieAuth(jwtMaxAgeMs()))
+  if (AUTH_COOKIE !== LEGACY_AUTH_COOKIE) {
+    res.clearCookie(LEGACY_AUTH_COOKIE, { path: '/' })
+  }
+  return token
+}
+
+export function clearAuthCookie(res) {
+  res.clearCookie(AUTH_COOKIE, { path: '/' })
+  res.clearCookie(LEGACY_AUTH_COOKIE, { path: '/' })
 }
 
 export async function login(req, res) {
@@ -54,12 +65,17 @@ export async function login(req, res) {
   }
 
   const user = await User.findOne({ where: { username: String(username).trim() } })
-  if (!user || !user.active) {
-    return res.status(401).json({ message: 'Username atau password salah.' })
-  }
+  const hash = user?.password || DUMMY_HASH
+  const cocok = await bcrypt.compare(String(password), hash)
 
-  const cocok = await bcrypt.compare(password, user.password)
-  if (!cocok) {
+  if (!user || !user.active || !cocok) {
+    await catatAudit({
+      req,
+      action: 'login.gagal',
+      entity: 'user',
+      entityId: user?.id || null,
+      detail: { username: String(username).slice(0, 50) }
+    })
     return res.status(401).json({ message: 'Username atau password salah.' })
   }
 
@@ -71,6 +87,15 @@ export async function login(req, res) {
     detail = await Siswa.findByPk(user.siswaId, { include: [{ association: 'kelas' }] })
   }
 
+  await catatAudit({
+    req,
+    action: 'login.berhasil',
+    entity: 'user',
+    entityId: user.id,
+    actor: user,
+    detail: { role: user.role }
+  })
+
   return res.json({
     user: publicUser(user),
     redirect: ROUTES[user.role],
@@ -80,15 +105,21 @@ export async function login(req, res) {
 }
 
 export async function logout(req, res) {
-  res.clearCookie('token', { path: '/' })
+  const token = bacaTokenDariRequest(req)
+  if (token) {
+    await catatAudit({ req, action: 'logout', entity: 'user', entityId: req.user?.id || null })
+  }
+  clearAuthCookie(res)
+  clearCsrfCookie(res)
   return res.json({ message: 'Logout berhasil.' })
 }
 
 export async function me(req, res) {
   const user = await User.findByPk(req.user.id, {
-    include: [{ association: 'kelas' }, { association: 'siswa', include: [{ association: 'kelas' }] }]
+    include: [{ association: 'kelas' }, { association: 'siswa', include: [{ association: 'kelas' }] }],
+    attributes: { exclude: ['password'] }
   })
-  const csrfToken = req.cookies?.csrfToken || setCsrfCookie(res, generateCsrfToken())
+  const csrfToken = req.cookies?.csrfToken || req.cookies?.['__Host-csrf'] || setCsrfCookie(res, generateCsrfToken())
   return res.json({ user: publicUser(user), kelas: user.kelas, siswa: user.siswa, csrfToken })
 }
 
@@ -96,33 +127,52 @@ export async function changePassword(req, res) {
   const { passwordLama, passwordBaru, konfirmasi } = req.body
   const user = req.user
 
+  if (!passwordLama) {
+    return res.status(400).json({ message: 'Password lama wajib diisi.' })
+  }
   if (!passwordBaru || !konfirmasi) {
     return res.status(400).json({ message: 'Password baru dan konfirmasi wajib diisi.' })
   }
   if (passwordBaru !== konfirmasi) {
     return res.status(400).json({ message: 'Konfirmasi password tidak cocok.' })
   }
-  if (String(passwordBaru).length < 6) {
-    return res.status(400).json({ message: 'Password baru minimal 6 karakter.' })
+
+  const cocok = await bcrypt.compare(String(passwordLama), user.password)
+  if (!cocok) {
+    await catatAudit({ req, action: 'password.gagal', entity: 'user', entityId: user.id })
+    return res.status(400).json({ message: 'Password lama salah.' })
   }
 
-  if (passwordLama) {
-    const cocok = await bcrypt.compare(passwordLama, user.password)
-    if (!cocok) {
-      return res.status(400).json({ message: 'Password lama salah.' })
-    }
+  let tanggalLahir = null
+  if (user.role === 'orang_tua' && user.siswaId) {
+    const siswa = await Siswa.findByPk(user.siswaId, { attributes: ['tanggalLahir'] })
+    tanggalLahir = siswa?.tanggalLahir || null
   }
 
-  const samaDenganAwal = await bcrypt.compare(passwordBaru, user.password)
+  const masalah = validasiPasswordBaru(passwordBaru, {
+    username: user.username,
+    name: user.name,
+    tanggalLahir
+  })
+  if (masalah) return res.status(400).json({ message: masalah })
+
+  const samaDenganAwal = await bcrypt.compare(String(passwordBaru), user.password)
   if (samaDenganAwal) {
     return res.status(400).json({ message: 'Password baru tidak boleh sama dengan password sebelumnya.' })
   }
 
-  user.password = await bcrypt.hash(passwordBaru, 10)
+  user.password = await bcrypt.hash(String(passwordBaru), 10)
   user.mustChangePassword = false
   await user.save()
 
-  return res.json({ message: 'Password berhasil diperbarui.' })
+  // Terbitkan token baru agar sesi yang sedang aktif tetap berjalan,
+  // sementara seluruh token lama otomatis tidak berlaku.
+  setAuthCookie(res, signToken(user))
+  const csrfToken = setCsrfCookie(res, generateCsrfToken())
+
+  await catatAudit({ req, action: 'password.diganti', entity: 'user', entityId: user.id })
+
+  return res.json({ message: 'Password berhasil diperbarui.', csrfToken })
 }
 
 export async function updateProfile(req, res) {
@@ -132,6 +182,7 @@ export async function updateProfile(req, res) {
   if (email !== undefined) user.email = email
   if (phone !== undefined) user.phone = phone
   await user.save()
+  await catatAudit({ req, action: 'profil.diperbarui', entity: 'user', entityId: user.id })
   return res.json({ message: 'Profil diperbarui.', user: publicUser(user) })
 }
 

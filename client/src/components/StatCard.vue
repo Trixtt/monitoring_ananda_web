@@ -1,14 +1,14 @@
 <template>
-  <div ref="rootRef" class="card card-hover p-6 flex items-center gap-4">
+  <div ref="rootRef" class="card card-hover flex" :class="cardClass">
     <span
-      class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-card"
-      :class="chipClass"
+      class="rounded-xl flex items-center justify-center shrink-0 shadow-card"
+      :class="[chipClass, iconClass]"
     >
-      <span class="material-symbols-outlined text-[24px]" :class="colorClass">{{ icon }}</span>
+      <span class="material-symbols-outlined" :class="[colorClass, iconSizeClass]">{{ icon }}</span>
     </span>
     <div class="min-w-0">
-      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">{{ label }}</p>
-      <p class="font-headline-md text-deep-navy dark:text-ice-white leading-tight">{{ displayValue }}</p>
+      <p class="text-on-surface-variant dark:text-ice-white/60" :class="labelClass">{{ label }}</p>
+      <p class="text-deep-navy dark:text-ice-white leading-tight" :class="valueClass">{{ displayValue }}</p>
     </div>
   </div>
 </template>
@@ -22,6 +22,7 @@ const props = defineProps({
   icon: { type: String, default: 'info' },
   iconBg: { type: String, default: '' },
   iconColor: { type: String, default: 'text-dark-teal' },
+  compact: { type: Boolean, default: false },
   tone: {
     type: String,
     default: '',
@@ -107,5 +108,21 @@ const chipClass = computed(() =>
 
 const colorClass = computed(() =>
   props.tone ? toneMap[props.tone].color : props.iconColor
+)
+
+const cardClass = computed(() =>
+  props.compact
+    ? 'p-3 sm:p-6 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4'
+    : 'p-6 items-center gap-4'
+)
+const iconClass = computed(() => (props.compact ? 'w-9 h-9 sm:w-12 sm:h-12' : 'w-12 h-12'))
+const iconSizeClass = computed(() =>
+  props.compact ? 'text-[20px] sm:text-[24px]' : 'text-[24px]'
+)
+const labelClass = computed(() =>
+  props.compact ? 'text-[11px] leading-tight sm:text-label-sm' : 'font-label-sm'
+)
+const valueClass = computed(() =>
+  props.compact ? 'text-lg sm:text-headline-md' : 'font-headline-md'
 )
 </script>

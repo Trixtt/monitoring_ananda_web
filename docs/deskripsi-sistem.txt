@@ -1,0 +1,1982 @@
+================================================================================
+DESKRIPSI SISTEM
+SISTEM MONITORING DAN REKOMENDASI PERKEMBANGAN SISWA BERBASIS WEBSITE
+SD NEGERI 4 KELING, KABUPATEN JEPARA
+================================================================================
+
+Dokumen ini disusun sebagai bahan penyusunan Bab 4 (Hasil dan Pembahasan)
+skripsi. Seluruh isi ditulis dalam bentuk teks polos agar mudah diolah kembali.
+Dokumen menjelaskan sistem yang benar-benar diimplementasikan pada repositori,
+termasuk perilaku yang berbeda dari klaim README, keterbatasan, dan catatan
+implementasi yang perlu disampaikan secara jujur pada pembahasan.
+
+--------------------------------------------------------------------------------
+1. IDENTITAS DAN TUJUAN DOKUMEN
+--------------------------------------------------------------------------------
+
+1.1 Identitas Sistem
+    Nama sistem      : Sistem Monitoring dan Rekomendasi Perkembangan Siswa
+                       Berbasis Website
+    Satuan pendidikan: SD Negeri 4 Keling, Kabupaten Jepara
+    Jenis aplikasi  : Aplikasi web (client-server) dengan pembaruan realtime
+                      untuk notifikasi.
+    Pengguna        : Admin, Wali Kelas, Kepala Sekolah, Orang Tua/Wali Siswa.
+
+1.2 Dimensi yang Dipantau
+    a. Akademik, berupa nilai per mata pelajaran.
+    b. Kehadiran, berupa status hadir, izin, sakit, dan alpa.
+    c. Sikap, berupa sikap spiritual dan sikap sosial.
+
+1.3 Tujuan Dokumen
+    a. Menjelaskan fungsi setiap modul dan aktivitas setiap aktor.
+    b. Menjadi sumber tunggal (single source of truth) untuk penyusunan Bab 4.
+    c. Menyediakan daftar kebutuhan fungsional dalam bentuk user story beserta
+       kriteria penerimaan yang dapat diuji.
+    d. Mendokumentasikan perhitungan SPK, alur data, validasi, endpoint, dan
+       batasan implementasi secara terbuka.
+
+1.4 Cara Membaca Dokumen
+    - Bagian 2 sampai 9 menjelaskan sistem dari sisi konsep, arsitektur, data,
+      proses bisnis, perhitungan, notifikasi, dan aktivitas per role.
+    - Bagian 10 memuat seluruh user story beserta kriteria penerimaan.
+    - Bagian 11 sampai 13 memuat validasi, peta endpoint/route, dan keamanan.
+    - Bagian 14 sampai 15 memuat data awal, akun demo, glosarium, batasan, dan
+      catatan penting untuk pembahasan Bab 4.
+
+1.5 Batas Dokumen
+    Dokumen ini tidak memuat perbaikan kode, diagram gambar, tabel pengujian
+    black-box, atau naskah Bab 4 itu sendiri. Dokumen hanya mendeskripsikan
+    sistem dan menyediakan bahan yang dapat dikutip serta dikembangkan.
+
+--------------------------------------------------------------------------------
+2. RINGKASAN SISTEM
+--------------------------------------------------------------------------------
+
+2.1 Gambaran Umum
+    Sistem ini membantu sekolah memantau perkembangan siswa secara terpadu.
+    Guru wali kelas memasukkan nilai, kehadiran, dan sikap. Sistem kemudian
+    menghitung skor perkembangan dengan metode penjumlahan terbobot (Simple
+    Additive Weighting/SAW dengan normalisasi skala tetap), mengategorikan
+    siswa menjadi aman, perlu perhatian, atau berisiko, serta menghasilkan
+    rekomendasi tindak lanjut. Kepala sekolah memperoleh rekap per kelas dan
+    dapat membuat laporan. Orang tua memperoleh ringkasan nilai, kehadiran,
+    sikap, skor, rekomendasi, dan rapor dalam bentuk PDF.
+
+2.2 Masalah yang Diselesaikan
+    a. Data akademik, kehadiran, dan sikap sebelumnya terpisah dan sulit
+       dibandingkan.
+    b. Wali kelas membutuhkan cara cepat untuk menemukan siswa yang perlu
+       perhatian.
+    c. Kepala sekolah membutuhkan rekap lintas kelas dan laporan berkala.
+    d. Orang tua membutuhkan informasi perkembangan anak tanpa harus menunggu
+       pembagian rapor.
+
+2.3 Fitur Utama
+    a. Autentikasi berbasis peran dengan cookie JWT dan perlindungan CSRF.
+    b. Dashboard berbeda untuk admin, wali kelas, kepala sekolah, dan orang tua.
+    c. Pengelolaan data master: kelas, tahun ajaran, mata pelajaran, siswa, dan
+       akun pengguna.
+    d. Input nilai, kehadiran, dan sikap oleh wali kelas.
+    e. Perhitungan skor dan kategori perkembangan secara otomatis.
+    f. Rekomendasi tindak lanjut per siswa.
+    g. Monitoring siswa, filter, dan ekspor data.
+    h. Rekap per kelas dan laporan kepala sekolah, termasuk cetak dan PDF.
+    i. Rapor PDF untuk orang tua.
+    j. Notifikasi dalam aplikasi secara realtime dan integrasi WhatsApp Fonnte.
+    k. Pengelolaan artikel/berita sekolah.
+
+2.4 Batasan Singkat
+    Sistem berfokus pada monitoring dan rekomendasi, bukan sistem informasi
+    akademik penuh. Tidak ada penjadwalan pelajaran, absensi per jam pelajaran,
+    pembayaran, atau kenaikan kelas otomatis. Beberapa batasan teknis dijelaskan
+    pada Bagian 15.
+
+--------------------------------------------------------------------------------
+3. AKTOR DAN MATRIKS AKSES
+--------------------------------------------------------------------------------
+
+3.1 Admin
+    Mengelola seluruh data master dan konfigurasi sistem, memantau dashboard
+    sekolah, mengelola akun, artikel, dan parameter SPK. Admin juga dapat
+    memasuki modul wali kelas dan kepala sekolah.
+
+3.2 Wali Kelas
+    Mengelola data perkembangan siswa pada kelas yang menjadi tanggung jawabnya:
+    nilai, kehadiran, sikap, penandaan anak berkebutuhan khusus (ABK), dan
+    monitoring. Wali kelas tidak dapat mengubah data master lintas kelas.
+
+3.3 Kepala Sekolah
+    Melihat ringkasan seluruh sekolah, rekap per kelas, detail siswa, rapor,
+    serta membuat dan menghapus laporan. Kepala sekolah tidak memasukkan nilai,
+    kehadiran, atau sikap.
+
+3.4 Orang Tua/Wali Siswa
+    Melihat data anak yang tertaut ke akunnya: dashboard, rekap nilai, detail
+    nilai per mata pelajaran, monitoring kehadiran dan sikap, rekap skor dan
+    rekomendasi, serta mengunduh rapor PDF.
+
+3.5 Matriks Akses Ringkas
+    +----------------------+-------+------------+-----------+------------+
+    | Modul                | Admin | Wali Kelas | Kepsek    | Orang Tua  |
+    +----------------------+-------+------------+-----------+------------+
+    | Dashboard sekolah    | Ya    | Tidak      | Ya        | Tidak      |
+    | Dashboard kelas      | Ya    | Ya         | Tidak     | Tidak      |
+    | Data kelas/TA/mapel  | Ya    | Tidak      | Tidak     | Tidak      |
+    | Data siswa           | Ya    | Baca kelas | Baca      | Anak sendiri|
+    | Data akun            | Ya    | Tidak      | Tidak     | Profil sendiri|
+    | Input nilai          | Ya    | Ya         | Tidak     | Tidak      |
+    | Input kehadiran      | Ya    | Ya         | Tidak     | Tidak      |
+    | Input sikap          | Ya    | Ya         | Tidak     | Tidak      |
+    | Monitoring siswa     | Ya    | Ya         | Ya        | Ya (anak)  |
+    | Rekap per kelas      | Ya    | Ya         | Ya        | Tidak      |
+    | Laporan              | Ya    | Tidak      | Ya        | Tidak      |
+    | Rapor                | Ya    | Ya         | Ya        | Ya (PDF)   |
+    | Artikel              | Ya    | Tidak      | Tidak     | Baca       |
+    | Konfigurasi SPK      | Ya    | Tidak      | Tidak     | Tidak      |
+    | Notifikasi           | Ya    | Ya         | Ya        | Ya         |
+    +----------------------+-------+------------+-----------+------------+
+
+3.6 Catatan Akses
+    a. Admin memakai akun yang sama ketika membuka modul wali kelas; bukan
+       sesi impersonasi terpisah. Kelas aktif disimpan di localStorage dengan
+       kunci adminKelasId.
+    b. Kepala sekolah dapat membuka modul wali kelas melalui pilihan menu
+       khusus, tetap dengan akun kepala sekolah.
+    c. Orang tua hanya dapat melihat satu siswa yang tertaut pada akunnya.
+       Bila tautan belum ada, dashboard mengembalikan pesan agar menghubungi
+       admin.
+
+--------------------------------------------------------------------------------
+4. ARSITEKTUR DAN TEKNOLOGI
+--------------------------------------------------------------------------------
+
+4.1 Pola Arsitektur
+    Sistem menggunakan arsitektur client-server terpisah.
+    - Client: aplikasi single page (SPA) Vue 3 yang berjalan di browser.
+    - Server: REST API Express.js yang mengakses basis data dan layanan
+      eksternal.
+    - Realtime: Socket.io untuk mengirim notifikasi baru ke browser.
+    - Penyimpanan berkas: folder uploads yang disajikan sebagai static file.
+
+4.2 Teknologi Client
+    - Vue 3 dengan Composition API dan Vue Router.
+    - Pinia untuk state autentikasi dan notifikasi.
+    - Axios untuk komunikasi HTTP.
+    - Tailwind CSS untuk antarmuka.
+    - Chart/visualisasi ringan dan komponen kustom (kartu statistik, kalender
+      kontribusi, badge status, dialog, pagination, toast).
+    - jsPDF dan jsPDF-AutoTable untuk rapor dan laporan PDF.
+    - Socket.io Client untuk notifikasi realtime.
+    - Vite sebagai build tool; Vitest untuk pengujian unit.
+
+4.3 Teknologi Server
+    - Node.js dan Express.js.
+    - Sequelize ORM.
+    - SQLite sebagai basis data default; dapat diganti melalui konfigurasi
+      dialek.
+    - JSON Web Token (JWT) untuk sesi, cookie-parser untuk membaca cookie.
+    - bcryptjs untuk hash password.
+    - Zod untuk validasi input.
+    - Multer untuk unggahan berkas.
+    - Helmet, CORS, dan pembatasan laju permintaan.
+    - Socket.io untuk realtime.
+    - Integrasi Fonnte untuk WhatsApp.
+
+4.4 Struktur Direktori Penting
+    client/
+      src/
+        components/     komponen antarmuka yang dipakai ulang
+        composables/    logika komposisi, termasuk pemilihan kelas guru
+        layouts/        kerangka halaman dan menu per role
+        router/         definisi route dan penjaga akses
+        services/       konfigurasi Axios
+        stores/         state autentikasi dan notifikasi
+        utils/          format, ekspor CSV, pembuatan PDF
+        views/          halaman per role dan halaman publik
+    server/
+      src/
+        config/         konfigurasi lingkungan dan basis data
+        controllers/    logika permintaan per domain
+        database/       koneksi, migrasi, dan berkas SQLite
+        middlewares/    autentikasi, RBAC, CSRF, rate limit, upload
+        models/         definisi Sequelize dan relasi
+        routes/         definisi endpoint
+        services/       SPK, rapor, notifikasi, WhatsApp, ekspor
+        validators/     skema Zod
+        seed.js         data awal
+        index.js        titik masuk server
+
+4.5 Alur Permintaan HTTP
+    1. Browser mengirim permintaan ke /api melalui Axios.
+    2. Axios menyertakan cookie sesi dan header X-CSRF-Token untuk permintaan
+       yang mengubah data.
+    3. Server memeriksa CSRF, laju permintaan, lalu autentikasi.
+    4. Middleware RBAC memeriksa role yang diizinkan.
+    5. Validator memeriksa body/query/params.
+    6. Controller menjalankan logika dan mengakses model.
+    7. Server mengembalikan JSON; client menampilkan data atau pesan error.
+
+4.6 Alur Notifikasi Realtime
+    1. Client membuka koneksi Socket.io dan mengirim token melalui cookie atau
+       handshake.auth.token.
+    2. Server memverifikasi JWT dan memuat pengguna.
+    3. Setiap pengguna bergabung ke room user:<id>.
+    4. Ketika notifikasi dibuat, server menyimpan Notifikasi lalu memancarkan
+       event notifikasi:baru ke room pengguna.
+    5. Client memperbarui daftar notifikasi dan jumlah belum dibaca.
+
+4.7 Alur Deployment Sederhana
+    - Server dan client dapat dijalankan terpisah saat pengembangan.
+    - Client dibangun menjadi berkas statis dan dilayani web server.
+    - Server berjalan sebagai proses Node.js, menyajikan API dan folder uploads.
+    - Basis data SQLite berada pada berkas lokal; untuk produksi perlu strategi
+      pencadangan berkala.
+    - Variabel lingkungan utama: PORT, APP_DOMAIN, JWT_SECRET, DB_DIALECT,
+      FONNTE_TOKEN, FONNTE_URL, UPLOAD_DIR.
+
+4.8 Catatan Teknis
+    a. Server memanggil initDb() lalu backfillWaliKelas() saat mulai, sehingga
+       data wali kelas lama dapat diselaraskan.
+    b. Berkas unggahan disajikan pada /uploads tanpa autentikasi.
+    c. Pembatasan laju permintaan disimpan di memori proses, sehingga tidak
+       konsisten bila aplikasi dijalankan pada beberapa instance.
+    d. Koneksi basis data default menggunakan SQLite dengan berkas
+       server/src/database/dev.sqlite.
+
+--------------------------------------------------------------------------------
+5. MODEL DATA DAN RELASI
+--------------------------------------------------------------------------------
+
+5.1 Prinsip Pemodelan
+    Basis data menggunakan tabel relasional dengan kunci primer bilangan bulat
+    auto-increment. Setiap tabel memiliki kolom createdAt dan updatedAt.
+    Penghapusan data master menggunakan penghapusan fisik. Tidak ada mekanisme
+    soft delete, audit trail, atau cascade otomatis pada tingkat aplikasi.
+
+5.2 Tabel users
+    Menyimpan akun semua peran.
+    - id: kunci primer.
+    - username: unik, wajib.
+    - password: hash bcrypt.
+    - role: enum admin, wali_kelas, kepala_sekolah, orang_tua.
+    - name: nama tampilan.
+    - email: opsional.
+    - phone: nomor WhatsApp, opsional.
+    - photo: path foto, opsional.
+    - mustChangePassword: boolean, default false.
+    - active: boolean, default true.
+    - kelasId: relasi ke kelas untuk wali kelas/admin.
+    - siswaId: relasi ke siswa untuk orang tua.
+    - Timestamps.
+
+5.3 Tabel kelas
+    - id: kunci primer.
+    - nama: nama kelas, unik.
+    - tingkat: bilangan 1 sampai 6.
+    - waliKelas: nama wali kelas (teks), opsional.
+    - Timestamps.
+    Catatan: relasi wali kelas ke akun tidak disimpan sebagai foreign key pada
+    tabel kelas; nama wali kelas disimpan sebagai teks dan diselaraskan oleh
+    fungsi backfillWaliKelas().
+
+5.4 Tabel tahun_ajaran
+    - id: kunci primer.
+    - nama: contoh 2025/2026.
+    - isActive: boolean; hanya satu yang seharusnya aktif.
+    - Timestamps.
+
+5.5 Tabel mapel
+    - id: kunci primer.
+    - nama: nama mata pelajaran, unik.
+    - Timestamps.
+
+5.6 Tabel siswa
+    - id: kunci primer.
+    - nisn: unik.
+    - nama: nama lengkap.
+    - jenisKelamin: enum L/P, opsional.
+    - tanggalLahir: date, opsional.
+    - tahunAngkatan: tahun masuk, opsional.
+    - nomorAbsen: nomor urut di kelas, opsional.
+    - statusABK: boolean, default false.
+    - catatanABK: teks, opsional.
+    - tahunAjaranId: relasi ke tahun ajaran, dapat null.
+    - kelasId: ditambahkan melalui asosiasi Sequelize.
+    - Timestamps.
+
+5.7 Tabel nilai
+    - id: kunci primer.
+    - siswaId: relasi ke siswa.
+    - mapelId: relasi ke mapel.
+    - tahunAjaranId: relasi ke tahun ajaran.
+    - judul: nama penilaian, misalnya Ulangan Harian 1.
+    - nilai: decimal 5,2 dengan rentang 0 sampai 100.
+    - filePath: path lampiran, opsional.
+    - tanggal: tanggal penilaian.
+    - Timestamps.
+
+5.8 Tabel kehadiran
+    - id: kunci primer.
+    - siswaId: relasi ke siswa.
+    - tahunAjaranId: relasi ke tahun ajaran.
+    - tanggal: tanggal absensi.
+    - status: enum hadir, izin, sakit, alpa.
+    - keterangan: teks, opsional.
+    - Timestamps.
+    Catatan: tidak ada constraint unik pada kombinasi siswaId dan tanggal.
+    Pencarian data menggunakan findOrCreate, sehingga duplikasi dapat terjadi
+    bila data sudah ada lebih dari satu.
+
+5.9 Tabel sikap
+    - id: kunci primer.
+    - siswaId: relasi ke siswa.
+    - tahunAjaranId: relasi ke tahun ajaran.
+    - jenis: enum spiritual, sosial; default spiritual.
+    - nilai: bilangan 1 sampai 4.
+    - catatan: teks, opsional.
+    - tanggal: tanggal pencatatan.
+    - Timestamps.
+    Catatan: tidak ada constraint unik; pencatatan massal memakai create
+    sehingga penyimpanan berulang dapat menduplikasi catatan.
+
+5.10 Tabel artikel
+    - id: kunci primer.
+    - judul: judul artikel.
+    - kategori: enum Prestasi, Kegiatan, Pengumuman.
+    - gambar: path gambar, opsional.
+    - isi: isi artikel.
+    - status: enum draft, publish.
+    - publishedAt: waktu terbit, dapat null.
+    - authorId: relasi ke users.
+    - Timestamps.
+    Catatan: controller menyediakan opsi Tips, tetapi enum model dan validator
+    tidak memuat Tips, sehingga penyimpanan kategori Tips berpotensi gagal.
+
+5.11 Tabel notifikasi
+    - id: kunci primer.
+    - userId: relasi ke users.
+    - judul: judul notifikasi.
+    - pesan: isi notifikasi.
+    - tipe: enum nilai, kehadiran, sikap, sistem.
+    - link: tautan tujuan di client.
+    - isRead: boolean, default false.
+    - Timestamps.
+
+5.12 Tabel setting_spk
+    - id: kunci primer.
+    - bobotAkademik: decimal 0 sampai 1.
+    - bobotKehadiran: decimal 0 sampai 1.
+    - bobotSikap: decimal 0 sampai 1.
+    - intervalBaikBawah: decimal 0 sampai 1.
+    - intervalPerhatianBawah: decimal 0 sampai 1.
+    - intervalBerisikoBawah: decimal 0 sampai 1.
+    - Timestamps.
+    Catatan: hanya satu baris konfigurasi yang dipakai. Total bobot harus
+    mendekati 1 dengan toleransi sekitar 0,001.
+
+5.13 Tabel laporan
+    - id: kunci primer.
+    - judul: judul laporan.
+    - kelasId: relasi ke kelas, dapat null untuk seluruh sekolah.
+    - kelasNama: salinan nama kelas pada saat laporan dibuat.
+    - kategori: kategori laporan.
+    - tanggalMulai dan tanggalAkhir: rentang laporan.
+    - jumlah: jumlah siswa yang tercakup.
+    - isi: snapshot data laporan dalam bentuk JSON/teks.
+    - userId: pembuat laporan.
+    - Timestamps.
+
+5.14 Relasi Antar Tabel
+    - User belongsTo Kelas sebagai kelas.
+    - User belongsTo Siswa sebagai siswa.
+    - Siswa belongsTo Kelas sebagai kelas.
+    - Siswa belongsTo TahunAjaran sebagai tahunAjaran.
+    - Siswa hasMany User sebagai users.
+    - Kelas hasMany Siswa sebagai siswa.
+    - Kelas hasMany User sebagai users.
+    - TahunAjaran hasMany Siswa sebagai siswa.
+    - Nilai belongsTo Siswa, Mapel, dan TahunAjaran.
+    - Kehadiran belongsTo Siswa dan TahunAjaran.
+    - Sikap belongsTo Siswa dan TahunAjaran.
+    - Artikel belongsTo User sebagai author.
+    - Notifikasi belongsTo User.
+    - Laporan belongsTo User dan Kelas.
+
+5.15 Integritas dan Keterbatasan Data
+    a. Constraint unik utama: username, nisn, nama kelas, nama mapel.
+    b. Tidak ada constraint unik pada kehadiran per tanggal maupun sikap.
+    c. Penghapusan kelas, siswa, mapel, atau tahun ajaran dapat gagal karena
+       foreign key. Aplikasi tidak menyediakan cascade, soft delete, atau
+       penanganan khusus untuk konflik tersebut.
+    d. Tahun ajaran siswa dapat null karena skema validasi tidak menerima field
+       tahunAjaranId dari form admin.
+    e. Tidak ada mekanisme kenaikan kelas otomatis atau penyalinan data siswa
+       antar tahun ajaran.
+
+--------------------------------------------------------------------------------
+6. ALUR BISNIS UTAMA
+--------------------------------------------------------------------------------
+
+6.1 Penyiapan Awal Sistem
+    1. Admin masuk ke aplikasi.
+    2. Admin memastikan tahun ajaran aktif tersedia.
+    3. Admin membuat data kelas dan mata pelajaran.
+    4. Admin membuat akun wali kelas dan menautkannya ke kelas.
+    5. Admin membuat data siswa dan akun orang tua.
+    6. Admin memeriksa konfigurasi bobot dan interval SPK.
+    7. Wali kelas masuk dan mulai mengisi nilai, kehadiran, serta sikap.
+
+6.2 Login dan Perubahan Password Wajib
+    1. Pengguna membuka halaman login.
+    2. Pengguna memasukkan username dan password.
+    3. Server memeriksa keberadaan akun, status aktif, dan kecocokan password.
+    4. Server menerbitkan JWT dan cookie sesi.
+    5. Bila mustChangePassword true, client mengarahkan ke halaman ganti
+       password.
+    6. Setelah password berhasil diubah, pengguna diarahkan ke dashboard sesuai
+       role.
+    7. Bila login gagal, pesan yang ditampilkan sama untuk username tidak ada
+       maupun password salah, untuk mengurangi kebocoran informasi.
+
+6.3 Alur Input Nilai
+    1. Wali kelas memilih kelas.
+    2. Wali kelas memilih siswa dan mata pelajaran.
+    3. Wali kelas mengisi judul penilaian, nilai 0 sampai 100, dan tanggal.
+    4. Server memvalidasi input dan menyimpan nilai pada tahun ajaran aktif.
+    5. Server membuat notifikasi dalam aplikasi untuk akun orang tua siswa.
+    6. Bila nomor telepon tersedia dan token Fonnte dikonfigurasi, server
+       mencoba mengirim pesan WhatsApp.
+    7. Skor dan kategori siswa dihitung ulang saat data diminta.
+
+6.4 Alur Input Kehadiran
+    1. Wali kelas memilih kelas dan tanggal.
+    2. Sistem menampilkan daftar siswa.
+    3. Wali kelas memilih status hadir, izin, sakit, atau alpa untuk setiap
+       siswa, serta keterangan bila perlu.
+    4. Server menyimpan atau memperbarui data kehadiran pada tanggal tersebut.
+    5. Data kehadiran langsung memengaruhi skor kehadiran pada perhitungan SPK.
+    Catatan: notifikasi otomatis untuk kehadiran belum diimplementasikan.
+
+6.5 Alur Input Sikap
+    1. Wali kelas memilih kelas dan siswa.
+    2. Wali kelas memilih jenis sikap spiritual atau sosial.
+    3. Wali kelas memberi nilai 1 sampai 4 dan catatan.
+    4. Server menyimpan catatan sikap pada tahun ajaran aktif.
+    5. Catatan sikap memengaruhi skor sikap pada perhitungan SPK.
+    Catatan: notifikasi otomatis untuk sikap belum diimplementasikan.
+
+6.6 Alur Monitoring dan Rekomendasi
+    1. Wali kelas membuka halaman monitoring.
+    2. Sistem mengambil daftar siswa pada kelas tersebut.
+    3. Untuk setiap siswa, sistem menghitung rata-rata nilai, persentase
+       kehadiran, rata-rata sikap, skor akhir, kategori, dan rekomendasi.
+    4. Wali kelas dapat memfilter siswa berdasarkan kategori atau kriteria lain.
+    5. Wali kelas membuka detail siswa untuk melihat rincian dan rekomendasi.
+    6. Siswa ABK ditandai khusus dan tidak memperoleh skor numerik.
+
+6.7 Alur Rekap dan Laporan Kepala Sekolah
+    1. Kepala sekolah membuka dashboard.
+    2. Sistem menghitung ringkasan seluruh sekolah pada tahun ajaran aktif atau
+       tahun ajaran yang dipilih.
+    3. Kepala sekolah membuka rekap per kelas.
+    4. Kepala sekolah membuka detail kelas atau detail siswa.
+    5. Kepala sekolah dapat mengekspor data kelas ke CSV.
+    6. Kepala sekolah membuat laporan dengan memilih kelas, kategori, rentang
+       tanggal, dan judul.
+    7. Sistem menyimpan snapshot laporan.
+    8. Kepala sekolah dapat mencetak, mengunduh PDF, atau menghapus laporan.
+
+6.8 Alur Rapor Orang Tua
+    1. Orang tua masuk dan membuka dashboard.
+    2. Sistem menampilkan identitas anak, tahun ajaran, skor, kategori,
+       rekomendasi, nilai, kehadiran, dan sikap.
+    3. Orang tua membuka rekap nilai per mata pelajaran.
+    4. Orang tua membuka detail nilai suatu mata pelajaran.
+    5. Orang tua membuka monitoring kehadiran dan sikap bulanan.
+    6. Orang tua mengunduh rapor PDF dari halaman rekap.
+    7. PDF dibuat di sisi client dari data rapor yang dikirim server.
+
+6.9 Alur Artikel Sekolah
+    1. Publik membuka beranda dan daftar artikel.
+    2. Publik membuka detail artikel yang berstatus publish.
+    3. Admin membuat, mengubah, atau menghapus artikel melalui form multipart.
+    4. Artikel dapat disimpan sebagai draft atau langsung publish.
+    5. Artikel draft tidak boleh diakses publik.
+
+6.10 Alur Reset Password oleh Admin
+    1. Pengguna yang lupa password menghubungi wali kelas atau admin.
+    2. Admin membuka daftar akun dan memilih reset password.
+    3. Sistem menghasilkan password baru dan menandai mustChangePassword.
+    4. Admin menyampaikan password baru kepada pengguna.
+    5. Pengguna login dan wajib mengganti password.
+
+6.11 Alur Pergantian Tahun Ajaran
+    1. Admin menonaktifkan tahun ajaran lama dan mengaktifkan tahun ajaran baru.
+    2. Data nilai, kehadiran, dan sikap baru tercatat pada tahun ajaran aktif.
+    3. Siswa dan kelas tidak otomatis dipindahkan atau disalin ke tahun ajaran
+       baru; admin perlu menyiapkan data secara manual.
+    4. Laporan lama tetap menyimpan snapshot dan nama kelas saat dibuat.
+
+--------------------------------------------------------------------------------
+7. PERHITUNGAN SPK DAN REKOMENDASI
+--------------------------------------------------------------------------------
+
+7.1 Metode
+    Sistem menggunakan penjumlahan terbobot atas tiga dimensi: akademik,
+    kehadiran, dan sikap. Berbeda dari klaim README yang menyebut normalisasi
+    x/max (SAW klasik), implementasi aktual memakai normalisasi skala tetap.
+    Nilai mentah diubah ke rentang 0 sampai 1 dengan pembagi tetap, bukan
+    dibagi nilai maksimum pada kumpulan data.
+
+7.2 Normalisasi Akademik
+    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran terkait.
+    skorAkademik = rataNilai / 100.
+    Bila tidak ada nilai, skorAkademik = 0.
+
+7.3 Normalisasi Kehadiran
+    jumlahHadir = banyak catatan dengan status hadir.
+    totalKehadiran = seluruh catatan kehadiran siswa.
+    skorKehadiran = jumlahHadir / totalKehadiran.
+    Bila tidak ada data kehadiran, skorKehadiran = 0.
+    Status izin, sakit, dan alpa tidak dihitung sebagai hadir.
+
+7.4 Normalisasi Sikap
+    rataSikap = rata-rata nilai sikap dalam skala 1 sampai 4.
+    skorSikap = rataSikap / 4.
+    Bila tidak ada catatan sikap, skorSikap = 1 (dianggap baik). Kebijakan ini
+    dipilih karena sistem mencatat insiden, sehingga siswa tanpa catatan
+    dianggap tidak memiliki masalah sikap.
+
+7.5 Skor Akhir
+    skor = (bobotAkademik x skorAkademik)
+         + (bobotKehadiran x skorKehadiran)
+         + (bobotSikap x skorSikap)
+
+    Nilai default:
+    bobotAkademik      = 0,31
+    bobotKehadiran     = 0,31
+    bobotSikap         = 0,38
+    intervalBaikBawah  = 0,67
+    intervalPerhatianBawah = 0,34
+    intervalBerisikoBawah  = 0,00
+
+    Total bobot wajib mendekati 1 dengan toleransi sekitar 0,001. Setiap bobot
+    dan interval harus berada pada rentang 0 sampai 1.
+
+7.6 Kategori
+    skor >= intervalBaikBawah          -> aman
+    skor >= intervalPerhatianBawah     -> perhatian
+    selain itu                         -> berisiko
+
+    Label yang ditampilkan:
+    aman       : Baik / Aman
+    perhatian  : Perlu Perhatian
+    berisiko   : Berisiko / Butuh Tindak Lanjut
+    abk        : Anak Berkebutuhan Khusus
+
+    Catatan: intervalBerisikoBawah disimpan dan divalidasi, tetapi tidak dipakai
+    dalam fungsi kategoriDariSkor. Selain itu, tidak ada validasi yang memaksa
+    urutan intervalBaikBawah > intervalPerhatianBawah >
+    intervalBerisikoBawah.
+
+7.7 Siswa ABK
+    Bila statusABK true, sistem tidak menghitung skor numerik. Hasil yang
+    dikembalikan berisi penanda abk true, skor dan komponen skor null, serta
+    kategori kode abk dengan label Anak Berkebutuhan Khusus. Siswa ABK tetap
+    tampil pada daftar dan rekap, tetapi tidak masuk kategori aman, perhatian,
+    atau berisiko.
+
+7.8 Rekomendasi Tindak Lanjut
+    Ambang rekomendasi bersifat tetap dan tidak mengikuti SettingSpk:
+    - Akademik rendah bila skorAkademik < 0,65.
+    - Kehadiran rendah bila skorKehadiran < 0,80.
+    - Sikap rendah bila skorSikap < 0,65.
+
+    Aturan:
+    1. Bila akademik rendah, rekomendasi menekankan pendampingan belajar.
+    2. Bila sikap rendah, rekomendasi menekankan pembinaan sikap.
+    3. Bila kehadiran rendah dan akademik serta sikap tidak rendah, rekomendasi
+       menekankan peningkatan kehadiran.
+    4. Bila tidak ada kondisi rendah, rekomendasi menyatakan perkembangan baik
+       dan anjuran mempertahankan.
+    5. Bila beberapa kondisi rendah, akademik atau sikap dapat menimpa tipe
+       rekomendasi kehadiran.
+
+7.9 Mapel Terlemah
+    Sistem membandingkan rata-rata nilai per mata pelajaran untuk siswa.
+    Mata pelajaran dengan rata-rata terendah ditampilkan sebagai mapel
+    terlemah. Bila belum ada nilai, mapel terlemah null. Perhitungan ini
+    dilakukan per siswa dan dapat menimbulkan banyak query (N+1) pada halaman
+    rekap.
+
+7.10 Contoh Perhitungan
+    Data siswa:
+    - Nilai: 80 dan 90, sehingga rataNilai = 85 dan skorAkademik = 0,85.
+    - Kehadiran: hadir 15 dari 18, sehingga skorKehadiran = 0,8333.
+    - Sikap: nilai 3 dan 4, sehingga rataSikap = 3,5 dan skorSikap = 0,875.
+    - Skor = 0,31 x 0,85 + 0,31 x 0,8333 + 0,38 x 0,875
+           = 0,2635 + 0,2583 + 0,3325
+           = 0,8543.
+    - Kategori: aman karena 0,8543 >= 0,67.
+
+    Data kosong:
+    - skorAkademik = 0, skorKehadiran = 0, skorSikap = 1.
+    - Skor = 0,38.
+    - Kategori: perhatian karena 0,38 >= 0,34 tetapi < 0,67.
+
+7.11 Catatan Pembahasan
+    a. Perbedaan normalisasi perlu dijelaskan agar tidak terjadi klaim yang
+       bertentangan dengan kode.
+    b. Bobot sikap paling besar (0,38), sehingga siswa tanpa catatan sikap
+       memperoleh nilai sikap maksimal. Kebijakan ini perlu dibahas dari sisi
+       keadilan dan validitas data.
+    c. Ambang rekomendasi tidak dapat dikonfigurasi melalui antarmuka.
+    d. Interval berisiko bawah belum berfungsi.
+    e. Perhitungan dilakukan saat data diminta, bukan disimpan sebagai skor
+       permanen. Perubahan nilai, kehadiran, sikap, atau bobot langsung
+       memengaruhi hasil berikutnya.
+
+--------------------------------------------------------------------------------
+8. NOTIFIKASI DAN INTEGRASI WHATSAPP
+--------------------------------------------------------------------------------
+
+8.1 Notifikasi Dalam Aplikasi
+    Fungsi kirimNotifikasiInApp(userId, data) menyimpan baris Notifikasi dengan
+    judul, pesan, tipe, dan link, lalu memancarkan event notifikasi:baru ke room
+    user:<userId>. Tipe yang tersedia: nilai, kehadiran, sikap, dan sistem.
+    Bila tipe tidak diberikan, sistem memakai sistem.
+
+8.2 Perilaku Antarmuka Notifikasi
+    - Lonceng notifikasi menampilkan jumlah belum dibaca.
+    - Daftar notifikasi dapat dibuka dan ditandai terbaca satu per satu atau
+      seluruhnya.
+    - Klik notifikasi dapat mengarahkan pengguna ke tautan terkait.
+    - Notifikasi baru muncul tanpa memuat ulang halaman melalui Socket.io.
+
+8.3 Notifikasi Nilai
+    Saat wali kelas menyimpan nilai, server membuat notifikasi untuk akun orang
+    tua siswa. Notifikasi berisi informasi nilai dan tautan ke halaman nilai
+    anak. Ini adalah satu-satunya pemicu notifikasi otomatis yang
+    diimplementasikan saat ini.
+
+8.4 Notifikasi Kehadiran dan Sikap
+    Belum diimplementasikan sebagai notifikasi otomatis. Perubahan kehadiran
+    dan sikap hanya memengaruhi data dan skor. Bila diperlukan pada pembahasan,
+    hal ini dapat disebut sebagai pengembangan lanjutan.
+
+8.5 Integrasi Fonnte
+    Fungsi kirimWhatsApp(phone, message) mengirim pesan melalui API Fonnte.
+    Perilaku:
+    - Nomor dinormalisasi dari awalan 0 menjadi 62.
+    - countryCode diset 62.
+    - Bila token tidak tersedia, fungsi mengembalikan skipped true dengan
+      alasan no_token.
+    - Bila nomor tidak tersedia, fungsi mengembalikan skipped true dengan
+      alasan no_phone.
+    - Permintaan dibatasi timeout 10 detik menggunakan AbortController.
+    - Kegagalan tidak melempar error; fungsi mengembalikan ok false beserta
+      informasi kegagalan dan mencatat log.
+    - Pesan nilai diformat oleh formatPesanNilai(namaAnak, judul, mapel, nilai,
+      link).
+
+8.6 Perilaku Checkbox Kirim WhatsApp
+    Antarmuka input nilai memiliki pilihan kirim WhatsApp, tetapi nilai checkbox
+    tersebut tidak dikirim ke API. Server selalu mencoba mengirim WhatsApp bila
+    token dan nomor tersedia. Perilaku ini perlu dicatat sebagai ketidaksesuaian
+    antara antarmuka dan implementasi.
+
+8.7 Dampak pada Pengujian
+    Pengujian notifikasi realtime memerlukan dua sesi atau dua pengguna. Bila
+    token Fonnte tidak dikonfigurasi, pengiriman WhatsApp akan dilewati tanpa
+    menggagalkan penyimpanan nilai.
+
+--------------------------------------------------------------------------------
+9. AKTIVITAS SISTEM PER ROLE
+--------------------------------------------------------------------------------
+
+9.1 Aktivitas Admin
+    a. Masuk dan melihat dashboard ringkasan jumlah siswa, kelas, akun, mapel,
+       dan artikel.
+    b. Mengelola kelas: melihat daftar beserta jumlah siswa, menambah, mengubah,
+       dan menghapus.
+    c. Mengelola tahun ajaran: menambah, mengubah, menghapus, dan menetapkan
+       tahun ajaran aktif.
+    d. Mengelola mata pelajaran: menambah, mengubah, dan menghapus.
+    e. Melihat daftar siswa, mencari, memfilter, dan mengekspor CSV.
+    f. Menambah, mengubah, dan menghapus siswa, termasuk penandaan ABK dan
+       catatan ABK.
+    g. Melihat daftar akun, mencari, memfilter role, dan mengekspor CSV.
+    h. Membuat akun, mengubah akun, menautkan akun orang tua ke siswa, dan
+       menautkan wali kelas ke kelas.
+    i. Mereset password akun dan menonaktifkan akun.
+    j. Mengatur bobot dan interval SPK.
+    k. Melihat daftar artikel, menambah, mengubah, dan menghapus artikel.
+    l. Memilih kelas untuk masuk ke modul wali kelas.
+    m. Masuk ke modul kepala sekolah untuk melihat rekap dan laporan.
+    n. Menerima dan membaca notifikasi.
+
+9.2 Aktivitas Wali Kelas
+    a. Masuk dan melihat dashboard kelas: ringkasan siswa, kategori, dan
+       rekomendasi.
+    b. Melihat daftar siswa beserta skor dan kategori.
+    c. Membuka detail siswa: nilai, kehadiran, sikap, skor, kategori, dan
+       rekomendasi.
+    d. Menandai siswa sebagai ABK dan mengisi catatan ABK.
+    e. Membuka monitoring dan memfilter siswa berdasarkan kategori atau
+       kriteria.
+    f. Menginput nilai per siswa dan mata pelajaran.
+    g. Melihat riwayat nilai.
+    h. Menerima notifikasi aktivitas nilai.
+    i. Menginput kehadiran harian.
+    j. Melihat kalender kehadiran.
+    k. Menginput sikap spiritual dan sosial.
+    l. Melihat riwayat sikap.
+    m. Melihat rekomendasi tindak lanjut.
+    n. Menggunakan pemilihan kelas yang tersimpan untuk kenyamanan.
+
+9.3 Aktivitas Kepala Sekolah
+    a. Masuk dan melihat dashboard seluruh sekolah.
+    b. Memfilter dashboard berdasarkan tahun ajaran.
+    c. Melihat rekap per kelas: jumlah siswa, aman, perhatian, berisiko, ABK.
+    d. Membuka detail kelas dan mengekspor CSV.
+    e. Membuka detail siswa.
+    f. Membuka rapor dan mencetak.
+    g. Membuat laporan dengan filter kelas, kategori, rentang tanggal, dan
+       judul.
+    h. Melihat riwayat laporan.
+    i. Membuka detail laporan, mencetak, dan mengunduh PDF.
+    j. Menghapus laporan.
+    k. Menerima dan membaca notifikasi.
+
+9.4 Aktivitas Orang Tua
+    a. Masuk dan melihat dashboard anak.
+    b. Melihat rekap nilai per mata pelajaran.
+    c. Membuka detail nilai suatu mata pelajaran.
+    d. Melihat rekap skor, kategori, dan rekomendasi.
+    e. Mengunduh rapor PDF.
+    f. Melihat identitas anak dan tahun ajaran.
+    g. Memantau kehadiran bulanan.
+    h. Memantau sikap bulanan.
+    i. Menerima notifikasi nilai.
+    j. Mengubah profil dan password.
+    k. Mengalami perubahan password wajib pada login pertama.
+
+9.5 Aktivitas Publik
+    a. Membuka beranda sekolah.
+    b. Melihat daftar artikel/berita.
+    c. Membaca detail artikel yang telah dipublikasikan.
+    d. Menuju halaman login.
+
+--------------------------------------------------------------------------------
+10. DAFTAR USER STORIES DAN KRITERIA PENERIMAAN
+--------------------------------------------------------------------------------
+
+Format:
+    Kode     : pengenal unik.
+    Aktor    : pelaku utama.
+    Prioritas: Tinggi, Sedang, atau Rendah.
+    Cerita   : kebutuhan dalam bahasa pengguna.
+    Kriteria : kondisi yang dapat diperiksa untuk menyatakan cerita terpenuhi.
+
+10.1 Modul Publik
+
+US-001
+    Aktor    : Pengunjung.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengunjung, saya ingin melihat beranda sekolah agar
+               mengenal profil singkat dan informasi terbaru.
+    Kriteria :
+    1. Halaman beranda dapat dibuka tanpa login.
+    2. Beranda menampilkan identitas sekolah dan navigasi menuju berita serta
+       login.
+    3. Tidak ada data internal siswa yang ditampilkan.
+
+US-002
+    Aktor    : Pengunjung.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengunjung, saya ingin melihat daftar berita sekolah
+               agar memperoleh informasi kegiatan dan pengumuman.
+    Kriteria :
+    1. Daftar artikel dapat dibuka tanpa login.
+    2. Hanya artikel berstatus publish yang ditampilkan.
+    3. Daftar memuat judul, kategori, gambar, dan ringkasan.
+    4. Daftar dapat difilter berdasarkan kategori dan kata kunci judul.
+
+US-003
+    Aktor    : Pengunjung.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengunjung, saya ingin membaca detail berita agar
+               memperoleh informasi lengkap.
+    Kriteria :
+    1. Detail artikel publish dapat dibuka tanpa login.
+    2. Halaman menampilkan judul, kategori, tanggal, penulis, gambar, dan isi.
+    3. Artikel draft tidak dapat dibuka oleh pengunjung.
+    4. Artikel yang tidak ditemukan menampilkan pesan tidak tersedia.
+
+US-004
+    Aktor    : Pengunjung.
+    Prioritas: Sedang.
+    Cerita   : Sebagai pengunjung, saya ingin menuju halaman login agar dapat
+               mengakses fitur sesuai peran.
+    Kriteria :
+    1. Tautan login tersedia pada navigasi publik.
+    2. Halaman login menampilkan formulir username dan password.
+    3. Pengunjung tanpa akun tidak dapat mendaftar sendiri.
+
+10.2 Modul Autentikasi, Profil, dan Notifikasi
+
+US-005
+    Aktor    : Semua pengguna.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengguna, saya ingin masuk dengan username dan password
+               agar dapat mengakses sistem sesuai peran.
+    Kriteria :
+    1. Login berhasil bila username benar, password cocok, dan akun aktif.
+    2. Login gagal memberi pesan yang sama untuk username tidak ada atau
+       password salah.
+    3. Akun nonaktif tidak dapat masuk.
+    4. Setelah login, pengguna diarahkan ke dashboard sesuai role.
+    5. Percobaan login dibatasi lima kali per 15 menit per alamat IP.
+
+US-006
+    Aktor    : Semua pengguna.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengguna, saya ingin keluar dari sistem agar sesi saya
+               berakhir dengan aman.
+    Kriteria :
+    1. Tombol keluar tersedia pada menu pengguna.
+    2. Server menghapus cookie sesi.
+    3. Setelah keluar, pengguna diarahkan ke halaman login.
+    4. Halaman internal tidak dapat diakses tanpa sesi baru.
+
+US-007
+    Aktor    : Pengguna dengan password awal.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengguna baru, saya ingin diwajibkan mengganti password
+               agar akun saya tidak mudah diakses orang lain.
+    Kriteria :
+    1. Bila mustChangePassword true, pengguna diarahkan ke halaman ganti
+       password.
+    2. Password baru minimal enam karakter.
+    3. Konfirmasi password harus sama dengan password baru.
+    4. Setelah berhasil, mustChangePassword menjadi false.
+    5. Pengguna diarahkan ke dashboard sesuai role.
+
+US-008
+    Aktor    : Semua pengguna.
+    Prioritas: Sedang.
+    Cerita   : Sebagai pengguna, saya ingin mengubah profil agar data kontak
+               saya tetap benar.
+    Kriteria :
+    1. Pengguna dapat mengubah nama, email, dan nomor telepon.
+    2. Email dan nomor telepon boleh kosong.
+    3. Perubahan tersimpan dan tampil pada sesi berikutnya.
+    4. Username dan role tidak dapat diubah melalui halaman profil.
+
+US-009
+    Aktor    : Semua pengguna.
+    Prioritas: Sedang.
+    Cerita   : Sebagai pengguna, saya ingin mengganti password secara mandiri
+               agar akun tetap aman.
+    Kriteria :
+    1. Pengguna memasukkan password lama dan password baru.
+    2. Password baru minimal enam karakter.
+    3. Pengguna tidak dapat menyimpan bila password lama salah.
+    4. Setelah berhasil, pengguna dapat login dengan password baru.
+
+US-010
+    Aktor    : Pengguna yang lupa password.
+    Prioritas: Sedang.
+    Cerita   : Sebagai pengguna yang lupa password, saya ingin memperoleh
+               panduan agar dapat memulihkan akses.
+    Kriteria :
+    1. Halaman lupa password menampilkan panduan menghubungi wali kelas atau
+       admin.
+    2. Sistem tidak mengirim email reset otomatis.
+    3. Panduan menjelaskan bahwa admin akan memberi password baru.
+    4. Pengguna diarahkan untuk login dan mengganti password setelah reset.
+
+US-011
+    Aktor    : Semua pengguna.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai pengguna, saya ingin menerima notifikasi baru secara
+               realtime agar mengetahui aktivitas penting tanpa memuat ulang.
+    Kriteria :
+    1. Koneksi Socket.io terbentuk setelah login.
+    2. Event notifikasi:baru diterima pengguna yang berhak.
+    3. Jumlah notifikasi belum dibaca bertambah.
+    4. Notifikasi tersimpan di basis data, bukan hanya di memori.
+
+US-012
+    Aktor    : Semua pengguna.
+    Prioritas: Sedang.
+    Cerita   : Sebagai pengguna, saya ingin membaca dan menandai notifikasi
+               agar daftar notifikasi tetap rapi.
+    Kriteria :
+    1. Pengguna dapat membuka daftar notifikasi.
+    2. Pengguna dapat menandai satu notifikasi sebagai terbaca.
+    3. Pengguna dapat menandai semua notifikasi sebagai terbaca.
+    4. Jumlah belum dibaca berkurang sesuai aksi.
+    5. Notifikasi yang memiliki tautan dapat membuka halaman terkait.
+
+10.3 Modul Admin
+
+US-013
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin melihat dashboard ringkasan agar
+               mengetahui kondisi data sekolah secara cepat.
+    Kriteria :
+    1. Dashboard menampilkan jumlah siswa, kelas, akun, mapel, dan artikel.
+    2. Angka diambil dari basis data, bukan nilai statis.
+    3. Admin dapat berpindah ke modul pengelolaan dari dashboard.
+    4. Dashboard hanya dapat diakses admin.
+
+US-014
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengelola kelas agar struktur kelas
+               sesuai kondisi sekolah.
+    Kriteria :
+    1. Admin dapat melihat daftar kelas beserta jumlah siswa.
+    2. Admin dapat menambah kelas dengan nama, tingkat, dan nama wali kelas.
+    3. Admin dapat mengubah data kelas.
+    4. Admin dapat menghapus kelas.
+    5. Nama kelas unik; duplikasi ditolak dengan pesan yang jelas.
+
+US-015
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengelola tahun ajaran agar data
+               perkembangan tercatat pada periode yang benar.
+    Kriteria :
+    1. Admin dapat menambah, mengubah, dan menghapus tahun ajaran.
+    2. Admin dapat menetapkan satu tahun ajaran sebagai aktif.
+    3. Tahun ajaran aktif digunakan sebagai default input nilai, kehadiran, dan
+       sikap.
+    4. Setelah tahun ajaran aktif berubah, data baru mengikuti tahun ajaran
+       baru.
+
+US-016
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengelola mata pelajaran agar daftar
+               mapel sesuai kurikulum.
+    Kriteria :
+    1. Admin dapat melihat daftar mata pelajaran.
+    2. Admin dapat menambah, mengubah, dan menghapus mata pelajaran.
+    3. Nama mata pelajaran unik.
+    4. Mata pelajaran yang sudah dipakai nilai tidak dapat dihapus tanpa
+       penanganan konflik.
+
+US-017
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin melihat dan mengekspor daftar siswa
+               agar data mudah diperiksa dan diarsipkan.
+    Kriteria :
+    1. Admin dapat melihat daftar siswa dengan pagination.
+    2. Admin dapat mencari siswa berdasarkan nama atau NISN.
+    3. Admin dapat memfilter siswa berdasarkan kelas.
+    4. Admin dapat mengekspor daftar siswa ke CSV.
+    5. Data yang diekspor sesuai filter yang aktif.
+
+US-018
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin menambah, mengubah, dan menghapus
+               siswa agar data siswa selalu mutakhir.
+    Kriteria :
+    1. Form siswa memuat NISN, nama, jenis kelamin, tanggal lahir, tahun
+       angkatan, nomor absen, status ABK, dan catatan ABK.
+    2. NISN unik; duplikasi ditolak.
+    3. Admin dapat menautkan siswa ke kelas.
+    4. Admin dapat menandai siswa sebagai ABK.
+    5. Admin dapat menghapus siswa.
+    Catatan: form menampilkan pilihan tahun ajaran, tetapi API tidak menerima
+    field tersebut sehingga pilihan tersebut tidak tersimpan.
+
+US-019
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin melihat dan mengekspor daftar akun
+               agar pengelolaan akses lebih mudah.
+    Kriteria :
+    1. Admin dapat melihat daftar akun dengan pagination.
+    2. Admin dapat mencari berdasarkan nama atau username.
+    3. Admin dapat memfilter berdasarkan role.
+    4. Admin dapat mengekspor daftar akun ke CSV.
+    5. Daftar menampilkan role, kelas, siswa tertaut, status aktif, dan status
+       wajib ganti password.
+
+US-020
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin membuat akun pengguna agar setiap
+               pengguna dapat mengakses sistem sesuai peran.
+    Kriteria :
+    1. Admin memilih role admin, wali kelas, kepala sekolah, atau orang tua.
+    2. Username wajib unik, minimal tiga karakter, dan hanya memuat huruf,
+       angka, titik, atau garis bawah.
+    3. Password wajib minimal enam karakter.
+    4. Akun wali kelas dapat ditautkan ke kelas.
+    5. Akun orang tua dapat ditautkan ke siswa.
+    6. Admin dapat menandai akun wajib mengganti password.
+
+US-021
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengubah akun agar data akses dan
+               penautan tetap benar.
+    Kriteria :
+    1. Admin dapat mengubah nama, email, nomor telepon, role, kelas, siswa,
+       status aktif, dan status wajib ganti password.
+    2. Username tidak dapat diubah pada mode edit.
+    3. Perubahan kelas wali kelas menyelaraskan data wali kelas pada kelas.
+    4. Perubahan role yang tidak konsisten ditolak atau menghasilkan penautan
+       yang tidak terpakai.
+
+US-022
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mereset password dan menonaktifkan
+               akun agar akses bermasalah dapat ditangani.
+    Kriteria :
+    1. Admin dapat mereset password akun.
+    2. Sistem menampilkan password baru kepada admin.
+    3. Akun yang direset ditandai wajib mengganti password.
+    4. Admin dapat menonaktifkan akun.
+    5. Akun nonaktif tidak dapat login.
+
+US-023
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengatur bobot dan interval SPK agar
+               perhitungan sesuai kebijakan sekolah.
+    Kriteria :
+    1. Form menampilkan bobot akademik, kehadiran, sikap, serta tiga interval.
+    2. Setiap nilai berada pada rentang 0 sampai 1.
+    3. Total bobot harus mendekati 1.
+    4. Perubahan bobot langsung memengaruhi hasil perhitungan berikutnya.
+    5. Nilai interval berisiko bawah tersimpan meskipun belum dipakai
+       perhitungan kategori.
+
+US-024
+    Aktor    : Admin.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai admin, saya ingin mengelola artikel agar informasi
+               sekolah dapat dipublikasikan.
+    Kriteria :
+    1. Admin dapat melihat daftar artikel.
+    2. Admin dapat menambah artikel dengan judul, kategori, isi, gambar, dan
+       status.
+    3. Admin dapat mengubah dan menghapus artikel.
+    4. Artikel dapat disimpan sebagai draft atau publish.
+    5. Artikel publish tampil pada halaman publik.
+    Catatan: kategori Tips tampil di antarmuka tetapi tidak diterima enum
+    model/validator.
+
+US-025
+    Aktor    : Admin.
+    Prioritas: Sedang.
+    Cerita   : Sebagai admin, saya ingin memilih kelas sebelum masuk ke modul
+               wali kelas agar dapat membantu pengelolaan kelas tertentu.
+    Kriteria :
+    1. Admin dapat memilih kelas dari daftar kelas.
+    2. Pilihan kelas disimpan di localStorage dengan kunci adminKelasId.
+    3. Setelah memilih, admin diarahkan ke modul wali kelas.
+    4. Admin dapat mengganti kelas kapan saja.
+
+US-026
+    Aktor    : Admin.
+    Prioritas: Sedang.
+    Cerita   : Sebagai admin, saya ingin membuka modul kepala sekolah agar
+               dapat melihat rekap dan laporan.
+    Kriteria :
+    1. Admin dapat membuka dashboard kepala sekolah.
+    2. Data yang ditampilkan sama dengan yang dilihat kepala sekolah.
+    3. Admin tetap memakai akun admin, bukan sesi terpisah.
+    4. Admin dapat kembali ke modul admin.
+
+10.4 Modul Wali Kelas
+
+US-027
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin melihat dashboard kelas agar
+               mengetahui kondisi perkembangan siswa.
+    Kriteria :
+    1. Dashboard menampilkan ringkasan siswa, kategori aman, perhatian,
+       berisiko, dan ABK.
+    2. Dashboard menampilkan daftar siswa beserta skor dan kategori.
+    3. Data hanya mencakup kelas yang menjadi tanggung jawab wali kelas.
+    4. Wali kelas dapat membuka detail siswa dari dashboard.
+
+US-028
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin melihat daftar siswa beserta
+               skor agar dapat memprioritaskan perhatian.
+    Kriteria :
+    1. Daftar memuat nama siswa, skor, kategori, dan rekomendasi singkat.
+    2. Siswa ABK ditandai khusus dan tidak menampilkan skor numerik.
+    3. Daftar dapat diurutkan atau difilter berdasarkan kategori.
+    4. Data dihitung dari nilai, kehadiran, dan sikap pada tahun ajaran
+       terkait.
+
+US-029
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin membuka detail siswa agar dapat
+               menelusuri penyebab kategori.
+    Kriteria :
+    1. Detail menampilkan identitas siswa, nilai per mapel, kehadiran, sikap,
+       skor, kategori, dan rekomendasi.
+    2. Detail menampilkan mapel terlemah bila data nilai tersedia.
+    3. Wali kelas dapat menuju halaman input nilai, kehadiran, atau sikap yang
+       relevan.
+    4. Wali kelas hanya dapat membuka siswa pada kelasnya.
+
+US-030
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin menandai siswa sebagai ABK agar
+               siswa tersebut tidak dinilai dengan skor reguler.
+    Kriteria :
+    1. Wali kelas dapat mengubah status ABK siswa pada kelasnya.
+    2. Wali kelas dapat mengisi catatan ABK.
+    3. Siswa ABK tidak memperoleh skor akademik, kehadiran, atau sikap numerik.
+    4. Perubahan status langsung terlihat pada daftar dan rekap.
+    5. Wali kelas tidak dapat mengubah status ABK siswa di luar kelasnya.
+
+US-031
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin membuka monitoring siswa agar
+               dapat melihat perkembangan seluruh siswa dalam satu tampilan.
+    Kriteria :
+    1. Monitoring menampilkan daftar siswa kelas aktif.
+    2. Setiap baris menampilkan skor, kategori, dan komponen akademik,
+       kehadiran, serta sikap.
+    3. Data mengikuti tahun ajaran aktif.
+    4. Wali kelas dapat membuka detail siswa dari monitoring.
+
+US-032
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin memfilter monitoring agar dapat
+               fokus pada siswa yang membutuhkan perhatian.
+    Kriteria :
+    1. Filter kategori tersedia: aman, perhatian, berisiko, dan ABK.
+    2. Filter dapat dikombinasikan dengan pencarian nama.
+    3. Hasil filter menampilkan jumlah siswa yang sesuai.
+    4. Menghapus filter mengembalikan daftar penuh.
+
+US-033
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin menginput nilai agar data
+               akademik siswa tercatat.
+    Kriteria :
+    1. Wali kelas memilih siswa, mata pelajaran, judul penilaian, nilai, dan
+       tanggal.
+    2. Nilai harus berada pada rentang 0 sampai 100.
+    3. Nilai tersimpan pada tahun ajaran aktif.
+    4. Notifikasi dibuat untuk orang tua siswa.
+    5. Pengiriman WhatsApp dicoba bila token dan nomor tersedia.
+    Catatan: antarmuka belum menyediakan unggah lampiran meskipun API
+    mendukung filePath.
+
+US-034
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin melihat riwayat nilai agar dapat
+               memeriksa penilaian yang sudah dimasukkan.
+    Kriteria :
+    1. Riwayat menampilkan judul, mapel, nilai, dan tanggal.
+    2. Riwayat dapat difilter berdasarkan siswa dan mapel.
+    3. Data diurutkan dari yang terbaru.
+    4. Wali kelas dapat menghapus atau mengoreksi nilai sesuai kebutuhan.
+
+US-035
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin orang tua menerima notifikasi
+               nilai agar perkembangan anak diketahui lebih cepat.
+    Kriteria :
+    1. Notifikasi dibuat setelah nilai berhasil disimpan.
+    2. Notifikasi ditujukan kepada akun orang tua yang tertaut ke siswa.
+    3. Notifikasi memuat informasi nilai dan tautan terkait.
+    4. Bila akun orang tua tidak ada, penyimpanan nilai tetap berhasil.
+
+US-036
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin menginput kehadiran harian agar
+               persentase kehadiran siswa terhitung.
+    Kriteria :
+    1. Wali kelas memilih kelas dan tanggal.
+    2. Daftar siswa kelas tersebut ditampilkan.
+    3. Setiap siswa dapat diberi status hadir, izin, sakit, atau alpa.
+    4. Keterangan opsional dapat diisi.
+    5. Data tersimpan pada tahun ajaran aktif dan memengaruhi skor kehadiran.
+
+US-037
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin melihat kalender kehadiran agar
+               pola ketidakhadiran mudah diamati.
+    Kriteria :
+    1. Kalender menampilkan status kehadiran per tanggal.
+    2. Warna atau penanda membedakan hadir, izin, sakit, dan alpa.
+    3. Wali kelas dapat berpindah bulan.
+    4. Data kalender sesuai siswa dan tahun ajaran yang dipilih.
+
+US-038
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin menginput sikap siswa agar
+               pembinaan karakter terdokumentasi.
+    Kriteria :
+    1. Wali kelas memilih siswa, jenis sikap spiritual atau sosial, nilai 1
+       sampai 4, catatan, dan tanggal.
+    2. Nilai di luar rentang 1 sampai 4 ditolak.
+    3. Data tersimpan pada tahun ajaran aktif.
+    4. Data sikap memengaruhi skor sikap pada perhitungan SPK.
+
+US-039
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin melihat riwayat sikap agar
+               perkembangan karakter siswa dapat dipantau.
+    Kriteria :
+    1. Riwayat menampilkan jenis, nilai, catatan, dan tanggal.
+    2. Riwayat dapat difilter berdasarkan siswa.
+    3. Data diurutkan dari yang terbaru.
+    4. Wali kelas dapat menambahkan catatan baru.
+
+US-040
+    Aktor    : Wali kelas.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai wali kelas, saya ingin melihat rekomendasi tindak lanjut
+               agar dapat menentukan intervensi yang tepat.
+    Kriteria :
+    1. Rekomendasi muncul pada detail siswa dan daftar monitoring.
+    2. Rekomendasi mempertimbangkan akademik, kehadiran, dan sikap.
+    3. Siswa tanpa masalah memperoleh rekomendasi positif.
+    4. Siswa ABK tidak memperoleh rekomendasi berbasis skor numerik.
+
+US-041
+    Aktor    : Wali kelas.
+    Prioritas: Sedang.
+    Cerita   : Sebagai wali kelas, saya ingin data kelas saya terisolasi agar
+               tidak dapat mengubah data kelas lain.
+    Kriteria :
+    1. Server menentukan kelas wali kelas dari akun, bukan dari input bebas.
+    2. Permintaan terhadap siswa di luar kelas ditolak atau tidak ditemukan.
+    3. Admin tetap dapat memilih kelas melalui mekanisme pemilihan kelas.
+    4. Isolasi berlaku pada dashboard, monitoring, nilai, kehadiran, dan sikap.
+
+10.5 Modul Kepala Sekolah
+
+US-042
+    Aktor    : Kepala sekolah.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai kepala sekolah, saya ingin melihat dashboard sekolah
+               agar mengetahui kondisi perkembangan siswa secara keseluruhan.
+    Kriteria :
+    1. Dashboard menampilkan total siswa, aman, perhatian, berisiko, dan ABK.
+    2. Dashboard menampilkan distribusi kategori dan ringkasan per kelas.
+    3. Data mencakup seluruh kelas pada tahun ajaran aktif.
+    4. Kepala sekolah dapat membuka rekap per kelas.
+
+US-043
+    Aktor    : Kepala sekolah.
+    Prioritas: Sedang.
+    Cerita   : Sebagai kepala sekolah, saya ingin memfilter dashboard
+               berdasarkan tahun ajaran agar dapat membandingkan periode.
+    Kriteria :
+    1. Pilihan tahun ajaran tersedia, termasuk opsi semua tahun.
+    2. Perubahan pilihan memuat ulang data ringkasan.
+    3. Bila tidak ada pilihan, sistem memakai tahun ajaran aktif.
+    4. Data siswa dan skor mengikuti tahun ajaran yang dipilih.
+
+US-044
+    Aktor    : Kepala sekolah.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai kepala sekolah, saya ingin melihat rekap per kelas agar
+               dapat menilai kondisi setiap kelas.
+    Kriteria :
+    1. Rekap menampilkan jumlah siswa, aman, perhatian, berisiko, dan ABK per
+       kelas.
+    2. Rekap dapat difilter berdasarkan tahun ajaran.
+    3. Kepala sekolah dapat membuka detail kelas.
+    4. Angka rekap dihitung dari data aktual, bukan input manual.
+
+US-045
+    Aktor    : Kepala sekolah.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai kepala sekolah, saya ingin membuka detail kelas dan
+               mengekspor data agar dapat dianalisis lebih lanjut.
+    Kriteria :
+    1. Detail kelas menampilkan daftar siswa beserta skor dan kategori.
+    2. Ringkasan kelas ditampilkan di bagian atas.
+    3. Kepala sekolah dapat mengekspor data kelas ke CSV.
+    4. Data CSV sesuai siswa dan tahun ajaran yang ditampilkan.
+
+US-046
+    Aktor    : Kepala sekolah.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai kepala sekolah, saya ingin membuka detail siswa agar
+               dapat memahami kondisi individual.
+    Kriteria :
+    1. Detail menampilkan nilai, kehadiran, sikap, skor, kategori, dan
+       rekomendasi.
+    2. Kepala sekolah dapat membuka rapor siswa.
+    3. Tautan kembali tersedia menuju halaman sebelumnya.
+    4. Data hanya dapat dibaca, tidak dapat diubah.
+
+US-047
+    Aktor    : Kepala sekolah.
+    Prioritas: Sedang.
+    Cerita   : Sebagai kepala sekolah, saya ingin melihat dan mencetak rapor
+               siswa agar dapat digunakan dalam pertemuan.
+    Kriteria :
+    1. Rapor menampilkan identitas siswa, rekap nilai, kehadiran, sikap, skor,
+       dan rekomendasi.
+    2. Tombol cetak memanggil fungsi cetak browser.
+    3. Rapor dapat dibuka dari detail siswa atau dari laporan.
+    4. Tautan kembali mengikuti asal halaman bila tersedia.
+
+US-048
+    Aktor    : Kepala sekolah.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai kepala sekolah, saya ingin membuat laporan agar kondisi
+               siswa terdokumentasi dalam periode tertentu.
+    Kriteria :
+    1. Form laporan memuat kelas, kategori, tanggal mulai, tanggal akhir, dan
+       judul.
+    2. Laporan disimpan sebagai snapshot data.
+    3. Jumlah siswa yang tercakup tercatat.
+    4. Laporan selalu memakai tahun ajaran aktif.
+    5. Laporan dapat dibuat untuk satu kelas atau seluruh sekolah.
+
+US-049
+    Aktor    : Kepala sekolah.
+    Prioritas: Sedang.
+    Cerita   : Sebagai kepala sekolah, saya ingin melihat riwayat laporan agar
+               laporan lama dapat ditemukan kembali.
+    Kriteria :
+    1. Riwayat menampilkan judul, kelas, kategori, tanggal, dan pembuat.
+    2. Riwayat diurutkan dari yang terbaru.
+    3. Kepala sekolah dapat membuka detail laporan.
+    4. Kepala sekolah dapat menghapus laporan.
+
+US-050
+    Aktor    : Kepala sekolah.
+    Prioritas: Sedang.
+    Cerita   : Sebagai kepala sekolah, saya ingin membuka detail laporan,
+               mencetak, dan mengunduh PDF agar laporan mudah dibagikan.
+    Kriteria :
+    1. Detail menampilkan isi laporan dan snapshot data.
+    2. Tombol cetak tersedia.
+    3. Tombol unduh PDF tersedia.
+    4. PDF dibuat di sisi client.
+    5. Bila data laporan tidak ditemukan, pesan error ditampilkan.
+
+US-051
+    Aktor    : Kepala sekolah.
+    Prioritas: Rendah.
+    Cerita   : Sebagai kepala sekolah, saya ingin menghapus laporan yang tidak
+               diperlukan agar daftar laporan tetap relevan.
+    Kriteria :
+    1. Aksi hapus meminta konfirmasi.
+    2. Setelah dihapus, laporan tidak tampil pada riwayat.
+    3. Penghapusan hanya berlaku pada laporan, bukan data siswa.
+    4. Kepala sekolah dan admin dapat menghapus laporan.
+
+10.6 Modul Orang Tua
+
+US-052
+    Aktor    : Orang tua.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai orang tua, saya ingin melihat dashboard anak agar
+               mengetahui ringkasan perkembangannya.
+    Kriteria :
+    1. Dashboard menampilkan identitas anak dan tahun ajaran.
+    2. Dashboard menampilkan skor, kategori, dan rekomendasi.
+    3. Dashboard menampilkan ringkasan nilai, kehadiran, dan sikap.
+    4. Bila akun belum tertaut ke siswa, muncul pesan untuk menghubungi admin.
+
+US-053
+    Aktor    : Orang tua.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai orang tua, saya ingin melihat rekap nilai per mata
+               pelajaran agar mengetahui capaian anak.
+    Kriteria :
+    1. Rekap menampilkan daftar mata pelajaran dan rata-rata nilai.
+    2. Rekap menampilkan jumlah penilaian per mata pelajaran.
+    3. Orang tua dapat membuka detail nilai suatu mata pelajaran.
+    4. Data hanya milik anak yang tertaut ke akun.
+
+US-054
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin membuka detail nilai suatu mata
+               pelajaran agar mengetahui rincian penilaian.
+    Kriteria :
+    1. Detail menampilkan judul penilaian, nilai, dan tanggal.
+    2. Detail menampilkan rata-rata mata pelajaran tersebut.
+    3. Orang tua dapat kembali ke rekap nilai.
+    4. Data hanya dapat dibaca.
+
+US-055
+    Aktor    : Orang tua.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai orang tua, saya ingin melihat rekap skor dan rekomendasi
+               agar mengetahui tindakan yang dapat dilakukan.
+    Kriteria :
+    1. Rekap menampilkan skor akhir, kategori, dan komponen skor.
+    2. Rekap menampilkan rekomendasi tindak lanjut.
+    3. Rekap menampilkan mapel terlemah bila tersedia.
+    4. Siswa ABK ditampilkan sebagai ABK tanpa skor numerik.
+
+US-056
+    Aktor    : Orang tua.
+    Prioritas: Tinggi.
+    Cerita   : Sebagai orang tua, saya ingin mengunduh rapor PDF agar dapat
+               menyimpan atau mencetak laporan perkembangan anak.
+    Kriteria :
+    1. Tombol unduh rapor tersedia pada halaman rekap.
+    2. Server mengirim data rapor sesuai anak dan tahun ajaran.
+    3. Client membuat PDF dengan kop, identitas, nilai, kehadiran, sikap, dan
+       rekomendasi.
+    4. Berkas PDF terunduh dengan nama yang memuat identitas siswa.
+    5. Bila data tidak tersedia, unduhan tidak dilakukan dan pesan muncul.
+
+US-057
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin melihat identitas anak dan tahun
+               ajaran agar yakin data yang ditampilkan benar.
+    Kriteria :
+    1. Dashboard menampilkan nama, NISN, kelas, dan tahun ajaran.
+    2. Data identitas berasal dari relasi akun ke siswa.
+    3. Orang tua tidak dapat melihat identitas siswa lain.
+    4. Bila tahun ajaran tidak tersedia, sistem menampilkan status yang jelas.
+
+US-058
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin memantau kehadiran bulanan agar
+               mengetahui pola kehadiran anak.
+    Kriteria :
+    1. Halaman monitoring menampilkan kalender kehadiran bulanan.
+    2. Status hadir, izin, sakit, dan alpa dibedakan.
+    3. Orang tua dapat berpindah bulan.
+    4. Ringkasan persentase kehadiran ditampilkan.
+
+US-059
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin memantau sikap bulanan agar
+               perkembangan karakter anak dapat diketahui.
+    Kriteria :
+    1. Halaman monitoring menampilkan kalender sikap bulanan.
+    2. Jenis sikap spiritual dan sosial dibedakan.
+    3. Catatan sikap dapat dibaca.
+    4. Orang tua dapat berpindah bulan.
+
+US-060
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin menerima notifikasi nilai agar
+               mengetahui penilaian baru tanpa membuka aplikasi terus-menerus.
+    Kriteria :
+    1. Notifikasi nilai diterima setelah wali kelas menyimpan nilai.
+    2. Notifikasi muncul pada lonceng dan dapat dibuka.
+    3. Notifikasi mengarah ke halaman nilai anak.
+    4. Notifikasi hanya diterima akun orang tua yang tertaut ke siswa.
+
+US-061
+    Aktor    : Orang tua.
+    Prioritas: Sedang.
+    Cerita   : Sebagai orang tua, saya ingin mengelola keamanan akun agar data
+               anak tetap terlindungi.
+    Kriteria :
+    1. Orang tua dapat mengubah nama, email, dan nomor telepon.
+    2. Orang tua dapat mengganti password dengan password lama sebagai
+       verifikasi.
+    3. Password baru minimal enam karakter.
+    4. Orang tua wajib mengganti password awal pada login pertama.
+    5. Orang tua tidak dapat mengubah role, kelas, atau siswa tertaut.
+
+--------------------------------------------------------------------------------
+11. VALIDASI INPUT DAN PENANGANAN ERROR
+--------------------------------------------------------------------------------
+
+11.1 Mekanisme Validasi
+    Validasi menggunakan Zod melalui fungsi validate(schema, source). Sumber
+    data dapat berupa body, query, atau params. Bila validasi gagal, server
+    mengembalikan status 400 dengan pesan berbentuk "<path>: <message>".
+    Validator tidak menggunakan mode strict, sehingga field yang tidak dikenal
+    dibuang. Perilaku ini penting karena field tahunAjaranId pada form siswa
+    tidak termasuk skema dan karenanya tidak tersimpan.
+
+11.2 Aturan Validasi Utama
+    +---------------------+----------------------------------------------+
+    | Data                | Aturan                                       |
+    +---------------------+----------------------------------------------+
+    | Login               | username 1-50 karakter; password 1-200       |
+    | Ganti password      | password baru minimal 6; konfirmasi sama     |
+    | Profil              | nama 1-150; email maks 150; telepon maks 25  |
+    | Kelas               | nama 1-100; tingkat 1-6; wali maks 150       |
+    | Tahun ajaran        | nama 1-20                                    |
+    | Mata pelajaran      | nama 1-150                                   |
+    | Siswa               | nisn 1-20; nama 1-150; jenis L/P; tanggal    |
+    |                     | lahir YYYY-MM-DD; angkatan dan absen angka;  |
+    |                     | ABK boolean; catatan ABK teks                |
+    | Akun                | username 3-50, unik, huruf/angka/titik/_;    |
+    |                     | password min 6; nama 1-150; role enum;       |
+    |                     | telepon/email opsional; kelas/siswa opsional |
+    | SPK                 | semua bobot/interval 0-1; total bobot ~1     |
+    | Nilai               | siswa dan mapel wajib; judul 1-150; nilai    |
+    |                     | 0-100; tanggal YYYY-MM-DD                    |
+    | Kehadiran           | tanggal wajib; daftar wajib; status enum;    |
+    |                     | keterangan maks 255                          |
+    | Sikap               | jenis spiritual/sosial; nilai 1-4; catatan   |
+    |                     | maks 1000; tanggal opsional                  |
+    | ABK                 | status boolean; catatan maks 1000            |
+    | Laporan             | judul maks 200; kelas opsional; kategori     |
+    |                     | maks 50; tanggal mulai/akhir opsional        |
+    | Artikel             | judul 1-200; kategori Prestasi/Kegiatan/     |
+    |                     | Pengumuman; isi wajib; status draft/publish  |
+    +---------------------+----------------------------------------------+
+
+11.3 Validasi Tambahan di Controller
+    a. Login memeriksa keberadaan pengguna dan status aktif.
+    b. Nilai dan kehadiran memeriksa keterkaitan siswa dengan kelas yang
+       diampu.
+    c. SPK memeriksa jumlah bobot.
+    d. Artikel memeriksa keberadaan judul dan isi.
+    e. Laporan memeriksa data yang akan disnapshot.
+    f. Akun memeriksa keunikan username dan menangani pesan duplikasi.
+
+11.4 Kode Status HTTP
+    200: permintaan berhasil.
+    201: data berhasil dibuat.
+    400: validasi gagal atau permintaan tidak lengkap.
+    401: belum terautentikasi, sesi tidak valid, atau akun nonaktif.
+    403: role tidak berhak atau token CSRF tidak valid.
+    404: data tidak ditemukan.
+    409: konflik data, terutama duplikasi.
+    429: laju permintaan melebihi batas.
+    500: kesalahan server yang tidak tertangani.
+
+11.5 Penanganan Error di Client
+    a. Axios memakai baseURL /api dan withCredentials.
+    b. Header X-CSRF-Token ditambahkan otomatis untuk permintaan yang mengubah
+       data.
+    c. Respons 401 menghapus data pengguna di localStorage dan mengarahkan ke
+       halaman login.
+    d. Pesan error server ditampilkan melalui toast atau komponen status.
+    e. Loading state, empty state, dan tombol coba lagi tersedia pada beberapa
+       halaman.
+
+11.6 Perilaku Khusus yang Perlu Dicatat
+    a. Pesan login gagal disamakan untuk mengurangi enumerasi akun.
+    b. Rate limit login dihitung per alamat IP, bukan per username.
+    c. CSRF hanya diberlakukan bila permintaan membawa cookie sesi.
+    d. Berkas unggahan dibatasi 5 MB dan jenis tertentu.
+    e. Field yang tidak ada pada skema dibuang tanpa pesan error.
+
+--------------------------------------------------------------------------------
+12. PETA ENDPOINT API DAN ROUTE ANTARMUKA
+--------------------------------------------------------------------------------
+
+12.1 Endpoint Umum dan Autentikasi
+    GET    /api/health
+    POST   /api/auth/login
+    POST   /api/auth/logout
+    GET    /api/auth/me
+    POST   /api/auth/change-password
+    PUT    /api/auth/profile
+    GET    /api/auth/notifikasi
+    GET    /api/auth/notifikasi/list
+    PATCH  /api/auth/notifikasi/:id/baca
+    PATCH  /api/auth/notifikasi/baca-semua
+
+12.2 Endpoint Artikel
+    GET    /api/artikel
+    GET    /api/artikel/kategori
+    GET    /api/artikel/:id
+    POST   /api/admin/artikel
+    PUT    /api/admin/artikel/:id
+    DELETE /api/admin/artikel/:id
+
+12.3 Endpoint Wali Kelas dan Admin
+    GET    /api/guru/dashboard
+    GET    /api/guru/monitoring
+    GET    /api/guru/siswa
+    GET    /api/guru/siswa/:id
+    PATCH  /api/guru/siswa/:id/abk
+    POST   /api/guru/nilai
+    GET    /api/guru/nilai/mapel
+    GET    /api/guru/nilai
+    POST   /api/guru/kehadiran
+    GET    /api/guru/kehadiran/kalender
+    GET    /api/guru/kehadiran
+    POST   /api/guru/sikap
+    GET    /api/guru/sikap/:siswaId
+    GET    /api/guru/mapel
+    GET    /api/guru/kelas
+    GET    /api/guru/suggest-username
+
+12.4 Endpoint Kepala Sekolah
+    GET    /api/kepsek/ringkasan
+    GET    /api/kepsek/siswa/:id
+    GET    /api/kepsek/rapor/:siswaId
+    GET    /api/kepsek/siswa-risiko
+    GET    /api/kepsek/kelas/:kelasId
+    GET    /api/kepsek/laporan
+    POST   /api/kepsek/laporan
+    GET    /api/kepsek/laporan/:id
+    DELETE /api/kepsek/laporan/:id
+
+12.5 Endpoint Orang Tua
+    GET    /api/ortu/dashboard
+    GET    /api/ortu/rekap-nilai
+    GET    /api/ortu/kehadiran
+    GET    /api/ortu/sikap
+    GET    /api/ortu/rapor
+    GET    /api/ortu/profil
+    GET    /api/ortu/monitoring
+
+12.6 Endpoint Admin
+    GET    /api/admin/ringkasan
+    GET    /api/admin/kelas
+    POST   /api/admin/kelas
+    PUT    /api/admin/kelas/:id
+    DELETE /api/admin/kelas/:id
+    GET    /api/admin/tahun-ajaran
+    POST   /api/admin/tahun-ajaran
+    PUT    /api/admin/tahun-ajaran/:id
+    PATCH  /api/admin/tahun-ajaran/:id/aktif
+    DELETE /api/admin/tahun-ajaran/:id
+    GET    /api/admin/mapel
+    POST   /api/admin/mapel
+    PUT    /api/admin/mapel/:id
+    DELETE /api/admin/mapel/:id
+    GET    /api/admin/siswa
+    POST   /api/admin/siswa
+    PUT    /api/admin/siswa/:id
+    DELETE /api/admin/siswa/:id
+    GET    /api/admin/akun
+    POST   /api/admin/akun
+    PUT    /api/admin/akun/:id
+    DELETE /api/admin/akun/:id
+    POST   /api/admin/akun/:id/reset-password
+    GET    /api/admin/akun/opsi-siswa
+    GET    /api/admin/spk
+    PUT    /api/admin/spk
+
+12.7 Route Antarmuka Client
+    Publik:
+    /                       beranda
+    /berita                 daftar berita
+    /berita/:id             detail berita
+    /login                  login
+    /lupa-password          panduan lupa password
+    /ganti-password          ganti password wajib/mandiri
+    /profil                  profil pengguna
+
+    Wali kelas:
+    /guru                    dashboard kelas
+    /guru/monitoring         monitoring siswa
+    /guru/siswa/:id          detail siswa
+    /guru/nilai              input dan riwayat nilai
+    /guru/kehadiran          input dan kalender kehadiran
+    /guru/sikap              input dan riwayat sikap
+
+    Kepala sekolah:
+    /kepsek                  dashboard sekolah
+    /kepsek/rekap            rekap per kelas
+    /kepsek/rekap/:kelasId   detail kelas
+    /kepsek/siswa/:siswaId   detail siswa
+    /kepsek/rapor/:siswaId   rapor siswa
+    /kepsek/laporan          daftar dan form laporan
+    /kepsek/laporan/:id      detail laporan
+
+    Orang tua:
+    /orangtua                dashboard anak
+    /orangtua/nilai          rekap nilai per mapel
+    /orangtua/nilai/:mapelId detail nilai mapel
+    /orangtua/monitoring     monitoring kehadiran dan sikap
+    /orangtua/rekap          rekap skor, rekomendasi, dan unduh rapor
+
+    Admin:
+    /admin                   dashboard admin
+    /admin/kelas             pengelolaan kelas
+    /admin/tahun-ajaran      pengelolaan tahun ajaran
+    /admin/mapel             pengelolaan mapel
+    /admin/siswa             pengelolaan siswa
+    /admin/akun              pengelolaan akun
+    /admin/spk               konfigurasi SPK
+    /admin/artikel           pengelolaan artikel
+    /admin/pilih-kelas       pemilihan kelas untuk modul guru
+
+12.8 Route yang Tidak Terhubung
+    Berkas view berikut ada tetapi tidak terdaftar pada router:
+    - OrtuKehadiran.vue
+    - OrtuSikap.vue
+    - OrtuRapor.vue
+    Dampak: orang tua memakai /orangtua/monitoring untuk kehadiran dan sikap,
+    serta /orangtua/rekap untuk mengunduh rapor PDF. Tidak ada halaman cetak
+    rapor khusus orang tua.
+
+12.9 Query Umum
+    - Pagination daftar siswa dan akun.
+    - Pencarian q pada siswa, akun, dan artikel.
+    - Filter kelasId, kategori, status, dan tahunAjaranId pada halaman tertentu.
+    - Filter tanggalMulai dan tanggalAkhir pada laporan.
+    - Parameter limit pada artikel diabaikan karena nilai limit di-hardcode 9.
+
+--------------------------------------------------------------------------------
+13. KEAMANAN DAN PERSYARATAN NON-FUNGSIONAL
+--------------------------------------------------------------------------------
+
+13.1 Autentikasi dan Sesi
+    a. JWT disimpan pada cookie httpOnly.
+    b. SameSite lax; secure diaktifkan pada production.
+    c. Masa berlaku default 12 jam dan dapat diatur melalui JWT_EXPIRES_IN.
+    d. Endpoint juga menerima Authorization: Bearer untuk kebutuhan API.
+    e. Middleware auth memuat ulang pengguna dan menolak akun nonaktif.
+
+13.2 Otorisasi
+    a. Setiap route internal memakai middleware auth.
+    b. RBAC membatasi role sesuai modul.
+    c. Kepemilikan data diperiksa pada level controller, misalnya wali kelas
+       hanya dapat mengakses kelasnya dan orang tua hanya anaknya.
+    d. Pesan 403 generik untuk mengurangi kebocoran informasi.
+
+13.3 Perlindungan CSRF
+    a. Pola double-submit cookie.
+    b. Cookie csrfToken dapat dibaca JavaScript; header X-CSRF-Token harus
+       sama.
+    c. Hanya berlaku untuk metode non-GET/HEAD/OPTIONS yang membawa cookie
+       sesi.
+    d. Permintaan Bearer tanpa cookie tidak terkena CSRF.
+
+13.4 Pembatasan Laju
+    a. Login: 5 percobaan per 15 menit per IP.
+    b. API umum: 600 permintaan per menit per IP.
+    c. Penyimpanan di memori proses; tidak cocok untuk banyak instance.
+    d. Endpoint health didaftarkan sebelum pembatasan API.
+
+13.5 Unggahan Berkas
+    a. Ukuran maksimum 5 MB.
+    b. Jenis yang diizinkan: png, jpg, jpeg, gif, webp, pdf, doc, docx, xls,
+       xlsx.
+    c. Nama berkas dibuat unik.
+    d. Berkas disimpan pada folder uploads dan disajikan melalui /uploads.
+    e. Folder uploads dapat diakses publik tanpa autentikasi.
+
+13.6 Perlindungan Header dan CORS
+    a. Helmet mengatur header keamanan dasar.
+    b. CORS hanya mengizinkan APP_DOMAIN dengan credentials.
+    c. Body JSON dibatasi 2 MB.
+
+13.7 Password
+    a. Disimpan sebagai hash bcrypt.
+    b. Panjang minimum password baru enam karakter.
+    c. Tidak ada kebijakan kompleksitas, masa berlaku, atau riwayat password.
+    d. Tidak ada verifikasi email atau reset melalui email.
+
+13.8 Kinerja
+    a. Perhitungan skor dilakukan saat data diminta.
+    b. Beberapa halaman memakai pagination.
+    c. Terdapat potensi N+1 query saat menghitung mapel terlemah per siswa.
+    d. Tidak ada cache hasil skor.
+    e. SQLite memadai untuk skala sekolah, tetapi perlu dipertimbangkan untuk
+       pertumbuhan data.
+
+13.9 Ketersediaan dan Pemeliharaan
+    a. Tidak ada mekanisme backup otomatis pada aplikasi; tersedia skrip
+       pencadangan.
+    b. Tidak ada audit trail perubahan data.
+    c. Tidak ada soft delete atau pemulihan data terhapus.
+    d. Log aplikasi terbatas pada keluaran server.
+
+13.10 Privasi
+    a. Orang tua hanya melihat data anak yang tertaut.
+    b. Publik tidak melihat data siswa.
+    c. Data sensitif seperti catatan ABK hanya tersedia bagi pihak berwenang.
+    d. Tidak ada persetujuan eksplisit atau pengaturan retensi data.
+
+--------------------------------------------------------------------------------
+14. DATA AWAL, AKUN DEMO, DAN CARA MENJALANKAN
+--------------------------------------------------------------------------------
+
+14.1 Data Awal (Seed)
+    Seed membuat data contoh yang konsisten untuk demonstrasi:
+    - Dua tahun ajaran: 2025/2026 aktif dan 2024/2025 nonaktif.
+    - Enam kelas: Kelas 1 sampai Kelas 6.
+    - Sembilan mata pelajaran: Matematika, Bahasa Indonesia, IPA, IPS,
+      Pendidikan Pancasila, Pendidikan Agama dan Budi Pekerti, PJOK, Seni
+      Budaya dan Prakarya, dan Bahasa Inggris.
+    - Enam akun wali kelas dengan nama wali kelas pada data kelas.
+    - Sekitar 42 siswa, 6 sampai 8 siswa per kelas.
+    - Tiga siswa ABK, dipilih berdasarkan kelipatan nomor tertentu.
+    - Sekitar 42 akun orang tua.
+    - Sekitar 168 nilai, empat nilai per siswa.
+    - Sekitar 630 catatan kehadiran, 15 per siswa.
+    - Sekitar 84 catatan sikap, dua per siswa.
+    - Empat artikel: tiga publish dan satu draft.
+    - Satu konfigurasi SPK default.
+
+    Seed bersifat idempoten dengan memeriksa keberadaan data sebelum membuat.
+    Variabel SEED_FORCE=true menghapus dan membuat ulang data.
+
+14.2 Akun Demo
+    Admin          : admin / admin123
+    Kepala sekolah : kepsek / password123
+    Wali kelas     : wali1 sampai wali6 / password123
+    Orang tua      : username 2025001 dan seterusnya
+                     password awal adalah tanggal lahir DDMMYYYY
+
+    Akun orang tua memakai username tahun angkatan ditambah nomor absen tiga
+    digit. Contoh: siswa tahun angkatan 2025 dengan nomor absen 1 memiliki
+    username 2025001. Password awal mengikuti tanggal lahir dan wajib diganti
+    pada login pertama.
+
+14.3 Variabel Lingkungan Penting
+    PORT            port server, default 5000.
+    APP_DOMAIN      alamat client untuk CORS, default http://localhost:5173.
+    JWT_SECRET      kunci JWT; pada production wajib minimal 32 karakter.
+    JWT_EXPIRES_IN  masa berlaku token, default 12h.
+    DB_DIALECT      dialek basis data, default sqlite.
+    FONNTE_TOKEN    token API Fonnte; bila kosong, WhatsApp dilewati.
+    FONNTE_URL      endpoint Fonnte.
+    UPLOAD_DIR      direktori unggahan.
+    NODE_ENV        environment aplikasi.
+
+14.4 Perintah Menjalankan
+    Server:
+    - npm run dev        menjalankan server dengan watch.
+    - npm run db:migrate menjalankan migrasi.
+    - npm run db:seed    mengisi data awal.
+    - npm run db:backup  mencadangkan basis data.
+    - npm run db:restore memulihkan basis data.
+    - npm test           menjalankan pengujian server.
+
+    Client:
+    - npm run dev        menjalankan Vite.
+    - npm run build      membangun produksi.
+    - npm run preview    pratinjau hasil build.
+    - npm run lint       memeriksa gaya kode.
+    - npm test           menjalankan pengujian client.
+
+    Root:
+    - npm run dev        menjalankan server dan client bersamaan.
+
+14.5 Urutan Penyiapan
+    1. Siapkan basis data dan variabel lingkungan.
+    2. Jalankan migrasi.
+    3. Jalankan seed bila membutuhkan data contoh.
+    4. Jalankan server dan client.
+    5. Login dengan akun demo.
+    6. Ganti password akun demo bila digunakan di lingkungan nyata.
+
+--------------------------------------------------------------------------------
+15. GLOSARIUM, BATASAN IMPLEMENTASI, DAN CATATAN UNTUK BAB 4
+--------------------------------------------------------------------------------
+
+15.1 Glosarium
+    ABK             : Anak Berkebutuhan Khusus.
+    Admin           : Pengelola data master dan konfigurasi sistem.
+    CSRF            : Cross-Site Request Forgery, serangan pemalsuan
+                      permintaan lintas situs.
+    JWT             : JSON Web Token, token sesi.
+    Kategori        : aman, perhatian, berisiko, atau abk.
+    Mapel terlemah  : Mata pelajaran dengan rata-rata nilai terendah.
+    Rekomendasi     : Saran tindak lanjut berdasarkan komponen skor.
+    RBAC            : Role-Based Access Control.
+    SAW             : Simple Additive Weighting, metode penjumlahan terbobot.
+    Skor akhir      : Nilai 0 sampai 1 hasil pembobotan tiga dimensi.
+    Snapshot        : Salinan data laporan pada saat pembuatan.
+    Wali kelas      : Guru penanggung jawab satu kelas.
+
+15.2 Batasan Implementasi
+    1. Normalisasi SPK memakai skala tetap, bukan x/max seperti klaim README.
+    2. intervalBerisikoBawah disimpan tetapi tidak dipakai dalam penentuan
+       kategori.
+    3. Tidak ada validasi urutan interval.
+    4. Ambang rekomendasi tetap dan tidak mengikuti konfigurasi SPK.
+    5. Notifikasi otomatis hanya dibuat untuk nilai.
+    6. Checkbox kirim WhatsApp tidak dikirim ke server; server selalu mencoba
+       mengirim bila memungkinkan.
+    7. Lupa password hanya panduan statis; reset dilakukan admin.
+    8. API nilai mendukung lampiran, tetapi antarmuka belum menyediakan unggah.
+    9. Input sikap massal memakai create, sehingga penyimpanan berulang dapat
+       menduplikasi data.
+    10. Siswa tanpa catatan sikap dianggap memiliki skor sikap maksimal.
+    11. Kategori Tips pada artikel tidak konsisten dengan enum model/validator.
+    12. Endpoint daftar artikel menerima filter status tanpa autentikasi,
+        sehingga draft berpotensi terbaca publik.
+    13. Limit artikel diabaikan dan selalu 9; permintaan limit 50 dari admin
+        tidak berpengaruh.
+    14. Proteksi detail artikel draft hanya memeriksa Bearer, bukan cookie.
+    15. Skema siswa tidak menerima tahunAjaranId; pilihan tahun ajaran pada
+        form admin tidak tersimpan.
+    16. Tiga view orang tua tidak terdaftar pada router.
+    17. Endpoint siswa berisiko tersedia tetapi belum dipakai antarmuka.
+    18. Tidak ada kenaikan kelas otomatis atau penyalinan data antar tahun
+        ajaran.
+    19. Tidak ada impor massal; hanya ekspor CSV.
+    20. Penghapusan data master dapat gagal karena foreign key.
+    21. Tidak ada audit trail, soft delete, atau pemulihan data.
+    22. Rate limit disimpan di memori dan tidak cocok untuk multi-instance.
+    23. Berkas /uploads dapat diakses publik.
+    24. Perhitungan mapel terlemah berpotensi menimbulkan N+1 query.
+    25. Laporan selalu memakai tahun ajaran aktif; tidak ada pilihan tahun
+        ajaran pada form laporan.
+    26. Tanda tangan laporan memakai nama pembuat dengan label Kepala Sekolah,
+        meskipun pembuatnya admin.
+    27. Tautan kembali pada detail siswa kepala sekolah mengarah ke halaman
+        laporan, bukan rekap.
+    28. Tidak ada verifikasi email, pendaftaran mandiri, atau kebijakan
+        kompleksitas password.
+    29. Tidak ada constraint unik pada kehadiran per tanggal dan sikap.
+    30. Tidak ada mekanisme persetujuan orang tua atau pengaturan retensi data.
+
+15.3 Catatan untuk Pembahasan Bab 4
+    a. Jelaskan bahwa sistem mengimplementasikan SAW dengan normalisasi skala
+       tetap dan sebutkan alasan pemilihan tersebut.
+    b. Bahas bobot sikap yang paling besar serta kebijakan siswa tanpa catatan
+       sikap memperoleh nilai maksimal.
+    c. Jelaskan bahwa kategori ditentukan oleh dua ambang yang dipakai,
+       sedangkan ambang berisiko bawah belum berfungsi.
+    d. Bahas keterbatasan notifikasi otomatis yang baru mencakup nilai.
+    e. Jelaskan perbedaan antara klaim README dan implementasi aktual secara
+       terbuka, termasuk normalisasi dan fitur yang belum terhubung.
+    f. Bahas dampak skema validasi yang membuang tahunAjaranId terhadap
+       konsistensi data siswa.
+    g. Bahas keterbatasan keamanan: rate limit in-memory, uploads publik,
+       tidak ada audit trail, dan tidak ada verifikasi email.
+    h. Bahas keterbatasan skalabilitas: SQLite, N+1 query, dan perhitungan
+       skor saat permintaan.
+    i. Jelaskan bahwa laporan menyimpan snapshot sehingga tetap dapat dibaca
+       meskipun data sumber berubah.
+    j. Jelaskan bahwa orang tua menerima rapor PDF, sedangkan halaman cetak
+       rapor khusus orang tua belum terhubung.
+    k. Gunakan daftar user story pada Bagian 10 sebagai dasar pemetaan
+       kebutuhan fungsional ke pengujian.
+    l. Gunakan peta endpoint dan route pada Bagian 12 untuk menjelaskan
+       keterkaitan antarmuka dan layanan.
+    m. Sampaikan batasan sebagai bagian dari evaluasi sistem, bukan sebagai
+       kegagalan tersembunyi, agar pembahasan tetap objektif dan dapat
+       dipertanggungjawabkan.
+
+================================================================================
+AKHIR DOKUMEN
+================================================================================

@@ -11,6 +11,7 @@ import Artikel from './artikel.js'
 import SettingSpk from './settingSpk.js'
 import Notifikasi from './notifikasi.js'
 import Laporan from './laporan.js'
+import AuditLog from './auditLog.js'
 
 // User
 User.belongsTo(Kelas, { as: 'kelas', foreignKey: 'kelasId' })
@@ -77,5 +78,6 @@ export {
   Artikel,
   SettingSpk,
   Notifikasi,
-  Laporan
+  Laporan,
+  AuditLog
 }

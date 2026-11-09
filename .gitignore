@@ -13,6 +13,14 @@ build/
 
 # User uploads
 uploads/
+server/uploads/
+
+# Backup database & dump (bisa berisi data pribadi)
+backups/
+server/backups/
+*.sql
+*.dump
+*.bak
 
 # Database lokal
 *.sqlite

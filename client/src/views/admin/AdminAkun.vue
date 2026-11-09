@@ -100,8 +100,8 @@
             <input v-model="form.username" class="input" :disabled="!!form.id" required />
           </div>
           <div>
-            <label class="label">{{ form.id ? '' : 'Password Awal' }} <span class="text-error">{{ form.id ? '' : '*' }}</span></label>
-            <input v-if="!form.id" v-model="form.password" class="input" placeholder="kosongkan = default" />
+            <label class="label">{{ form.id ? '' : 'Password Awal (opsional)' }}</label>
+            <input v-if="!form.id" v-model="form.password" class="input" placeholder="kosongkan = dibuat otomatis" autocomplete="new-password" />
             <p v-else class="font-label-sm text-outline dark:text-ice-white/40 pt-2">Gunakan tombol reset password</p>
           </div>
         </div>
@@ -133,7 +133,7 @@
           </select>
           <div v-if="form.siswaId" class="mt-3 rounded-lg bg-ice-white dark:bg-white/5 border border-light-teal/50 dark:border-white/10 p-3 space-y-1 font-label-sm text-on-surface-variant dark:text-ice-white/70">
             <p><span class="text-dark-teal dark:text-light-teal font-label-md">Username:</span> {{ form.username }}</p>
-            <p><span class="text-dark-teal dark:text-light-teal font-label-md">Password awal:</span> {{ form.password || 'tanggal lahir (DDMMYYYY)' }} (wajib diganti saat login)</p>
+            <p><span class="text-dark-teal dark:text-light-teal font-label-md">Password:</span> dibuat otomatis saat akun disimpan dan ditampilkan sekali.</p>
           </div>
         </div>
 
@@ -151,20 +151,22 @@
     <ConfirmDialog
       v-if="resetTarget"
       title="Reset Password"
-      :message="`Reset password ${resetTarget.username} ke password awal? Katakan kepada orang tua untuk menghubungi Anda bila perlu bantuan.`"
+      :message="`Reset password akun ${resetTarget.username}? Password baru akan dibuat otomatis dan hanya ditampilkan sekali.`"
       confirm-label="Reset"
       :loading="saving"
       @confirm="doResetPwd"
       @cancel="resetTarget = null"
     />
 
-    <ModalDialog v-if="resetResult" title="Password Direset" @close="resetResult = null">
+    <ModalDialog v-if="resetResult" :title="resetResult.title" @close="resetResult = null">
       <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mb-4">
-        Password awal akun <span class="font-label-md text-deep-navy dark:text-ice-white">{{ resetResult.username }}</span> telah direset. Sampaikan password ini kepada orang tua secara langsung / via WhatsApp.
+        Password akun <span class="font-label-md text-deep-navy dark:text-ice-white">{{ resetResult.username }}</span>
+        {{ resetResult.title === 'Akun Dibuat' ? 'berhasil dibuat.' : 'telah direset.' }}
+        Sampaikan password ini secara langsung kepada pengguna; password hanya ditampilkan sekali.
       </p>
       <div class="flex items-center justify-between gap-3 rounded-lg bg-ice-white dark:bg-white/5 border border-light-teal/50 dark:border-white/10 p-4">
         <div>
-          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mb-1">Password Baru</p>
+          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mb-1">Password Sementara</p>
           <p class="font-headline-md text-deep-navy dark:text-ice-white tracking-widest">{{ resetResult.passwordBaru }}</p>
         </div>
         <button class="btn-secondary" @click="salinPassword">
@@ -172,6 +174,7 @@
           Salin
         </button>
       </div>
+      <p class="font-label-sm text-outline dark:text-ice-white/50 mt-3">Pengguna wajib mengganti password saat pertama kali masuk.</p>
       <div class="flex justify-end gap-3 pt-5">
         <button class="btn-primary" @click="resetResult = null">Selesai</button>
       </div>
@@ -218,10 +221,9 @@ function autofill() {
   const siswa = siswaList.value.find((s) => s.id === Number(form.value.siswaId))
   if (!siswa) return
   form.value.username = `${siswa.tahunAngkatan}${String(siswa.nomorAbsen).padStart(3, '0')}`
-  if (siswa.tanggalLahir) {
-    const digits = siswa.tanggalLahir.replaceAll('-', '')
-    form.value.password = digits.slice(6, 8) + digits.slice(4, 6) + digits.slice(0, 4)
-  }
+  // Password tidak lagi diturunkan dari tanggal lahir. Server membuat
+  // password sementara acak dan menampilkannya satu kali setelah simpan.
+  form.value.password = ''
 }
 
 async function load() {
@@ -283,10 +285,13 @@ async function save() {
       toast.success('Akun diperbarui.')
     } else {
       const { data } = await api.post('/admin/akun', form.value)
-      if (form.value.role === 'orang_tua') {
-        toast.success(`Akun dibuat. Password awal: ${data.passwordAwal}`)
-      } else {
-        toast.success('Akun dibuat.')
+      toast.success('Akun dibuat.')
+      if (data.temporaryPassword) {
+        resetResult.value = {
+          title: 'Akun Dibuat',
+          username: data.user?.username || form.value.username,
+          passwordBaru: data.temporaryPassword
+        }
       }
     }
     form.value = { ...kosong }
@@ -319,8 +324,12 @@ async function doResetPwd() {
   try {
     const { data } = await api.post(`/admin/akun/${u.id}/reset-password`)
     resetTarget.value = null
-    resetResult.value = { username: u.username, passwordBaru: data.passwordBaru }
-    toast.success(`Password ${u.username} direset ke password awal.`)
+    resetResult.value = {
+      title: 'Password Direset',
+      username: u.username,
+      passwordBaru: data.temporaryPassword
+    }
+    toast.success(`Password ${u.username} direset.`)
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal reset password.')
   } finally {

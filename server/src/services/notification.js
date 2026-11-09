@@ -10,6 +10,16 @@ export function getIo() {
   return io
 }
 
+export function kirimToast(userId, payload) {
+  if (!io) return
+  io.to(`user:${userId}`).emit('notifikasi:toast', {
+    judul: payload.judul,
+    pesan: payload.pesan,
+    tipe: payload.tipe || 'sistem',
+    link: payload.link || null
+  })
+}
+
 export async function kirimNotifikasiInApp(userId, payload) {
   const notif = await Notifikasi.create({
     userId,

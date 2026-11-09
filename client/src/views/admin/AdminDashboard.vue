@@ -8,12 +8,13 @@
     <div v-if="loading"><LoadingState skeleton variant="cards" /></div>  
 
     <div v-else class="space-y-6">
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-up">
-    <StatCard label="Total Siswa" :value="d.siswa" icon="groups" tone="teal" />
-    <StatCard label="Kelas" :value="d.kelas" icon="door_sliding" tone="blue" />
-    <StatCard label="Akun Pengguna" :value="d.akun" icon="manage_accounts" tone="green" />
-    <StatCard label="Mata Pelajaran" :value="d.mapel" icon="menu_book" tone="amber" />
-    <StatCard label="Artikel" :value="d.artikel" icon="article" tone="purple" />
+      <div class="grid grid-cols-3 gap-2 sm:gap-4 animate-fade-up">
+        <StatCard compact label="Total Siswa" :value="d.siswa" icon="groups" tone="teal" />
+        <StatCard compact label="Kelas" :value="d.kelas" icon="door_sliding" tone="blue" />
+        <StatCard compact label="Akun Pengguna" :value="d.akun" icon="manage_accounts" tone="green" />
+        <StatCard compact label="Mata Pelajaran" :value="d.mapel" icon="menu_book" tone="amber" />
+        <StatCard compact label="Artikel" :value="d.artikel" icon="article" tone="purple" />
+        <StatCard compact label="Tahun Ajaran" :value="d.tahunAjaran" icon="calendar_month" tone="blue" />
       </div>
 
       <div class="grid md:grid-cols-2 gap-6 animate-fade-up" style="animation-delay: 100ms">
@@ -48,7 +49,7 @@ import api from '../../services/api'
 import StatCard from '../../components/StatCard.vue'
 import LoadingState from '../../components/LoadingState.vue'
 
-const d = ref({ siswa: 0, kelas: 0, akun: 0, mapel: 0, artikel: 0 })
+const d = ref({ siswa: 0, kelas: 0, akun: 0, mapel: 0, artikel: 0, tahunAjaran: 0 })
 const loading = ref(true)
 
 onMounted(async () => {

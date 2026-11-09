@@ -1,38 +1,37 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="page-title">Masuk sebagai Wali Kelas</h1>
-      <p class="page-subtitle">Pilih kelas untuk mengelola nilai, kehadiran, dan sikap atas nama wali kelas.</p>
+      <h1 class="page-title">Masuk sebagai Guru</h1>
+      <p class="page-subtitle">Pilih kelas untuk mengelola nilai, kehadiran, dan sikap sebagai wali kelas.</p>
     </div>
 
-    <div v-if="loading && !list.length"><LoadingState skeleton variant="cards" /></div>
+    <div v-if="loading && !list.length"><LoadingState /></div>
 
-    <div v-else-if="list.length">
-      <p class="font-label-sm text-outline dark:text-ice-white/40 mb-3">
-        Setelah memilih kelas, menu wali kelas akan muncul di sidebar.
-      </p>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <button
-          v-for="k in list"
-          :key="k.id"
-          class="card p-5 text-left hover:shadow-lift transition-shadow group"
-          @click="pilih(k)"
-        >
-          <span class="material-symbols-outlined text-dark-teal block mb-3 text-3xl group-hover:text-light-teal transition-colors">door_sliding</span>
-          <p class="font-title-lg text-deep-navy dark:text-ice-white">{{ k.nama }}</p>
-          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">{{ k.waliKelas ? `Wali kelas: ${k.waliKelas}` : 'Belum ada wali kelas' }}</p>
-          <span class="inline-flex items-center gap-1 mt-3 text-dark-teal dark:text-light-teal font-label-sm">
-            Masuk
-            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+    <div v-else-if="list.length" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="k in list" :key="k.id" class="card p-5 flex flex-col">
+        <div class="flex items-start justify-between mb-3">
+          <span class="w-11 h-11 rounded-xl bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal flex items-center justify-center">
+            <span class="material-symbols-outlined">door_sliding</span>
           </span>
-        </button>
+        </div>
+        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-1">{{ k.nama }}</h2>
+        <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mb-1">Tingkat {{ k.tingkat }}</p>
+        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">
+          Wali Kelas: {{ k.waliKelas || 'Belum ditentukan' }}
+        </p>
+        <div class="mt-auto pt-3 border-t border-surface-variant dark:border-white/10 space-y-3">
+          <span class="badge bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal">{{ k.siswaCount }} siswa</span>
+          <button class="btn-primary w-full !px-3 !py-2" @click="pilih(k)">
+            Masuk sebagai Guru
+          </button>
+        </div>
       </div>
     </div>
 
     <EmptyState
       v-else
       title="Belum ada kelas"
-      message="Buat kelas terlebih dahulu di menu Kelas sebelum membantu wali kelas."
+      message="Buat kelas terlebih dahulu di menu Kelas sebelum masuk sebagai guru."
       icon="door_sliding"
     />
   </div>

@@ -4,6 +4,14 @@ import App from './App.vue'
 import router from './router'
 import { useThemeStore } from './stores/theme'
 import { useUiStore } from './stores/ui'
+import { setSeo } from './utils/seo'
+import '@fontsource/hanken-grotesk/latin-400.css'
+import '@fontsource/hanken-grotesk/latin-400-italic.css'
+import '@fontsource/hanken-grotesk/latin-500.css'
+import '@fontsource/hanken-grotesk/latin-600.css'
+import '@fontsource/hanken-grotesk/latin-700.css'
+import '@fontsource/hanken-grotesk/latin-800.css'
+import 'material-symbols/outlined.css'
 import './assets/main.css'
 
 if (document.fonts?.load) {
@@ -14,19 +22,13 @@ if (document.fonts?.load) {
 }
 
 router.afterEach((to) => {
-  const suffix = 'SD Negeri 4 Keling'
-  const title = to.meta.title ? `${to.meta.title} - ${suffix}` : `Sistem Monitoring Perkembangan Siswa - ${suffix}`
-  if (document.title !== title) document.title = title
-  const desc = to.meta.description
-  if (desc) {
-    let el = document.querySelector('meta[name="description"]')
-    if (!el) {
-      el = document.createElement('meta')
-      el.setAttribute('name', 'description')
-      document.head.appendChild(el)
-    }
-    el.setAttribute('content', desc)
-  }
+  const noindex = !to.meta.public || Boolean(to.meta.noindex)
+  setSeo({
+    title: to.meta.title ? `${to.meta.title} - SD Negeri 4 Keling` : undefined,
+    description: to.meta.description,
+    path: to.fullPath.split('?')[0],
+    noindex
+  })
 })
 
 const app = createApp(App)
