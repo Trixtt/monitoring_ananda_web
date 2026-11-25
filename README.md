@@ -313,11 +313,13 @@ npm run build --prefix client
 
 Backend menyimpan dan memakai rasio presisi `4/13`, `4/13`, `5/13`; pembulatan dua desimal hanya untuk tampilan.
 
+Secara default, seluruh perhitungan dan laporan memakai **semester aktif** yang diatur Admin di halaman Tahun Ajaran. Untuk tahun ajaran 2025/2026: Ganjil `2025-07-14` s/d `2025-12-21`, Genap `2026-01-05` s/d `2026-06-21`. Laporan dengan rentang tanggal eksplisit memakai rentang tersebut.
+
 Normalisasi benefit (semakin tinggi semakin baik):
 
 - Akademik: `R_A = rata-rata nilai / 100`
-- Kehadiran: `R_K = (hadir + izin + sakit) / hari sekolah yang dinilai` → hanya **alpa** yang menurunkan skor
-- Sikap: `R_S = (rata-rata nilai kejadian - 1) / 4` dengan skala **1 = Kurang** sampai **5 = Sangat Baik**
+- Kehadiran: `R_K = (hadir + izin + sakit) / tanggal kehadiran yang tercatat` → hanya **alpa** yang menurunkan skor
+- Sikap: `R_S = (rata-rata nilai kejadian - 1) / 4` dengan skala **1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik**. Tanpa kejadian pada semester aktif langsung `R_S = 1` (nilai 5).
 
 Nilai preferensi: `Vi = (R_A × 4/13) + (R_K × 4/13) + (R_S × 5/13)`
 
@@ -329,14 +331,14 @@ Klasifikasi (interval, dapat dikonfigurasi):
 
 Status khusus:
 
-- **Data Belum Lengkap** — salah satu kriteria wajib tidak tersedia (tidak ada nilai, rekap kehadiran tidak mencakup seluruh hari sekolah yang tercatat, atau belum ada kejadian sikap). Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko.
+- **Data Belum Lengkap** — nilai akademik atau rekap kehadiran belum tersedia/lengkap pada semester aktif. Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko. Siswa tanpa kejadian sikap **tidak** masuk status ini.
 - **ABK** — dikecualikan dari skoring otomatis dan tidak digabung dengan Data Belum Lengkap.
 
-Bobot dan interval **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100% dan urutan interval `Baik > Perhatian > Berisiko`.
+Bobot, interval klasifikasi, dan ambang rekomendasi **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100%, urutan interval `Baik > Perhatian > Berisiko`, dan rentang ambang 0–1.
 
 ### Rekomendasi berbasis aturan (rule-based)
 
-Ambang default: akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`.
+Ambang bawaan (dapat diubah Admin): akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`.
 
 - Akademik rendah → les/bimbingan tambahan + sorot mapel terlemah.
 - Kehadiran rendah → investigasi penyebab ketidakhadiran + coaching orang tua.
@@ -345,7 +347,7 @@ Ambang default: akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`.
 - Data Belum Lengkap → minta pelengkapan data, bukan label Berisiko.
 - Status ABK → dikecualikan dari klasifikasi otomatis, tampilkan catatan pendekatan pembelajaran khusus.
 
-Asumsi kebijakan yang masih menunggu konfirmasi sekolah dirangkum di [`docs/keputusan-tahap-1.txt`](docs/keputusan-tahap-1.txt).
+Keputusan final kebijakan Tahap 1 dirangkum di [`docs/keputusan-tahap-1.txt`](docs/keputusan-tahap-1.txt).
 
 ---
 
@@ -354,8 +356,8 @@ Asumsi kebijakan yang masih menunggu konfirmasi sekolah dirangkum di [`docs/kepu
 - Analisis tren lintas semester belum termasuk (future work).
 - Siswa tidak punya akun/akses ke sistem.
 - Tidak ada integrasi langsung ke E-Rapor Kemendikdasmen (input nilai manual).
-- Belum ada kalender hari sekolah eksplisit; denominator kehadiran memakai tanggal yang tercatat pada tahun ajaran/periode berjalan dan validasi cakupan per siswa.
-- Belum ada mekanisme konfirmasi "periode sudah dipantau tanpa kejadian"; siswa tanpa catatan sikap ditandai Data Belum Lengkap.
+- Belum ada kalender hari sekolah eksplisit; denominator kehadiran memakai tanggal yang tercatat pada semester aktif dan validasi cakupan per siswa.
+- Tanpa kejadian sikap di semester aktif langsung dinilai 5 (Sangat Baik); tidak ada tombol konfirmasi pemantauan.
 - Notifikasi WhatsApp memakai **Fonnte** (bukan WhatsApp Business API resmi).
 - Data kesehatan & ekstrakurikuler tidak dicakup.
 

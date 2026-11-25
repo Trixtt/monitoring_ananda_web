@@ -1,22 +1,36 @@
+import { Op } from 'sequelize'
 import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
-import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from './spk.js'
+import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, rentangSemester, labelPeriode } from './spk.js'
 
-export async function susunRapor({ siswaId, tahunAjaranId }) {
+function whereTanggal(rentang) {
+  if (!rentang) return {}
+  const tanggal = {}
+  if (rentang.mulai) tanggal[Op.gte] = rentang.mulai
+  if (rentang.akhir) tanggal[Op.lte] = rentang.akhir
+  return Reflect.ownKeys(tanggal).length ? { tanggal } : {}
+}
+
+export async function susunRapor({ siswaId, tahunAjaranId, rentang = null }) {
   const siswa = await Siswa.findByPk(siswaId, { include: [{ association: 'kelas' }] })
   if (!siswa) return null
 
   const ta = tahunAjaranId
     ? await TahunAjaran.findByPk(tahunAjaranId)
     : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const periode = rentang === false
+    ? null
+    : rentang && (rentang.mulai || rentang.akhir)
+      ? rentang
+      : rentangSemester(ta)
 
   const [nilaiRows, kehadiranRows, sikapRows] = await Promise.all([
     Nilai.findAll({
-      where: { siswaId, tahunAjaranId: ta?.id },
+      where: { siswaId, tahunAjaranId: ta?.id, ...whereTanggal(periode) },
       include: [{ association: 'mapel' }],
       order: [['createdAt', 'DESC']]
     }),
-    Kehadiran.findAll({ where: { siswaId, tahunAjaranId: ta?.id } }),
-    Sikap.findAll({ where: { siswaId, tahunAjaranId: ta?.id } })
+    Kehadiran.findAll({ where: { siswaId, tahunAjaranId: ta?.id, ...whereTanggal(periode) } }),
+    Sikap.findAll({ where: { siswaId, tahunAjaranId: ta?.id, ...whereTanggal(periode) } })
   ])
 
   const perMapel = {}
@@ -55,13 +69,16 @@ export async function susunRapor({ siswaId, tahunAjaranId }) {
     rata: v.jumlah ? Math.round((v.total / v.jumlah) * 10) / 10 : null
   }))
 
-  const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-  const lemah = await mapelTerlemah(siswa.id, ta?.id)
+  const skor = await hitungSkorSiswa(siswa.id, ta?.id, null, periode)
+  const lemah = await mapelTerlemah(siswa.id, ta?.id, periode)
   const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
 
   return {
     siswa,
     tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode,
+    labelPeriode: labelPeriode(ta, rentang && (rentang.mulai || rentang.akhir) ? periode : null),
     tanggalRapor: new Date().toISOString().slice(0, 10),
     rekapNilai,
     ringkasKehadiran,

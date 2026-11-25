@@ -48,6 +48,11 @@ npm run db:migrate --prefix server
 npm run db:seed --prefix server
 ```
 
+Setelah seed, tahun ajaran aktif adalah **2025/2026** dengan semester aktif **Ganjil**
+(Ganjil `2025-07-14`–`2025-12-21`, Genap `2026-01-05`–`2026-06-21`). Data contoh nilai
+(`2025-10-11`–`2025-10-14`), kehadiran (`2025-10-01`–`2025-10-15`), dan sikap
+(`2025-10-15`) berada di Ganjil, sehingga dashboard tidak kosong.
+
 ## 2. Menjalankan Demo
 
 ```powershell
@@ -70,12 +75,13 @@ Buka **http://localhost:5175**. Kredensial demo tampil di halaman login karena `
 1. **Landing page publik** — buka `/`, tunjukkan berita sekolah, buka detail artikel.
 2. **Login admin** — tunjukkan dashboard, data siswa/kelas/mapel/tahun ajaran.
 3. **Manajemen akun** — buat akun orang tua, tunjukkan password sementara muncul **sekali**.
-4. **Login wali kelas** — input nilai, kehadiran (pilih status satu per satu; izin/sakit tetap efektif), dan catat kejadian sikap skala 1-5; tunjukkan monitoring SPK & rekomendasi, termasuk status **Data Belum Lengkap** bila ada kriteria yang kosong.
-4a. **Admin → Konfigurasi SPK** — ubah slider bobot, pastikan total 100% dan nilai tersimpan setelah reload; bobot bawaan 4:4:5 ditampilkan sebagai 31%/31%/38%.
-5. **Login kepala sekolah** — rekap per kelas, daftar siswa berisiko, ekspor PDF rapor/laporan.
-6. **Login orang tua** — dashboard perkembangan anak, nilai, kehadiran, rekomendasi.
-7. **Ganti password** — dari menu Profil, tunjukkan validasi password kuat.
-8. **Logout** — tunjukkan kembalian ke halaman login.
+4. **Admin → Tahun Ajaran** — tunjukkan `2025/2026` aktif dengan semester **Ganjil** dan rentang ganjil/genap. Coba ubah semester aktif menjadi **Genap**, amati monitoring/laporan ikut berubah, lalu kembalikan ke **Ganjil**.
+4a. **Admin → Konfigurasi SPK** — ubah slider bobot (total harus 100%) dan ambang rekomendasi (`0,65` akademik, `0,65` sikap, `0,80` kehadiran); tunjukkan tombol **Reset** kembali ke bawaan `4/13, 4/13, 5/13` (tampil `0,31 / 0,31 / 0,38`) dan pastikan nilai tersimpan setelah reload.
+5. **Login wali kelas** — input nilai, kehadiran (pilih status satu per satu; izin/sakit tetap efektif), dan kejadian sikap skala 1–5 (`1 Kurang`, `2 Cukup`, `3 Baik`, `4 Baik Sekali`, `5 Sangat Baik`). Tunjukkan bahwa siswa **tanpa kejadian** langsung bernilai **5 / Sangat Baik** tanpa tombol konfirmasi; **Data Belum Lengkap** hanya muncul bila nilai atau rekap kehadiran belum ada. Monitoring menampilkan semester aktif.
+6. **Login kepala sekolah** — rekap per kelas, daftar siswa berisiko, ekspor PDF rapor/laporan; bila rentang tanggal tidak diisi, laporan memakai semester aktif.
+7. **Login orang tua** — dashboard perkembangan anak, nilai, kehadiran, rekomendasi; pada kalender sikap, bulan tanpa kejadian ditampilkan **Sangat Baik**.
+8. **Ganti password** — dari menu Profil, tunjukkan validasi password kuat (minimal 8 karakter).
+9. **Logout** — tunjukkan kembalian ke halaman login.
 
 ## 5. Memeriksa Fitur Keamanan (Opsional)
 

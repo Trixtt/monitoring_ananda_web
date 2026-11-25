@@ -1,20 +1,23 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  AMBANG_REKOMENDASI,
   BOBOT_SAW,
   normalizeSikap,
   kategoriDariSkor,
   hasilAbk,
   hitungSkorData,
   agregasiMapel,
-  rekomendasiUntuk
+  rekomendasiUntuk,
+  rentangSemester
 } from '../src/services/spk.js'
 
 const setting = {
   ...BOBOT_SAW,
   intervalBaikBawah: 0.67,
   intervalPerhatianBawah: 0.34,
-  intervalBerisikoBawah: 0
+  intervalBerisikoBawah: 0,
+  ...AMBANG_REKOMENDASI
 }
 
 const lengkap = {
@@ -85,14 +88,19 @@ describe('hitungSkorData - kelengkapan', () => {
     assert.equal(h.lengkap, false)
     assert.equal(h.skor, null)
     assert.equal(h.kategori.kode, 'data_belum_lengkap')
-    assert.deepEqual(h.kelengkapan, { akademik: false, kehadiran: false, sikap: false })
+    // Tanpa kejadian sikap langsung dianggap Sangat Baik, sehingga yang
+    // menggagalkan kelengkapan hanya nilai dan kehadiran.
+    assert.deepEqual(h.kelengkapan, { akademik: false, kehadiran: false, sikap: true })
   })
 
-  test('tanpa catatan sikap menjadi data belum lengkap', () => {
+  test('tanpa kejadian sikap langsung diberi nilai 5 / R_S = 1', () => {
     const h = hitungSkorData({ ...lengkap, sikapAngka: [] }, setting)
-    assert.equal(h.lengkap, false)
-    assert.equal(h.kategori.kode, 'data_belum_lengkap')
-    assert.equal(h.kelengkapan.sikap, false)
+    assert.equal(h.lengkap, true)
+    assert.equal(h.kategori.kode, 'aman')
+    assert.equal(h.kelengkapan.sikap, true)
+    assert.equal(h.skorSikap, 1)
+    assert.equal(h.detail.rataSikap, 5)
+    assert.equal(h.detail.sikapTanpaKejadian, true)
   })
 
   test('cakupan kehadiran kurang dari hari sekolah menjadi data belum lengkap', () => {
@@ -238,5 +246,50 @@ describe('rekomendasiUntuk', () => {
     const r = rekomendasiUntuk({ abk: false, lengkap: true, skor: 0.4, skorAkademik: 0.4, skorKehadiran: 0.5, skorSikap: 0.3 })
     assert.equal(r.tipe, 'gabungan')
     assert.ok(r.daftar.some((d) => /ketidakhadiran/.test(d)))
+  })
+
+  test('memakai ambang yang diatur admin', () => {
+    const hasil = hitungSkorData(
+      { nilaiAngka: [70], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
+      {
+        ...setting,
+        bobotAkademik: 1,
+        bobotKehadiran: 0,
+        bobotSikap: 0,
+        ambangAkademik: 0.6
+      }
+    )
+    assert.equal(hasil.skorAkademik, 0.7)
+    assert.deepEqual(hasil.ambang, {
+      ambangAkademik: 0.6,
+      ambangSikap: 0.65,
+      ambangKehadiran: 0.8
+    })
+    assert.equal(rekomendasiUntuk(hasil).tipe, 'baik')
+
+    const hasilKetat = hitungSkorData(
+      { nilaiAngka: [70], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
+      { ...setting, bobotAkademik: 1, bobotKehadiran: 0, bobotSikap: 0, ambangAkademik: 0.8 }
+    )
+    assert.equal(rekomendasiUntuk(hasilKetat).tipe, 'akademik')
+  })
+})
+
+describe('rentangSemester', () => {
+  test('memakai rentang Kaldik Jateng 2025/2026 sebagai bawaan', () => {
+    assert.deepEqual(rentangSemester(null), { mulai: '2025-07-14', akhir: '2025-12-21' })
+    assert.deepEqual(rentangSemester({ semesterAktif: 'Genap' }), { mulai: '2026-01-05', akhir: '2026-06-21' })
+  })
+
+  test('memakai rentang yang disimpan admin', () => {
+    const ta = {
+      semesterAktif: 'Genap',
+      ganjilMulai: '2025-07-14',
+      ganjilAkhir: '2025-12-21',
+      genapMulai: '2026-01-06',
+      genapAkhir: '2026-06-19'
+    }
+    assert.deepEqual(rentangSemester(ta), { mulai: '2026-01-06', akhir: '2026-06-19' })
+    assert.deepEqual(rentangSemester({ ...ta, semesterAktif: 'Ganjil' }), { mulai: '2025-07-14', akhir: '2025-12-21' })
   })
 })

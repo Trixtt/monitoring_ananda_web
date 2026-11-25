@@ -1,7 +1,23 @@
 import { Op } from 'sequelize'
 import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
-import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
+import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, rentangSemester } from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
+
+function whereRentang(rentang) {
+  if (!rentang) return {}
+  const tanggal = {}
+  if (rentang.mulai) tanggal[Op.gte] = rentang.mulai
+  if (rentang.akhir) tanggal[Op.lte] = rentang.akhir
+  return Reflect.ownKeys(tanggal).length ? { tanggal } : {}
+}
+
+function tanggalDalam(rentang, kondisi = {}) {
+  return { ...kondisi, ...(whereRentang(rentang).tanggal || {}) }
+}
+
+function bulanAwal(rentang) {
+  return rentang?.mulai ? String(rentang.mulai).slice(0, 7) : new Date().toISOString().slice(0, 7)
+}
 
 export async function ortuDashboard(req, res) {
   const siswa = req.user.siswaId
@@ -13,19 +29,25 @@ export async function ortuDashboard(req, res) {
   }
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-  const lemah = await mapelTerlemah(siswa.id, ta?.id)
+  const rentang = rentangSemester(ta)
+  const skor = await hitungSkorSiswa(siswa.id, ta?.id, null, rentang)
+  const lemah = await mapelTerlemah(siswa.id, ta?.id, rentang)
   const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
 
   const [nilai, kehadiran, sikap] = await Promise.all([
     Nilai.findAll({
-      where: { siswaId: siswa.id, tahunAjaranId: ta?.id },
+      where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
       include: [{ association: 'mapel' }],
       order: [['createdAt', 'DESC']],
       limit: 30
     }),
-    Kehadiran.findAll({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id } }),
-    Sikap.findAll({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id }, order: [['createdAt', 'DESC']] })
+    Kehadiran.findAll({
+      where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) }
+    }),
+    Sikap.findAll({
+      where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
+      order: [['createdAt', 'DESC']]
+    })
   ])
 
   const ringkas = { hadir: 0, izin: 0, sakit: 0, alpa: 0 }
@@ -36,6 +58,8 @@ export async function ortuDashboard(req, res) {
   return res.json({
     siswa,
     tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang,
     skor,
     mapelTerlemah: lemah?.nama || null,
     rekomendasi,
@@ -51,9 +75,10 @@ export async function ortuRekapNilai(req, res) {
   if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
 
   const rows = await Nilai.findAll({
-    where: { siswaId, tahunAjaranId: ta?.id },
+    where: { siswaId, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     include: [{ association: 'mapel' }],
     order: [['createdAt', 'DESC']]
   })
@@ -80,7 +105,12 @@ export async function ortuProfil(req, res) {
     ? await Siswa.findByPk(req.user.siswaId, { include: [{ association: 'kelas' }] })
     : null
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  return res.json({ siswa, tahunAjaran: ta?.nama || null })
+  return res.json({
+    siswa,
+    tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentangSemester(ta)
+  })
 }
 
 export async function ortuKehadiran(req, res) {
@@ -88,8 +118,9 @@ export async function ortuKehadiran(req, res) {
   if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
   const list = await Kehadiran.findAll({
-    where: { siswaId, tahunAjaranId: ta?.id },
+    where: { siswaId, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     order: [['tanggal', 'DESC']]
   })
 
@@ -98,7 +129,7 @@ export async function ortuKehadiran(req, res) {
     if (ringkas[k.status] !== undefined) ringkas[k.status]++
   })
 
-  return res.json({ ringkas, list })
+  return res.json({ ringkas, list, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
 }
 
 export async function ortuSikap(req, res) {
@@ -106,8 +137,9 @@ export async function ortuSikap(req, res) {
   if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
   const list = await Sikap.findAll({
-    where: { siswaId, tahunAjaranId: ta?.id },
+    where: { siswaId, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     order: [['tanggal', 'DESC'], ['createdAt', 'DESC']]
   })
 
@@ -119,7 +151,7 @@ export async function ortuSikap(req, res) {
     }
   })
 
-  return res.json({ ringkas, list })
+  return res.json({ ringkas, list, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
 }
 
 export async function ortuRapor(req, res) {
@@ -137,9 +169,11 @@ export async function ortuMonitoring(req, res) {
   if (!siswaId) return res.status(400).json({ message: 'Akun belum tertaut siswa.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
 
-  let y = new Date().getFullYear()
-  let m = new Date().getMonth()
+  const bulanBawaan = bulanAwal(rentang)
+  let y = Number(bulanBawaan.slice(0, 4))
+  let m = Number(bulanBawaan.slice(5, 7)) - 1
   const md = String(req.query.bulan || '').match(/^(\d{4})-(\d{2})$/)
   if (md) {
     y = Number(md[1])
@@ -148,7 +182,10 @@ export async function ortuMonitoring(req, res) {
   const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
   const firstDate = `${prefix}-01`
   const lastDate = `${prefix}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
-  const base = { tahunAjaranId: ta?.id, tanggal: { [Op.between]: [firstDate, lastDate] } }
+  const base = {
+    tahunAjaranId: ta?.id,
+    tanggal: tanggalDalam(rentang, { [Op.between]: [firstDate, lastDate] })
+  }
 
   const [kehadiran, sikap] = await Promise.all([
     Kehadiran.findAll({
@@ -185,6 +222,8 @@ export async function ortuMonitoring(req, res) {
 
   return res.json({
     bulan: prefix,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang,
     kehadiran: Object.values(kehadiranMap),
     sikap: sikapList
   })

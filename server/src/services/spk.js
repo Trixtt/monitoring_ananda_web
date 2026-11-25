@@ -1,4 +1,4 @@
-import { Nilai, Kehadiran, Sikap, SettingSpk, Siswa } from '../models/index.js'
+import { Nilai, Kehadiran, Sikap, SettingSpk, Siswa, TahunAjaran } from '../models/index.js'
 import { Op } from 'sequelize'
 
 // Bobot hasil keputusan: Akademik 4, Kehadiran 4, Sikap 5 dari total 13.
@@ -9,6 +9,21 @@ export const BOBOT_SAW = Object.freeze({
   bobotSikap: 5 / 13
 })
 
+// Ambang rekomendasi disetujui 0,65 / 0,65 / 0,80 dan dapat diubah admin.
+// Nilai di bawah ambang memicu rekomendasi untuk kriteria tersebut.
+export const AMBANG_REKOMENDASI = Object.freeze({
+  ambangAkademik: 0.65,
+  ambangSikap: 0.65,
+  ambangKehadiran: 0.8
+})
+
+// Rentang Kaldik SD/MI Jawa Tengah 2025/2026. Dipakai sebagai nilai awal
+// saat admin belum mengisi rentang pada tahun ajaran.
+export const RENTANG_SEMESTER = Object.freeze({
+  Ganjil: Object.freeze({ mulai: '2025-07-14', akhir: '2025-12-21' }),
+  Genap: Object.freeze({ mulai: '2026-01-05', akhir: '2026-06-21' })
+})
+
 const STATUS_EFEKTIF = new Set(['hadir', 'izin', 'sakit'])
 const KATEGORI_BELUM_LENGKAP = { kode: 'data_belum_lengkap', label: 'Data Belum Lengkap' }
 
@@ -17,6 +32,37 @@ function whereTanggal(rentang) {
   if (rentang?.mulai) cond.tanggal = { ...(cond.tanggal || {}), [Op.gte]: rentang.mulai }
   if (rentang?.akhir) cond.tanggal = { ...(cond.tanggal || {}), [Op.lte]: rentang.akhir }
   return cond
+}
+
+export function rentangSemester(ta = null) {
+  const semester = ta?.semesterAktif === 'Genap' ? 'Genap' : 'Ganjil'
+  const kunci = semester === 'Ganjil' ? 'ganjil' : 'genap'
+  const bawaan = RENTANG_SEMESTER[semester]
+  const mulai = ta?.[`${kunci}Mulai`] || bawaan.mulai
+  const akhir = ta?.[`${kunci}Akhir`] || bawaan.akhir
+  return {
+    mulai: String(mulai).slice(0, 10),
+    akhir: String(akhir).slice(0, 10)
+  }
+}
+
+export function labelPeriode(ta, rentang = null) {
+  if (rentang?.mulai || rentang?.akhir) {
+    return `${rentang.mulai || '…'} s/d ${rentang.akhir || '…'}`
+  }
+  const r = rentangSemester(ta)
+  return `Semester ${ta?.semesterAktif || 'Ganjil'} (${r.mulai} s/d ${r.akhir})`
+}
+
+async function tentukanRentang(tahunAjaranId, rentang) {
+  // false dipakai eksplisit oleh pemanggil yang menghendaki tanpa filter.
+  if (rentang === false) return null
+  if (rentang && (rentang.mulai || rentang.akhir)) return rentang
+
+  const ta = tahunAjaranId
+    ? await TahunAjaran.findByPk(tahunAjaranId)
+    : (await TahunAjaran.findOne({ where: { isActive: true } }))
+  return rentangSemester(ta)
 }
 
 export function normalizeSikap(rataSikap) {
@@ -36,6 +82,14 @@ export function kategoriDariSkor(skor, setting) {
   if (skor >= perhatian) return { kode: 'perhatian', label: 'Perlu Perhatian' }
   if (skor >= berisiko) return { kode: 'berisiko', label: 'Berisiko / Butuh Tindak Lanjut' }
   return { kode: 'berisiko', label: 'Berisiko / Butuh Tindak Lanjut' }
+}
+
+function ambangDariSetting(setting = {}) {
+  return {
+    ambangAkademik: Number(setting.ambangAkademik ?? AMBANG_REKOMENDASI.ambangAkademik),
+    ambangSikap: Number(setting.ambangSikap ?? AMBANG_REKOMENDASI.ambangSikap),
+    ambangKehadiran: Number(setting.ambangKehadiran ?? AMBANG_REKOMENDASI.ambangKehadiran)
+  }
 }
 
 export function hasilAbk(siswaId = null) {
@@ -69,7 +123,8 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}) {
       hariTercatat: detail.hariTercatat ?? null,
       jumlahHadirEfektif: detail.jumlahHadirEfektif ?? null,
       jumlahAlpa: detail.jumlahAlpa ?? null,
-      rataSikap: detail.rataSikap ?? null
+      rataSikap: detail.rataSikap ?? null,
+      sikapTanpaKejadian: detail.sikapTanpaKejadian ?? false
     }
   }
 }
@@ -77,10 +132,10 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}) {
 /**
  * Menghitung skor SAW dari data yang sudah diagregasi.
  *
- * totalHariSekolah: jumlah hari sekolah yang wajib dicatat pada periode.
- *   Bila tidak diberikan, kelengkapan kehadiran tidak dapat diverifikasi.
- * sikapAngka: nilai kejadian sikap (1-5). Tanpa kejadian = belum lengkap,
- *   karena kebijakan "tanpa kejadian = sangat baik" belum disetujui sekolah.
+ * totalHariSekolah: jumlah tanggal unik yang tercatat pada tahun
+ *   ajaran/periode berjalan (denominator tetap tanggal tercatat).
+ * sikapAngka: nilai kejadian sikap (1-5). Tanpa kejadian berarti sikap
+ *   dianggap Sangat Baik (nilai 5), sesuai keputusan final sekolah.
  */
 export function hitungSkorData(
   { nilaiAngka = [], hadirStatus = [], sikapAngka = [], totalHariSekolah = null },
@@ -98,15 +153,16 @@ export function hitungSkorData(
     ? jumlahHadirEfektif / totalHariTercatat
     : null
 
-  const rataSikap = sikapAngka.length
-    ? sikapAngka.reduce((a, b) => a + Number(b), 0) / sikapAngka.length
-    : null
-  const skorSikap = rataSikap === null ? null : normalizeSikap(rataSikap)
+  const sikapTanpaKejadian = sikapAngka.length === 0
+  const rataSikap = sikapTanpaKejadian
+    ? 5
+    : sikapAngka.reduce((a, b) => a + Number(b), 0) / sikapAngka.length
+  const skorSikap = normalizeSikap(rataSikap)
 
   const kelengkapan = {
     akademik: nilaiAngka.length > 0,
     kehadiran: Number(totalHariSekolah) > 0 && totalHariTercatat >= Number(totalHariSekolah),
-    sikap: sikapAngka.length > 0
+    sikap: true
   }
   const detail = {
     rataNilai: rataNilai === null ? null : Number(rataNilai.toFixed(2)),
@@ -114,10 +170,11 @@ export function hitungSkorData(
     hariTercatat: totalHariTercatat,
     jumlahHadirEfektif,
     jumlahAlpa,
-    rataSikap: rataSikap === null ? null : Number(rataSikap.toFixed(2))
+    rataSikap: Number(rataSikap.toFixed(2)),
+    sikapTanpaKejadian
   }
 
-  if (!kelengkapan.akademik || !kelengkapan.kehadiran || !kelengkapan.sikap) {
+  if (!kelengkapan.akademik || !kelengkapan.kehadiran) {
     return hasilBelumLengkap(null, kelengkapan, detail)
   }
 
@@ -136,7 +193,8 @@ export function hitungSkorData(
     skorSikap: Number(skorSikap.toFixed(4)),
     kategori: kategoriDariSkor(skor, setting),
     kelengkapan,
-    detail
+    detail,
+    ambang: ambangDariSetting(setting)
   }
 }
 
@@ -160,8 +218,8 @@ async function jumlahHariSekolah(tahunAjaranId, rentang) {
   const where = { ...whereTanggal(rentang) }
   if (tahunAjaranId != null) where.tahunAjaranId = tahunAjaranId
   const rows = await Kehadiran.findAll({ where, attributes: ['tanggal'], raw: true })
-  // Hari sekolah diperkirakan dari tanggal yang benar-benar tercatat di
-  // tahun ajaran/periode berjalan (belum ada kalender hari sekolah eksplisit).
+  // Denominator tetap tanggal yang benar-benar tercatat pada periode
+  // (tidak ada tabel kalender hari sekolah/libur baru).
   return new Set(rows.map((r) => String(r.tanggal).slice(0, 10))).size
 }
 
@@ -172,14 +230,15 @@ export async function hitungSkorSiswa(siswaId, tahunAjaranId, setting = null, re
 
   if (siswa.statusABK) return hasilAbk(siswaId)
 
-  const whereTA = { siswaId, ...whereTanggal(rentang) }
+  const periode = await tentukanRentang(tahunAjaranId, rentang)
+  const whereTA = { siswaId, ...whereTanggal(periode) }
   if (tahunAjaranId != null) whereTA.tahunAjaranId = tahunAjaranId
 
   const [nilaiRows, hadirRows, sikapRows, totalHari] = await Promise.all([
     Nilai.findAll({ where: whereTA }),
     Kehadiran.findAll({ where: whereTA }),
     Sikap.findAll({ where: whereTA }),
-    jumlahHariSekolah(tahunAjaranId, rentang)
+    jumlahHariSekolah(tahunAjaranId, periode)
   ])
 
   const hasil = hitungSkorData(
@@ -206,19 +265,20 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
   if (hasil?.lengkap === false || hasil?.skor == null || hasil?.kategori?.kode === 'data_belum_lengkap') {
     return {
       tipe: 'data_belum_lengkap',
-      pesan: 'Lengkapi data pada periode penilaian sebelum hasil SAW ditampilkan.',
+      pesan: 'Lengkapi data nilai dan kehadiran pada semester aktif sebelum hasil SAW ditampilkan.',
       daftar: [
-        'Lengkapi nilai akademik, rekap kehadiran, dan catatan kejadian sikap pada periode ini',
+        'Lengkapi nilai akademik dan rekap kehadiran pada semester ini',
         'Jangan klasifikasikan sebagai berisiko hanya karena data belum tersedia',
         'Tampilkan rekomendasi setelah seluruh kriteria terpenuhi'
       ]
     }
   }
 
+  const ambang = { ...AMBANG_REKOMENDASI, ...(hasil?.ambang || {}) }
   const { skorAkademik, skorKehadiran, skorSikap } = hasil
-  const akademikRendah = Number(skorAkademik) < 0.65
-  const sikapRendah = Number(skorSikap) < 0.65
-  const kehadiranRendah = Number(skorKehadiran) < 0.8
+  const akademikRendah = Number(skorAkademik) < Number(ambang.ambangAkademik)
+  const sikapRendah = Number(skorSikap) < Number(ambang.ambangSikap)
+  const kehadiranRendah = Number(skorKehadiran) < Number(ambang.ambangKehadiran)
 
   const daftar = []
   if (akademikRendah) {
@@ -250,9 +310,9 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
   }
 }
 
-export async function rekapKelas(kelasId, tahunAjaranId) {
+export async function rekapKelas(kelasId, tahunAjaranId, rentang = null) {
   const siswaList = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
-  const hasilList = await hitungSemuaSiswa(siswaList, tahunAjaranId)
+  const hasilList = await hitungSemuaSiswa(siswaList, tahunAjaranId, rentang)
 
   const ringkas = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, data_belum_lengkap: 0, total: hasilList.length }
   for (const { hasil } of hasilList) {
@@ -263,8 +323,9 @@ export async function rekapKelas(kelasId, tahunAjaranId) {
 }
 
 export async function mapelTerlemah(siswaId, tahunAjaranId, rentang = null) {
+  const periode = await tentukanRentang(tahunAjaranId, rentang)
   const rows = await Nilai.findAll({
-    where: { siswaId, tahunAjaranId, ...whereTanggal(rentang) },
+    where: { siswaId, tahunAjaranId, ...whereTanggal(periode) },
     include: [{ association: 'mapel' }]
   })
   return agregasiMapel(rows)
@@ -274,15 +335,16 @@ export async function hitungSemuaSiswa(siswaList, tahunAjaranId, rentang = null)
   if (!siswaList.length) return []
 
   const s = (await SettingSpk.findOne()) || BOBOT_SAW
+  const periode = await tentukanRentang(tahunAjaranId, rentang)
   const ids = siswaList.map((x) => x.id)
-  const baseWhere = { siswaId: { [Op.in]: ids }, ...whereTanggal(rentang) }
+  const baseWhere = { siswaId: { [Op.in]: ids }, ...whereTanggal(periode) }
   if (tahunAjaranId != null) baseWhere.tahunAjaranId = tahunAjaranId
 
   const [nilaiRows, hadirRows, sikapRows, totalHari] = await Promise.all([
     Nilai.findAll({ where: baseWhere, include: [{ association: 'mapel' }] }),
     Kehadiran.findAll({ where: baseWhere }),
     Sikap.findAll({ where: baseWhere }),
-    jumlahHariSekolah(tahunAjaranId, rentang)
+    jumlahHariSekolah(tahunAjaranId, periode)
   ])
 
   const kelompokkan = (rows) => {

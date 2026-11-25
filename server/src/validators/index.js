@@ -47,9 +47,38 @@ export const kelasSchema = z.object({
 })
 export const kelasUpdateSchema = kelasSchema.partial()
 
-export const tahunAjaranSchema = z.object({
-  nama: z.string().min(1, 'Nama tahun ajaran wajib diisi').max(20)
-})
+const rentangSemesterValid = (d) => {
+  for (const [mulaiKey, akhirKey] of [
+    ['ganjilMulai', 'ganjilAkhir'],
+    ['genapMulai', 'genapAkhir']
+  ]) {
+    const mulai = d[mulaiKey]
+    const akhir = d[akhirKey]
+    if ((mulai == null) !== (akhir == null)) return false
+    if (mulai && akhir && String(mulai) > String(akhir)) return false
+  }
+  return true
+}
+
+const fieldSemester = {
+  semesterAktif: z.enum(['Ganjil', 'Genap']).optional(),
+  ganjilMulai: tanggal.nullable().optional(),
+  ganjilAkhir: tanggal.nullable().optional(),
+  genapMulai: tanggal.nullable().optional(),
+  genapAkhir: tanggal.nullable().optional()
+}
+
+export const tahunAjaranSchema = z
+  .object({ nama: z.string().min(1, 'Nama tahun ajaran wajib diisi').max(20), ...fieldSemester })
+  .refine(rentangSemesterValid, {
+    message: 'Tanggal mulai dan akhir semester harus berpasangan dan berurutan.'
+  })
+
+export const tahunAjaranUpdateSchema = z
+  .object({ nama: z.string().min(1, 'Nama tahun ajaran wajib diisi').max(20).optional(), ...fieldSemester })
+  .refine(rentangSemesterValid, {
+    message: 'Tanggal mulai dan akhir semester harus berpasangan dan berurutan.'
+  })
 
 export const mapelSchema = z.object({
   nama: z.string().min(1, 'Nama mata pelajaran wajib diisi').max(150)
@@ -97,7 +126,10 @@ export const spkSchema = z
     bobotSikap: z.coerce.number().min(0).max(1),
     intervalBaikBawah: z.coerce.number().min(0).max(1),
     intervalPerhatianBawah: z.coerce.number().min(0).max(1),
-    intervalBerisikoBawah: z.coerce.number().min(0).max(1)
+    intervalBerisikoBawah: z.coerce.number().min(0).max(1),
+    ambangAkademik: z.coerce.number().min(0).max(1),
+    ambangSikap: z.coerce.number().min(0).max(1),
+    ambangKehadiran: z.coerce.number().min(0).max(1)
   })
   .partial()
   .refine((d) => {

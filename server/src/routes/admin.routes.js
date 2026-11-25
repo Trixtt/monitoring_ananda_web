@@ -6,6 +6,7 @@ import {
   deleteKelas,
   listTahunAjaran,
   createTahunAjaran,
+  updateTahunAjaran,
   setAktifTahunAjaran,
   deleteTahunAjaran,
   listMapel,
@@ -33,6 +34,7 @@ import {
   kelasSchema,
   kelasUpdateSchema,
   tahunAjaranSchema,
+  tahunAjaranUpdateSchema,
   mapelSchema,
   mapelUpdateSchema,
   siswaSchema,
@@ -58,6 +60,7 @@ router.delete('/kelas/:id', deleteKelas)
 // Tahun ajaran
 router.get('/tahun-ajaran', listTahunAjaran)
 router.post('/tahun-ajaran', validate(tahunAjaranSchema), createTahunAjaran)
+router.put('/tahun-ajaran/:id', validate(tahunAjaranUpdateSchema), updateTahunAjaran)
 router.patch('/tahun-ajaran/:id/aktif', setAktifTahunAjaran)
 router.delete('/tahun-ajaran/:id', deleteTahunAjaran)
 

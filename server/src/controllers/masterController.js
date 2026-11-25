@@ -99,12 +99,37 @@ export async function listTahunAjaran(req, res) {
 
 export async function createTahunAjaran(req, res) {
   try {
-    const { nama } = req.body
-    const item = await TahunAjaran.create({ nama })
+    const { nama, semesterAktif, ganjilMulai, ganjilAkhir, genapMulai, genapAkhir } = req.body
+    const item = await TahunAjaran.create({
+      nama,
+      semesterAktif,
+      ganjilMulai,
+      ganjilAkhir,
+      genapMulai,
+      genapAkhir
+    })
     await catatAudit({ req, action: 'tahun_ajaran.dibuat', entity: 'tahun_ajaran', entityId: item.id, detail: { nama } })
     return res.status(201).json({ message: 'Tahun ajaran ditambahkan.', item })
   } catch (e) {
     return res.status(400).json(errMsg(e, 'Gagal menambah tahun ajaran.'))
+  }
+}
+
+export async function updateTahunAjaran(req, res) {
+  try {
+    const item = await TahunAjaran.findByPk(req.params.id)
+    if (!item) return res.status(404).json({ message: 'Tahun ajaran tidak ditemukan.' })
+    await item.update(req.body)
+    await catatAudit({
+      req,
+      action: 'tahun_ajaran.diperbarui',
+      entity: 'tahun_ajaran',
+      entityId: item.id,
+      detail: { nama: item.nama, semesterAktif: item.semesterAktif }
+    })
+    return res.json({ message: 'Tahun ajaran diperbarui.', item })
+  } catch (e) {
+    return res.status(400).json(errMsg(e, 'Gagal memperbarui tahun ajaran.'))
   }
 }
 

@@ -1,6 +1,6 @@
 import { Nilai, Kehadiran, Sikap, Siswa, Mapel, TahunAjaran, User, sequelize } from '../models/index.js'
 import { Op, fn, col } from 'sequelize'
-import { rekapKelas, hitungSkorSiswa, hitungSemuaSiswa, mapelTerlemah, rekomendasiUntuk } from '../services/spk.js'
+import { rekapKelas, hitungSkorSiswa, hitungSemuaSiswa, mapelTerlemah, rekomendasiUntuk, rentangSemester } from '../services/spk.js'
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
 import { cariSiswaTerakses, validasiSiswaDalamKelas } from '../services/aksesKelas.js'
@@ -19,6 +19,26 @@ function kelasAktif(req) {
 
 function kelasDariUser(user) {
   return user.kelasId
+}
+
+function periodeAktif(ta) {
+  return rentangSemester(ta)
+}
+
+function whereRentang(rentang) {
+  if (!rentang) return {}
+  const tanggal = {}
+  if (rentang.mulai) tanggal[Op.gte] = rentang.mulai
+  if (rentang.akhir) tanggal[Op.lte] = rentang.akhir
+  return Reflect.ownKeys(tanggal).length ? { tanggal } : {}
+}
+
+function tanggalDalam(rentang, kondisi = {}) {
+  return { ...kondisi, ...(whereRentang(rentang).tanggal || {}) }
+}
+
+function bulanAwal(rentang) {
+  return rentang?.mulai ? String(rentang.mulai).slice(0, 7) : new Date().toISOString().slice(0, 7)
 }
 
 const LABEL_KEHADIRAN = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' }
@@ -51,7 +71,8 @@ export async function guruDashboard(req, res) {
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
 
   const ta = await tahunAktif()
-  const { hasilList, ringkas } = await rekapKelas(kelasId, ta?.id)
+  const rentang = periodeAktif(ta)
+  const { hasilList, ringkas } = await rekapKelas(kelasId, ta?.id, rentang)
 
   const detail = hasilList.map(({ siswa, hasil, mapelTerlemah: lemah }) => ({
     siswa,
@@ -60,20 +81,28 @@ export async function guruDashboard(req, res) {
     rekomendasi: rekomendasiUntuk(hasil, lemah?.nama)
   }))
 
-  return res.json({ ringkas, list: detail, kelasId, tahunAjaran: ta?.nama })
+  return res.json({
+    ringkas,
+    list: detail,
+    kelasId,
+    tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang
+  })
 }
 
 export async function guruSiswa(req, res) {
   const kelasId = kelasAktif(req)
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
 
   const list = await Siswa.findAll({
     where: { kelasId },
     order: [['nomorAbsen', 'ASC']]
   })
 
-  const hasil = (await hitungSemuaSiswa(list, ta?.id)).map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
+  const hasil = (await hitungSemuaSiswa(list, ta?.id, rentang)).map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
     siswa,
     skor,
     mapelTerlemah: lemah?.nama || null
@@ -84,23 +113,28 @@ export async function guruSiswa(req, res) {
 
 export async function guruSiswaDetail(req, res) {
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
   const hasil = await cariSiswaTerakses(req.user, req.params.id, { include: [{ association: 'kelas' }] })
   if (!hasil.siswa) return res.status(hasil.status).json({ message: hasil.message })
   const siswa = hasil.siswa
 
-  const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-  const lemah = await mapelTerlemah(siswa.id, ta?.id)
+  const skor = await hitungSkorSiswa(siswa.id, ta?.id, null, rentang)
+  const lemah = await mapelTerlemah(siswa.id, ta?.id, rentang)
   const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
 
   const nilai = await Nilai.findAll({
-    where: { siswaId: siswa.id, tahunAjaranId: ta?.id },
+    where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     include: [{ association: 'mapel' }],
     order: [['createdAt', 'DESC']]
   })
-  const kehadiran = await Kehadiran.findAll({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id } })
-  const sikap = await Sikap.findAll({ where: { siswaId: siswa.id, tahunAjaranId: ta?.id } })
+  const kehadiran = await Kehadiran.findAll({
+    where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) }
+  })
+  const sikap = await Sikap.findAll({
+    where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) }
+  })
 
-  return res.json({ siswa, skor, rekomendasi, nilai, kehadiran, sikap })
+  return res.json({ siswa, skor, rekomendasi, nilai, kehadiran, sikap, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
 }
 
 export async function guruNilaiUnggah(req, res) {
@@ -151,12 +185,13 @@ export async function guruNilaiPerMapel(req, res) {
   const kId = kelasAktif(req)
   if (!kId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
 
   const list = await Siswa.findAll({ where: { kelasId: kId }, order: [['nomorAbsen', 'ASC']] })
   const rows = []
   for (const s of list) {
     const nilai = await Nilai.findAll({
-      where: { siswaId: s.id, mapelId: Number(mapelId), tahunAjaranId: ta?.id },
+      where: { siswaId: s.id, mapelId: Number(mapelId), tahunAjaranId: ta?.id, ...whereRentang(rentang) },
       include: [{ association: 'mapel' }]
     })
     rows.push({ siswa: s, nilai })
@@ -350,8 +385,9 @@ export async function guruSikapBySiswa(req, res) {
   if (!hasil.siswa) return res.status(hasil.status).json({ message: hasil.message })
 
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
   const list = await Sikap.findAll({
-    where: { siswaId: hasil.siswa.id, tahunAjaranId: ta?.id },
+    where: { siswaId: hasil.siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     order: [['createdAt', 'DESC']]
   })
   return res.json({ list })
@@ -361,12 +397,13 @@ export async function daftarNilaiUntukWali(req, res) {
   const kelasId = kelasAktif(req)
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
   const siswaList = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
   const ids = siswaList.map((s) => s.id)
 
   const nilaiRows = ids.length
     ? await Nilai.findAll({
-        where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+        where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
         include: [{ association: 'mapel' }],
         order: [['createdAt', 'DESC']]
       })
@@ -392,20 +429,21 @@ export async function guruMonitoring(req, res) {
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
 
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
   const list = await Siswa.findAll({ where: { kelasId }, order: [['nomorAbsen', 'ASC']] })
   const ids = list.map((s) => s.id)
 
   const [hasilSemua, kehadiranRows, nilaiCounts] = await Promise.all([
-    hitungSemuaSiswa(list, ta?.id),
+    hitungSemuaSiswa(list, ta?.id, rentang),
     ids.length
       ? Kehadiran.findAll({
-          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
           attributes: ['siswaId', 'status']
         })
       : [],
     ids.length
       ? Nilai.findAll({
-          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id },
+          where: { siswaId: { [Op.in]: ids }, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
           attributes: ['siswaId', [fn('COUNT', col('id')), 'jumlah']],
           group: ['siswaId'],
           raw: true
@@ -433,16 +471,24 @@ export async function guruMonitoring(req, res) {
     rekomendasi: rekomendasiUntuk(skor, lemah?.nama)
   }))
 
-  return res.json({ list: rows, tahunAjaran: ta?.nama || null, kelasId })
+  return res.json({
+    list: rows,
+    tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang,
+    kelasId
+  })
 }
 
 export async function guruKehadiranKalender(req, res) {
   const kelasId = kelasAktif(req)
   if (!kelasId) return res.status(400).json({ message: 'Kelas belum ditentukan.' })
   const ta = await tahunAktif()
+  const rentang = periodeAktif(ta)
 
-  let y = new Date().getFullYear()
-  let m = new Date().getMonth()
+  const bulanBawaan = bulanAwal(rentang)
+  let y = Number(bulanBawaan.slice(0, 4))
+  let m = Number(bulanBawaan.slice(5, 7)) - 1
   const md = String(req.query.bulan || '').match(/^(\d{4})-(\d{2})$/)
   if (md) {
     y = Number(md[1])
@@ -454,7 +500,10 @@ export async function guruKehadiranKalender(req, res) {
 
   const siswaList = await Siswa.findAll({ where: { kelasId } })
   const rows = await Kehadiran.findAll({
-    where: { tahunAjaranId: ta?.id, tanggal: { [Op.between]: [firstDate, lastDate] } },
+    where: {
+      tahunAjaranId: ta?.id,
+      tanggal: tanggalDalam(rentang, { [Op.between]: [firstDate, lastDate] })
+    },
     include: [{ association: 'siswa', where: { kelasId } }]
   })
 
@@ -476,6 +525,8 @@ export async function guruKehadiranKalender(req, res) {
   return res.json({
     bulan: prefix,
     totalSiswa: siswaList.length,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang,
     kehadiran: Object.values(map)
   })
 }

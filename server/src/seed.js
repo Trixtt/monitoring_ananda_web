@@ -90,7 +90,15 @@ async function seed() {
   }
 
   const tahunAktif = await TahunAjaran.findOne({ where: { isActive: true } })
-  const taAktif = tahunAktif || (await TahunAjaran.create({ nama: '2025/2026', isActive: true }))
+  const taAktif = tahunAktif || (await TahunAjaran.create({
+    nama: '2025/2026',
+    isActive: true,
+    semesterAktif: 'Ganjil',
+    ganjilMulai: '2025-07-14',
+    ganjilAkhir: '2025-12-21',
+    genapMulai: '2026-01-05',
+    genapAkhir: '2026-06-21'
+  }))
   await TahunAjaran.findOrCreate({ where: { nama: '2024/2025' }, defaults: { nama: '2024/2025', isActive: false } })
 
   const kelasList = []
@@ -208,7 +216,7 @@ async function seed() {
           mapelId: mapelList[m].id,
           judul: aktivitas[m % aktivitas.length],
           nilai: 55 + Math.round(Math.random() * 45),
-          tanggal: '2026-02-1' + ((m + 1) % 9),
+          tanggal: '2025-10-1' + ((m + 1) % 9),
           tahunAjaranId: taAktif.id
         })
       }
@@ -217,14 +225,14 @@ async function seed() {
         const status = r < 0.86 ? 'hadir' : r < 0.92 ? 'izin' : r < 0.97 ? 'sakit' : 'alpa'
         await Kehadiran.create({
           siswaId: siswa.id,
-          tanggal: `2026-0${(d % 6) + 1}-${String((d % 28) + 1).padStart(2, '0')}`,
+          tanggal: `2025-10-${String((d % 15) + 1).padStart(2, '0')}`,
           status,
           tahunAjaranId: taAktif.id
         })
       }
       // Catatan kejadian sikap memakai skala 1-5 (1 = Kurang, 5 = Sangat Baik).
-      await Sikap.create({ siswaId: siswa.id, jenis: 'spiritual', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2026-02-15', catatan: 'Contoh kejadian spiritual', tahunAjaranId: taAktif.id })
-      await Sikap.create({ siswaId: siswa.id, jenis: 'sosial', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2026-02-15', catatan: 'Contoh kejadian sosial', tahunAjaranId: taAktif.id })
+      await Sikap.create({ siswaId: siswa.id, jenis: 'spiritual', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2025-10-15', catatan: 'Contoh kejadian spiritual', tahunAjaranId: taAktif.id })
+      await Sikap.create({ siswaId: siswa.id, jenis: 'sosial', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2025-10-15', catatan: 'Contoh kejadian sosial', tahunAjaranId: taAktif.id })
     }
   }
 
@@ -237,7 +245,10 @@ async function seed() {
       bobotSikap: 5 / 13,
       intervalBaikBawah: 0.67,
       intervalPerhatianBawah: 0.34,
-      intervalBerisikoBawah: 0.0
+      intervalBerisikoBawah: 0.0,
+      ambangAkademik: 0.65,
+      ambangSikap: 0.65,
+      ambangKehadiran: 0.8
     })
   }
 

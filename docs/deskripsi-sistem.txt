@@ -7,8 +7,9 @@ SD NEGERI 4 KELING, KABUPATEN JEPARA
 Dokumen ini disusun sebagai bahan penyusunan Bab 4 (Hasil dan Pembahasan)
 skripsi. Seluruh isi ditulis dalam bentuk teks polos agar mudah diolah kembali.
 Dokumen menjelaskan sistem yang benar-benar diimplementasikan pada repositori,
-termasuk perilaku yang berbeda dari klaim README, keterbatasan, dan catatan
-implementasi yang perlu disampaikan secara jujur pada pembahasan.
+termasuk kebijakan final Tahap 1 (semester aktif, tanpa kejadian sikap, dan
+ambang rekomendasi), keterbatasan, serta catatan implementasi yang perlu
+disampaikan secara jujur pada pembahasan.
 
 --------------------------------------------------------------------------------
 1. IDENTITAS DAN TUJUAN DOKUMEN
@@ -60,7 +61,9 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     siswa menjadi aman, perlu perhatian, atau berisiko, serta menghasilkan
     rekomendasi tindak lanjut. Kepala sekolah memperoleh rekap per kelas dan
     dapat membuat laporan. Orang tua memperoleh ringkasan nilai, kehadiran,
-    sikap, skor, rekomendasi, dan rapor dalam bentuk PDF.
+    sikap, skor, rekomendasi, dan rapor dalam bentuk PDF. Secara default,
+    seluruh perhitungan dan laporan memakai semester aktif yang diatur Admin,
+    bukan seluruh tanggal yang tersedia di basis data.
 
 2.2 Masalah yang Diselesaikan
     a. Data akademik, kehadiran, dan sikap sebelumnya terpisah dan sulit
@@ -74,10 +77,11 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 2.3 Fitur Utama
     a. Autentikasi berbasis peran dengan cookie JWT dan perlindungan CSRF.
     b. Dashboard berbeda untuk admin, wali kelas, kepala sekolah, dan orang tua.
-    c. Pengelolaan data master: kelas, tahun ajaran, mata pelajaran, siswa, dan
-       akun pengguna.
+    c. Pengelolaan data master: kelas, tahun ajaran (semester aktif dan
+       rentang ganjil/genap), mata pelajaran, siswa, dan akun pengguna.
     d. Input nilai, kehadiran, dan sikap oleh wali kelas.
-    e. Perhitungan skor dan kategori perkembangan secara otomatis.
+    e. Perhitungan skor dan kategori perkembangan secara otomatis pada
+       semester aktif, dengan ambang rekomendasi yang dapat diatur Admin.
     f. Rekomendasi tindak lanjut per siswa.
     g. Monitoring siswa, filter, dan ekspor data.
     h. Rekap per kelas dan laporan kepala sekolah, termasuk cetak dan PDF.
@@ -97,8 +101,9 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 
 3.1 Admin
     Mengelola seluruh data master dan konfigurasi sistem, memantau dashboard
-    sekolah, mengelola akun, artikel, dan parameter SPK. Admin juga dapat
-    memasuki modul wali kelas dan kepala sekolah.
+    sekolah, mengelola akun, artikel, semester aktif dan rentangnya, bobot,
+    interval, serta ambang rekomendasi SPK. Admin juga dapat memasuki modul
+    wali kelas dan kepala sekolah.
 
 3.2 Wali Kelas
     Mengelola data perkembangan siswa pada kelas yang menjadi tanggung jawabnya:
@@ -251,7 +256,8 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     Basis data menggunakan tabel relasional dengan kunci primer bilangan bulat
     auto-increment. Setiap tabel memiliki kolom createdAt dan updatedAt.
     Penghapusan data master menggunakan penghapusan fisik. Tidak ada mekanisme
-    soft delete, audit trail, atau cascade otomatis pada tingkat aplikasi.
+    soft delete atau cascade otomatis pada tingkat aplikasi; pencatatan audit
+    tersedia pada tabel audit_logs untuk sebagian aksi.
 
 5.2 Tabel users
     Menyimpan akun semua peran.
@@ -283,6 +289,12 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - id: kunci primer.
     - nama: contoh 2025/2026.
     - isActive: boolean; hanya satu yang seharusnya aktif.
+    - semesterAktif: Ganjil atau Genap; default Ganjil. Dipakai sebagai filter
+      periode default pada perhitungan dan laporan.
+    - ganjilMulai, ganjilAkhir, genapMulai, genapAkhir: rentang tanggal per
+      semester (YYYY-MM-DD), dapat diubah Admin. Bawaan 2025/2026 mengikuti
+      Kaldik SD/MI Jawa Tengah: Ganjil 2025-07-14 s/d 2025-12-21, Genap
+      2026-01-05 s/d 2026-06-21.
     - Timestamps.
 
 5.5 Tabel mapel
@@ -332,7 +344,8 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - siswaId: relasi ke siswa.
     - tahunAjaranId: relasi ke tahun ajaran.
     - jenis: enum spiritual, sosial; default spiritual.
-    - nilai: bilangan 1 sampai 5 (1 = Kurang, 5 = Sangat Baik).
+    - nilai: bilangan 1 sampai 5 (1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali,
+      5 Sangat Baik).
     - catatan: teks, opsional.
     - tanggal: tanggal pencatatan.
     - Timestamps.
@@ -370,9 +383,13 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - intervalBaikBawah: decimal 0 sampai 1.
     - intervalPerhatianBawah: decimal 0 sampai 1.
     - intervalBerisikoBawah: decimal 0 sampai 1.
+    - ambangAkademik: decimal 0 sampai 1, bawaan 0,65.
+    - ambangSikap: decimal 0 sampai 1, bawaan 0,65.
+    - ambangKehadiran: decimal 0 sampai 1, bawaan 0,80.
     - Timestamps.
     Catatan: hanya satu baris konfigurasi yang dipakai. Total bobot harus
-    mendekati 1 dengan toleransi 0,0001 dan urutan interval divalidasi.
+    mendekati 1 dengan toleransi 0,0001, urutan interval divalidasi, dan
+    ketiga ambang dapat diubah Admin.
 
 5.13 Tabel laporan
     - id: kunci primer.
@@ -414,17 +431,28 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     e. Tidak ada mekanisme kenaikan kelas otomatis atau penyalinan data siswa
        antar tahun ajaran.
 
+5.16 Tabel audit_logs
+    - id: kunci primer.
+    - actorId, actorName: informasi pengguna yang melakukan aksi, opsional.
+    - action: nama aksi, wajib.
+    - entity, entityId, detail: informasi objek dan rincian, opsional.
+    - ip, userAgent: informasi permintaan, opsional.
+    - createdAt: waktu pencatatan; tidak ada updatedAt.
+    Catatan: sebagian aksi admin/auth/artikel dicatat melalui catatAudit().
+    Belum tersedia halaman untuk menampilkan atau mengekspor log ini.
+
 --------------------------------------------------------------------------------
 6. ALUR BISNIS UTAMA
 --------------------------------------------------------------------------------
 
 6.1 Penyiapan Awal Sistem
     1. Admin masuk ke aplikasi.
-    2. Admin memastikan tahun ajaran aktif tersedia.
+    2. Admin memastikan tahun ajaran aktif tersedia, menentukan semester
+       aktif, dan memeriksa rentang ganjil/genap.
     3. Admin membuat data kelas dan mata pelajaran.
     4. Admin membuat akun wali kelas dan menautkannya ke kelas.
     5. Admin membuat data siswa dan akun orang tua.
-    6. Admin memeriksa konfigurasi bobot dan interval SPK.
+    6. Admin memeriksa konfigurasi bobot, interval, dan ambang rekomendasi SPK.
     7. Wali kelas masuk dan mulai mengisi nilai, kehadiran, serta sikap.
 
 6.2 Login dan Perubahan Password Wajib
@@ -467,17 +495,20 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
        kejadian.
     2. Wali kelas mencatat hanya kejadian yang benar-benar diamati, nilai bulat
        1 sampai 5 dengan 1 = Kurang dan 5 = Sangat Baik.
-    3. Baris yang tidak dipilih dinyatakan belum ada catatan dan tidak dikirim;
-       siswa tanpa kejadian ditandai Data Belum Lengkap.
-    4. Server menyimpan setiap kejadian pada tahun ajaran aktif dan menolak
-       kejadian duplikat dengan kunci siswa, jenis, nilai, catatan, dan tanggal.
+    3. Baris yang tidak dipilih dinyatakan tidak ada kejadian dan tidak dikirim;
+       siswa tanpa kejadian pada semester aktif langsung dinilai 5 (Sangat Baik),
+       tanpa tombol konfirmasi pemantauan.
+    4. Server menyimpan setiap kejadian pada tahun ajaran dan semester aktif
+       serta menolak kejadian duplikat dengan kunci siswa, jenis, nilai,
+       catatan, tanggal, dan tahun ajaran.
     5. Seluruh kejadian spiritual dan sosial digabung dengan bobot sama per
        kejadian, lalu dinormalisasi dengan (rata-rata - 1) / 4.
     Catatan: notifikasi dalam aplikasi dikirim untuk nilai <= 2 atau bila ada catatan.
 
 6.6 Alur Monitoring dan Rekomendasi
     1. Wali kelas membuka halaman monitoring.
-    2. Sistem mengambil daftar siswa pada kelas tersebut.
+    2. Sistem mengambil daftar siswa pada kelas tersebut dan memfilter data ke
+       semester aktif.
     3. Untuk setiap siswa, sistem menghitung rata-rata nilai, persentase
        kehadiran, rata-rata sikap, skor akhir, kategori, dan rekomendasi.
     4. Wali kelas dapat memfilter siswa berdasarkan kategori atau kriteria lain.
@@ -487,19 +518,20 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 6.7 Alur Rekap dan Laporan Kepala Sekolah
     1. Kepala sekolah membuka dashboard.
     2. Sistem menghitung ringkasan seluruh sekolah pada tahun ajaran aktif atau
-       tahun ajaran yang dipilih.
+       tahun ajaran yang dipilih, dengan rentang semester aktif sebagai
+       periode default.
     3. Kepala sekolah membuka rekap per kelas.
     4. Kepala sekolah membuka detail kelas atau detail siswa.
     5. Kepala sekolah dapat mengekspor data kelas ke CSV.
     6. Kepala sekolah membuat laporan dengan memilih kelas, kategori, rentang
-       tanggal, dan judul.
+       tanggal, dan judul. Bila rentang tidak diisi, dipakai semester aktif.
     7. Sistem menyimpan snapshot laporan.
     8. Kepala sekolah dapat mencetak, mengunduh PDF, atau menghapus laporan.
 
 6.8 Alur Rapor Orang Tua
     1. Orang tua masuk dan membuka dashboard.
-    2. Sistem menampilkan identitas anak, tahun ajaran, skor, kategori,
-       rekomendasi, nilai, kehadiran, dan sikap.
+    2. Sistem menampilkan identitas anak, tahun ajaran, semester aktif, skor,
+       kategori, rekomendasi, nilai, kehadiran, dan sikap.
     3. Orang tua membuka rekap nilai per mata pelajaran.
     4. Orang tua membuka detail nilai suatu mata pelajaran.
     5. Orang tua membuka monitoring kehadiran dan sikap bulanan.
@@ -520,12 +552,15 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     4. Admin menyampaikan password baru kepada pengguna.
     5. Pengguna login dan wajib mengganti password.
 
-6.11 Alur Pergantian Tahun Ajaran
+6.11 Alur Pergantian Tahun Ajaran dan Semester
     1. Admin menonaktifkan tahun ajaran lama dan mengaktifkan tahun ajaran baru.
-    2. Data nilai, kehadiran, dan sikap baru tercatat pada tahun ajaran aktif.
-    3. Siswa dan kelas tidak otomatis dipindahkan atau disalin ke tahun ajaran
+    2. Admin mengatur semester aktif serta rentang ganjil/genap pada tahun
+       ajaran tersebut.
+    3. Data nilai, kehadiran, dan sikap baru tercatat pada tahun ajaran dan
+       semester aktif.
+    4. Siswa dan kelas tidak otomatis dipindahkan atau disalin ke tahun ajaran
        baru; admin perlu menyiapkan data secara manual.
-    4. Laporan lama tetap menyimpan snapshot dan nama kelas saat dibuat.
+    5. Laporan lama tetap menyimpan snapshot dan nama kelas saat dibuat.
 
 --------------------------------------------------------------------------------
 7. PERHITUNGAN SPK DAN REKOMENDASI
@@ -537,17 +572,22 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     semakin baik) dan dinormalisasi dengan pembagi tetap ke rentang 0 sampai 1,
     bukan dibagi nilai maksimum pada kumpulan data (SAW klasik x/max).
     Bobot bawaan memakai rasio presisi 4:4:5 = 4/13, 4/13, 5/13. Pembulatan
-    dua desimal (0,31 / 0,31 / 0,38) hanya untuk tampilan.
+    dua desimal (0,31 / 0,31 / 0,38) hanya untuk tampilan. Periode default
+    adalah semester aktif; laporan dengan rentang eksplisit memakai rentang
+    tersebut.
 
 7.2 Normalisasi Akademik
-    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran/periode terkait.
+    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran dan periode
+    (semester aktif secara default) terkait.
     skorAkademik = rataNilai / 100.
     Bila tidak ada nilai, kriteria dinyatakan tidak lengkap dan skor akhir tidak
     dihitung (lihat 7.6).
 
 7.3 Normalisasi Kehadiran
     jumlahEfektif = banyak catatan dengan status hadir, izin, atau sakit.
-    totalHari = jumlah tanggal unik yang tercatat pada tahun ajaran/periode.
+    totalHari = jumlah tanggal unik yang tercatat pada tahun ajaran dan
+    periode (semester aktif secara default). Tidak ada tabel kalender hari
+    sekolah/libur baru.
     skorKehadiran = jumlahEfektif / totalHariTercatat.
     Hanya alpa yang menurunkan skor; izin dan sakit tetap dihitung hadir.
     Bila jumlah tanggal yang tercatat untuk siswa lebih sedikit daripada
@@ -555,11 +595,11 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 
 7.4 Normalisasi Sikap
     rataSikap = rata-rata seluruh kejadian sikap (spiritual dan sosial digabung).
-    Skala 1 sampai 5 dengan 1 = Kurang dan 5 = Sangat Baik.
+    Skala 1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik.
     skorSikap = (rataSikap - 1) / 4.
-    Bila tidak ada catatan kejadian, kriteria dinyatakan tidak lengkap dan skor
-    akhir tidak dihitung. Siswa tanpa kejadian TIDAK diberi skor 5 karena
-    kebijakan "tanpa kejadian = sangat baik" belum disetujui sekolah.
+    Bila tidak ada kejadian pada semester aktif, rataSikap ditetapkan 5 sehingga
+    skorSikap = 1. Kriteria sikap selalu dianggap lengkap; tidak ada tombol
+    konfirmasi "sudah dipantau tanpa kejadian".
 
 7.5 Skor Akhir
     skor = (bobotAkademik x skorAkademik)
@@ -573,9 +613,12 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     intervalBaikBawah  = 0,67
     intervalPerhatianBawah = 0,34
     intervalBerisikoBawah  = 0,00
+    ambangAkademik         = 0,65
+    ambangSikap            = 0,65
+    ambangKehadiran        = 0,80
 
-    Total bobot wajib mendekati 1 dengan toleransi 0,0001. Setiap bobot dan
-    interval harus berada pada rentang 0 sampai 1, dengan urutan
+    Total bobot wajib mendekati 1 dengan toleransi 0,0001. Setiap bobot,
+    interval, dan ambang harus berada pada rentang 0 sampai 1, dengan urutan
     Baik > Perhatian > Berisiko.
 
 7.6 Kategori
@@ -591,9 +634,10 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     abk        : Anak Berkebutuhan Khusus
     data_belum_lengkap : Data Belum Lengkap
 
-    Bila salah satu kriteria wajib tidak tersedia, skor bernilai null dan
-    kategori menjadi data_belum_lengkap, bukan berisiko. Hal ini berlaku juga
-    untuk siswa tanpa catatan kejadian sikap. Urutan interval kini divalidasi.
+    Bila nilai akademik atau rekap kehadiran tidak tersedia/lengkap, skor
+    bernilai null dan kategori menjadi data_belum_lengkap, bukan berisiko.
+    Siswa tanpa kejadian sikap TIDAK masuk status ini. Urutan interval
+    divalidasi.
 
 7.7 Siswa ABK
     Bila statusABK true, sistem tidak menghitung skor numerik. Hasil yang
@@ -603,10 +647,11 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     atau berisiko.
 
 7.8 Rekomendasi Tindak Lanjut
-    Ambang rekomendasi bersifat tetap dan tidak mengikuti SettingSpk:
-    - Akademik rendah bila skorAkademik < 0,65.
-    - Kehadiran rendah bila skorKehadiran < 0,80.
-    - Sikap rendah bila skorSikap < 0,65.
+    Ambang rekomendasi disimpan pada SettingSpk dan dapat diatur Admin.
+    Bawaan:
+    - Akademik rendah bila skorAkademik < ambangAkademik (0,65).
+    - Kehadiran rendah bila skorKehadiran < ambangKehadiran (0,80).
+    - Sikap rendah bila skorSikap < ambangSikap (0,65).
 
     Aturan:
     1. Bila akademik rendah, rekomendasi menekankan pendampingan belajar dan
@@ -642,19 +687,23 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - Skor = 0,85 x 4/13 + 0,75 x 4/13 + 0,50 x 5/13
            = 8,9/13 = 0,6846 -> aman (>= 0,67).
 
-    Contoh 3 (tanpa catatan sikap):
-    - kategori data_belum_lengkap, skor = null (BUKAN berisiko).
+    Contoh 3 (tanpa catatan sikap, kebijakan final):
+    - R_S = (5-1)/4 = 1,00.
+    - Bila nilai dan kehadiran lengkap, skor dihitung final dan kategori
+      ditentukan seperti biasa (BUKAN data_belum_lengkap).
 
 7.11 Catatan Pembahasan
     a. Normalisasi memakai pembagi tetap, bukan x/max; penjelasan ini harus
        konsisten dengan kode dan README.
-    b. Bobot sikap paling besar (5/13), tetapi siswa tanpa kejadian tidak lagi
-       diberi skor maksimal; kini ditandai data_belum_lengkap.
-    c. Ambang rekomendasi masih tetap dan belum dapat dikonfigurasi.
-    d. Interval berisiko bawah kini dipakai eksplisit dan urutannya divalidasi.
-    e. Perhitungan dilakukan saat data diminta, bukan disimpan sebagai skor
-       permanen. Perubahan nilai, kehadiran, sikap, atau bobot langsung
-       memengaruhi hasil berikutnya.
+    b. Bobot sikap paling besar (5/13); siswa tanpa kejadian langsung diberi
+       skor sikap maksimal (R_S = 1).
+    c. Ambang rekomendasi bawaan 0,65/0,65/0,80 dapat dikonfigurasi Admin.
+    d. Periode default semester aktif; denominator kehadiran tetap tanggal
+       yang tercatat, tanpa kalender/libur baru.
+    e. Interval berisiko bawah dipakai eksplisit dan urutannya divalidasi.
+    f. Perhitungan dilakukan saat data diminta, bukan disimpan sebagai skor
+       permanen. Perubahan nilai, kehadiran, sikap, bobot, ambang, atau
+       semester aktif langsung memengaruhi hasil berikutnya.
 
 --------------------------------------------------------------------------------
 8. NOTIFIKASI DAN INTEGRASI WHATSAPP
@@ -729,7 +778,8 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     h. Membuat akun, mengubah akun, menautkan akun orang tua ke siswa, dan
        menautkan wali kelas ke kelas.
     i. Mereset password akun dan menonaktifkan akun.
-    j. Mengatur bobot dan interval SPK.
+    j. Mengatur semester aktif, rentang tiap semester, bobot, interval, dan
+       ambang rekomendasi SPK.
     k. Melihat daftar artikel, menambah, mengubah, dan menghapus artikel.
     l. Memilih kelas untuk masuk ke modul wali kelas.
     m. Masuk ke modul kepala sekolah untuk melihat rekap dan laporan.
@@ -774,7 +824,7 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     c. Membuka detail nilai suatu mata pelajaran.
     d. Melihat rekap skor, kategori, dan rekomendasi.
     e. Mengunduh rapor PDF.
-    f. Melihat identitas anak dan tahun ajaran.
+    f. Melihat identitas anak, tahun ajaran, dan semester aktif.
     g. Memantau kehadiran bulanan.
     h. Memantau sikap bulanan.
     i. Menerima notifikasi nilai.
@@ -976,6 +1026,8 @@ US-015
        sikap.
     4. Setelah tahun ajaran aktif berubah, data baru mengikuti tahun ajaran
        baru.
+    5. Admin dapat menentukan semester aktif serta rentang ganjil/genap;
+       perhitungan dan laporan memakai semester aktif tersebut.
 
 US-016
     Aktor    : Admin.
@@ -1071,15 +1123,16 @@ US-022
 US-023
     Aktor    : Admin.
     Prioritas: Tinggi.
-    Cerita   : Sebagai admin, saya ingin mengatur bobot dan interval SPK agar
-               perhitungan sesuai kebijakan sekolah.
+    Cerita   : Sebagai admin, saya ingin mengatur bobot, interval, dan ambang
+               rekomendasi SPK agar perhitungan sesuai kebijakan sekolah.
     Kriteria :
-    1. Form menampilkan bobot akademik, kehadiran, sikap, serta tiga interval.
+    1. Form menampilkan bobot akademik, kehadiran, sikap, tiga interval, serta
+       ambang akademik, sikap, dan kehadiran.
     2. Setiap nilai berada pada rentang 0 sampai 1.
-    3. Total bobot harus mendekati 1.
-    4. Perubahan bobot langsung memengaruhi hasil perhitungan berikutnya.
-    5. Nilai interval berisiko bawah tersimpan meskipun belum dipakai
-       perhitungan kategori.
+    3. Total bobot harus mendekati 1 dan urutan interval divalidasi.
+    4. Perubahan bobot, ambang, semester aktif, atau rentang langsung
+       memengaruhi hasil berikutnya.
+    5. Ambang bawaan adalah 0,65 akademik, 0,65 sikap, dan 0,80 kehadiran.
 
 US-024
     Aktor    : Admin.
@@ -1141,8 +1194,8 @@ US-028
     1. Daftar memuat nama siswa, skor, kategori, dan rekomendasi singkat.
     2. Siswa ABK ditandai khusus dan tidak menampilkan skor numerik.
     3. Daftar dapat diurutkan atau difilter berdasarkan kategori.
-    4. Data dihitung dari nilai, kehadiran, dan sikap pada tahun ajaran
-       terkait.
+    4. Data dihitung dari nilai, kehadiran, dan sikap pada semester aktif
+       tahun ajaran terkait.
 
 US-029
     Aktor    : Wali kelas.
@@ -1178,7 +1231,7 @@ US-031
     1. Monitoring menampilkan daftar siswa kelas aktif.
     2. Setiap baris menampilkan skor, kategori, dan komponen akademik,
        kehadiran, serta sikap.
-    3. Data mengikuti tahun ajaran aktif.
+    3. Data mengikuti semester aktif pada tahun ajaran aktif.
     4. Wali kelas dapat membuka detail siswa dari monitoring.
 
 US-032
@@ -1201,7 +1254,7 @@ US-033
     1. Wali kelas memilih siswa, mata pelajaran, judul penilaian, nilai, dan
        tanggal.
     2. Nilai harus berada pada rentang 0 sampai 100.
-    3. Nilai tersimpan pada tahun ajaran aktif.
+    3. Nilai tersimpan pada tahun ajaran dan semester aktif.
     4. Notifikasi dibuat untuk orang tua siswa.
     5. Pengiriman WhatsApp dicoba bila token dan nomor tersedia.
     Catatan: antarmuka belum menyediakan unggah lampiran meskipun API
@@ -1239,7 +1292,8 @@ US-036
     2. Daftar siswa kelas tersebut ditampilkan.
     3. Setiap siswa dapat diberi status hadir, izin, sakit, atau alpa.
     4. Keterangan opsional dapat diisi.
-    5. Data tersimpan pada tahun ajaran aktif dan memengaruhi skor kehadiran.
+    5. Data tersimpan pada tahun ajaran dan semester aktif serta
+       memengaruhi skor kehadiran.
 
 US-037
     Aktor    : Wali kelas.
@@ -1250,7 +1304,8 @@ US-037
     1. Kalender menampilkan status kehadiran per tanggal.
     2. Warna atau penanda membedakan hadir, izin, sakit, dan alpa.
     3. Wali kelas dapat berpindah bulan.
-    4. Data kalender sesuai siswa dan tahun ajaran yang dipilih.
+    4. Data kalender sesuai siswa, tahun ajaran, dan semester aktif
+       yang dipilih.
 
 US-038
     Aktor    : Wali kelas.
@@ -1259,10 +1314,12 @@ US-038
                pembinaan karakter terdokumentasi.
     Kriteria :
     1. Wali kelas memilih siswa, jenis sikap spiritual atau sosial, nilai 1
-       sampai 5 (1 = Kurang, 5 = Sangat Baik), catatan, dan tanggal kejadian.
+       Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik, catatan, dan
+       tanggal kejadian.
     2. Nilai di luar rentang 1 sampai 5 ditolak; baris kosong tidak disimpan.
-    3. Data tersimpan pada tahun ajaran aktif.
-    4. Data sikap memengaruhi skor sikap pada perhitungan SPK.
+    3. Data tersimpan pada tahun ajaran dan semester aktif.
+    4. Tanpa kejadian, siswa langsung mendapat nilai 5; data sikap tetap
+       memengaruhi skor pada perhitungan SPK.
 
 US-039
     Aktor    : Wali kelas.
@@ -1307,7 +1364,7 @@ US-042
     Kriteria :
     1. Dashboard menampilkan total siswa, aman, perhatian, berisiko, dan ABK.
     2. Dashboard menampilkan distribusi kategori dan ringkasan per kelas.
-    3. Data mencakup seluruh kelas pada tahun ajaran aktif.
+    3. Data mencakup seluruh kelas pada semester aktif tahun ajaran aktif.
     4. Kepala sekolah dapat membuka rekap per kelas.
 
 US-043
@@ -1318,8 +1375,10 @@ US-043
     Kriteria :
     1. Pilihan tahun ajaran tersedia, termasuk opsi semua tahun.
     2. Perubahan pilihan memuat ulang data ringkasan.
-    3. Bila tidak ada pilihan, sistem memakai tahun ajaran aktif.
-    4. Data siswa dan skor mengikuti tahun ajaran yang dipilih.
+    3. Bila tidak ada pilihan, sistem memakai tahun ajaran aktif dan
+       semester aktifnya.
+    4. Data siswa dan skor mengikuti tahun ajaran yang dipilih dan semester
+       aktif pada tahun ajaran tersebut.
 
 US-044
     Aktor    : Kepala sekolah.
@@ -1342,7 +1401,8 @@ US-045
     1. Detail kelas menampilkan daftar siswa beserta skor dan kategori.
     2. Ringkasan kelas ditampilkan di bagian atas.
     3. Kepala sekolah dapat mengekspor data kelas ke CSV.
-    4. Data CSV sesuai siswa dan tahun ajaran yang ditampilkan.
+    4. Data CSV sesuai siswa, tahun ajaran, dan semester aktif yang
+       ditampilkan.
 
 US-046
     Aktor    : Kepala sekolah.
@@ -1378,7 +1438,8 @@ US-048
        judul.
     2. Laporan disimpan sebagai snapshot data.
     3. Jumlah siswa yang tercakup tercatat.
-    4. Laporan selalu memakai tahun ajaran aktif.
+    4. Laporan memakai rentang semester aktif bila tanggal mulai/akhir
+       tidak diisi.
     5. Laporan dapat dibuat untuk satu kelas atau seluruh sekolah.
 
 US-049
@@ -1423,7 +1484,8 @@ US-052
     Cerita   : Sebagai orang tua, saya ingin melihat dashboard anak agar
                mengetahui ringkasan perkembangannya.
     Kriteria :
-    1. Dashboard menampilkan identitas anak dan tahun ajaran.
+    1. Dashboard menampilkan identitas anak, tahun ajaran, dan semester
+       aktif.
     2. Dashboard menampilkan skor, kategori, dan rekomendasi.
     3. Dashboard menampilkan ringkasan nilai, kehadiran, dan sikap.
     4. Bila akun belum tertaut ke siswa, muncul pesan untuk menghubungi admin.
@@ -1468,7 +1530,8 @@ US-056
                menyimpan atau mencetak laporan perkembangan anak.
     Kriteria :
     1. Tombol unduh rapor tersedia pada halaman rekap.
-    2. Server mengirim data rapor sesuai anak dan tahun ajaran.
+    2. Server mengirim data rapor sesuai anak, tahun ajaran, dan semester
+       aktif.
     3. Client membuat PDF dengan kop, identitas, nilai, kehadiran, sikap, dan
        rekomendasi.
     4. Berkas PDF terunduh dengan nama yang memuat identitas siswa.
@@ -1480,7 +1543,8 @@ US-057
     Cerita   : Sebagai orang tua, saya ingin melihat identitas anak dan tahun
                ajaran agar yakin data yang ditampilkan benar.
     Kriteria :
-    1. Dashboard menampilkan nama, NISN, kelas, dan tahun ajaran.
+    1. Dashboard menampilkan nama, NISN, kelas, tahun ajaran, dan
+       semester aktif.
     2. Data identitas berasal dari relasi akun ke siswa.
     3. Orang tua tidak dapat melihat identitas siswa lain.
     4. Bila tahun ajaran tidak tersedia, sistem menampilkan status yang jelas.
@@ -1495,6 +1559,8 @@ US-058
     2. Status hadir, izin, sakit, dan alpa dibedakan.
     3. Orang tua dapat berpindah bulan.
     4. Ringkasan persentase kehadiran ditampilkan.
+    5. Bulan awal mengikuti semester aktif; data di luar semester tidak
+       ditampilkan.
 
 US-059
     Aktor    : Orang tua.
@@ -1506,6 +1572,8 @@ US-059
     2. Jenis sikap spiritual dan sosial dibedakan.
     3. Catatan sikap dapat dibaca.
     4. Orang tua dapat berpindah bulan.
+    5. Bulan awal mengikuti semester aktif; tanpa kejadian ditampilkan
+       sebagai Sangat Baik.
 
 US-060
     Aktor    : Orang tua.
@@ -1548,18 +1616,21 @@ US-061
     | Data                | Aturan                                       |
     +---------------------+----------------------------------------------+
     | Login               | username 1-50 karakter; password 1-200       |
-    | Ganti password      | password baru minimal 6; konfirmasi sama     |
+    | Ganti password      | password baru minimal 8; konfirmasi sama     |
     | Profil              | nama 1-150; email maks 150; telepon maks 25  |
     | Kelas               | nama 1-100; tingkat 1-6; wali maks 150       |
-    | Tahun ajaran        | nama 1-20                                    |
+    | Tahun ajaran        | nama 1-20; semester Ganjil/Genap; rentang     |
+    |                     | ganjil/genap YYYY-MM-DD berpasangan & urut   |
     | Mata pelajaran      | nama 1-150                                   |
     | Siswa               | nisn 1-20; nama 1-150; jenis L/P; tanggal    |
     |                     | lahir YYYY-MM-DD; angkatan dan absen angka;  |
     |                     | ABK boolean; catatan ABK teks                |
     | Akun                | username 3-50, unik, huruf/angka/titik/_;    |
-    |                     | password min 6; nama 1-150; role enum;       |
-    |                     | telepon/email opsional; kelas/siswa opsional |
-    | SPK                 | semua bobot/interval 0-1; total bobot ~1     |
+    |                     | password opsional maks 200; nama 1-150;      |
+    |                     | role enum; telepon/email opsional;           |
+    |                     | kelas/siswa opsional                         |
+    | SPK                 | semua bobot/interval/ambang 0-1; total       |
+    |                     | bobot ~1; urutan Baik > Perhatian > Berisiko |
     | Nilai               | siswa dan mapel wajib; judul 1-150; nilai    |
     |                     | 0-100; tanggal YYYY-MM-DD                    |
     | Kehadiran           | tanggal wajib; daftar wajib; status enum;    |
@@ -1577,7 +1648,8 @@ US-061
     a. Login memeriksa keberadaan pengguna dan status aktif.
     b. Nilai dan kehadiran memeriksa keterkaitan siswa dengan kelas yang
        diampu.
-    c. SPK memeriksa jumlah bobot.
+    c. SPK memeriksa jumlah bobot, urutan interval, dan rentang ambang;
+       tahun ajaran memeriksa pasangan serta urutan tanggal semester.
     d. Artikel memeriksa keberadaan judul dan isi.
     e. Laporan memeriksa data yang akan disnapshot.
     f. Akun memeriksa keunikan username dan menangani pesan duplikasi.
@@ -1804,11 +1876,11 @@ US-061
 13.6 Perlindungan Header dan CORS
     a. Helmet mengatur header keamanan dasar.
     b. CORS hanya mengizinkan APP_DOMAIN dengan credentials.
-    c. Body JSON dibatasi 2 MB.
+    c. Body JSON dibatasi 1 MB.
 
 13.7 Password
     a. Disimpan sebagai hash bcrypt.
-    b. Panjang minimum password baru enam karakter.
+    b. Panjang minimum password baru delapan karakter.
     c. Tidak ada kebijakan kompleksitas, masa berlaku, atau riwayat password.
     d. Tidak ada verifikasi email atau reset melalui email.
 
@@ -1823,7 +1895,8 @@ US-061
 13.9 Ketersediaan dan Pemeliharaan
     a. Tidak ada mekanisme backup otomatis pada aplikasi; tersedia skrip
        pencadangan.
-    b. Tidak ada audit trail perubahan data.
+    b. Tabel audit_logs mencatat sebagian aksi; belum ada tampilan untuk
+       meninjau log tersebut.
     c. Tidak ada soft delete atau pemulihan data terhapus.
     d. Log aplikasi terbatas pada keluaran server.
 
@@ -1853,6 +1926,11 @@ US-061
     - Sekitar 84 catatan sikap, dua per siswa.
     - Empat artikel: tiga publish dan satu draft.
     - Satu konfigurasi SPK default.
+    - Tahun ajaran 2025/2026 aktif dengan semester Ganjil; rentang Ganjil
+      2025-07-14 s/d 2025-12-21 dan Genap 2026-01-05 s/d 2026-06-21.
+    - Data contoh nilai (2025-10-11 s/d 14), kehadiran (2025-10-01 s/d 15),
+      dan sikap (2025-10-15) berada di semester Ganjil agar dashboard tidak
+      kosong.
 
     Seed bersifat idempoten dengan memeriksa keberadaan data sebelum membuat.
     Variabel SEED_FORCE=true menghapus dan membuat ulang data.
@@ -1874,7 +1952,8 @@ US-061
     APP_DOMAIN      alamat client untuk CORS, default http://localhost:5175.
     JWT_SECRET      kunci JWT; pada production wajib minimal 32 karakter.
     JWT_EXPIRES_IN  masa berlaku token, default 12h.
-    DB_DIALECT      dialek basis data, default sqlite.
+    DB_DIALECT      dialek basis data, default sqlite; demo memakai mysql.
+    DB_STORAGE      berkas basis data sqlite, default server/src/database/dev.sqlite.
     FONNTE_TOKEN    token API Fonnte; bila kosong, WhatsApp dilewati.
     FONNTE_URL      endpoint Fonnte.
     UPLOAD_DIR      direktori unggahan.
@@ -1913,15 +1992,18 @@ US-061
 
 15.1 Glosarium
     ABK             : Anak Berkebutuhan Khusus.
+    Ambang          : Batas skor kriteria yang memicu rekomendasi; dapat
+                      diatur Admin.
     Admin           : Pengelola data master dan konfigurasi sistem.
     CSRF            : Cross-Site Request Forgery, serangan pemalsuan
                       permintaan lintas situs.
     JWT             : JSON Web Token, token sesi.
-    Kategori        : aman, perhatian, berisiko, atau abk.
+    Kategori        : aman, perhatian, berisiko, data_belum_lengkap, atau abk.
     Mapel terlemah  : Mata pelajaran dengan rata-rata nilai terendah.
     Rekomendasi     : Saran tindak lanjut berdasarkan komponen skor.
     RBAC            : Role-Based Access Control.
     SAW             : Simple Additive Weighting, metode penjumlahan terbobot.
+    Semester aktif  : Periode default perhitungan dan laporan (Ganjil/Genap).
     Skor akhir      : Nilai 0 sampai 1 hasil pembobotan tiga dimensi.
     Snapshot        : Salinan data laporan pada saat pembuatan.
     Wali kelas      : Guru penanggung jawab satu kelas.
@@ -1931,7 +2013,7 @@ US-061
        sejalan dengan implementasi.
     2. intervalBerisikoBawah dipakai eksplisit dalam penentuan kategori.
     3. Urutan interval Baik > Perhatian > Berisiko divalidasi.
-    4. Ambang rekomendasi tetap dan tidak mengikuti konfigurasi SPK.
+    4. Ambang rekomendasi bawaan 0,65/0,65/0,80 dapat diatur Admin.
     5. Notifikasi otomatis hanya dibuat untuk nilai.
     6. Checkbox kirim WhatsApp tidak dikirim ke server; server selalu mencoba
        mengirim bila memungkinkan.
@@ -1939,8 +2021,8 @@ US-061
     8. API nilai mendukung lampiran, tetapi antarmuka belum menyediakan unggah.
     9. Kejadian sikap duplikat ditolak di controller berdasarkan kunci siswa,
        jenis, nilai, catatan, tanggal, dan tahun ajaran.
-    10. Siswa tanpa catatan kejadian sikap ditandai data_belum_lengkap, bukan
-        diberi skor sikap maksimal.
+    10. Siswa tanpa kejadian sikap langsung diberi skor sikap maksimal
+        (R_S = 1), bukan data_belum_lengkap.
     11. Kategori Tips pada artikel tidak konsisten dengan enum model/validator.
     12. Endpoint daftar artikel menerima filter status tanpa autentikasi,
         sehingga draft berpotensi terbaca publik.
@@ -1955,12 +2037,13 @@ US-061
         ajaran.
     19. Tidak ada impor massal; hanya ekspor CSV.
     20. Penghapusan data master dapat gagal karena foreign key.
-    21. Tidak ada audit trail, soft delete, atau pemulihan data.
+    21. Tabel audit_logs tersedia untuk sebagian aksi; tidak ada soft delete
+        atau pemulihan data.
     22. Rate limit disimpan di memori dan tidak cocok untuk multi-instance.
     23. Berkas /uploads dapat diakses publik.
     24. Perhitungan mapel terlemah berpotensi menimbulkan N+1 query.
-    25. Laporan selalu memakai tahun ajaran aktif; tidak ada pilihan tahun
-        ajaran pada form laporan.
+    25. Laporan memakai semester aktif bila rentang tanggal tidak diisi;
+        form laporan tidak memuat pilihan semester.
     26. Tanda tangan laporan memakai nama pembuat dengan label Kepala Sekolah,
         meskipun pembuatnya admin.
     27. Tautan kembali pada detail siswa kepala sekolah mengarah ke halaman
@@ -1970,23 +2053,27 @@ US-061
     29. Unique index kehadiran per tanggal sudah ada; duplikasi kejadian
         sikap dicegah di aplikasi (belum constraint database).
     30. Tidak ada mekanisme persetujuan orang tua atau pengaturan retensi data.
+    31. Belum ada kalender hari sekolah/libur; denominator kehadiran memakai
+        tanggal yang tercatat pada semester aktif.
+    32. Tidak ada tombol konfirmasi pemantauan sikap tanpa kejadian.
 
 15.3 Catatan untuk Pembahasan Bab 4
     a. Jelaskan bahwa sistem mengimplementasikan SAW dengan normalisasi skala
        tetap dan sebutkan alasan pemilihan tersebut.
-    b. Bahas bobot sikap yang paling besar (5/13) dan alasan siswa tanpa
-       kejadian tidak diberi nilai maksimal, melainkan data_belum_lengkap.
-    c. Jelaskan bahwa kategori ditentukan oleh tiga ambang yang kini semuanya
-       dipakai, dengan urutan yang divalidasi.
+    b. Bahas bobot sikap yang paling besar (5/13) dan keputusan bahwa siswa
+       tanpa kejadian langsung diberi nilai maksimal (Sangat Baik).
+    c. Jelaskan bahwa kategori ditentukan oleh tiga interval yang semuanya
+       dipakai dengan urutan tervalidasi, serta tiga ambang rekomendasi yang
+       dapat diatur Admin.
     d. Bahas keterbatasan notifikasi otomatis yang baru mencakup nilai.
-    e. Jelaskan perbedaan antara klaim README dan implementasi aktual secara
-       terbuka, termasuk normalisasi dan fitur yang belum terhubung.
+    e. Jelaskan keselarasan README dan implementasi aktual secara terbuka,
+       termasuk normalisasi, kebijakan semester, dan fitur yang belum terhubung.
     f. Bahas dampak skema validasi yang membuang tahunAjaranId terhadap
        konsistensi data siswa.
     g. Bahas keterbatasan keamanan: rate limit in-memory, uploads publik,
-       tidak ada audit trail, dan tidak ada verifikasi email.
+       audit log belum punya tampilan, dan tidak ada verifikasi email.
     h. Bahas keterbatasan skalabilitas: SQLite, N+1 query, dan perhitungan
-       skor saat permintaan.
+       skor saat permintaan pada semester aktif.
     i. Jelaskan bahwa laporan menyimpan snapshot sehingga tetap dapat dibaca
        meskipun data sumber berubah.
     j. Jelaskan bahwa orang tua menerima rapor PDF, sedangkan halaman cetak
@@ -1998,6 +2085,8 @@ US-061
     m. Sampaikan batasan sebagai bagian dari evaluasi sistem, bukan sebagai
        kegagalan tersembunyi, agar pembahasan tetap objektif dan dapat
        dipertanggungjawabkan.
+    n. Jelaskan sumber acuan Kaldik 2025/2026 dan alasan rentang semester
+       dipakai sebagai filter default, tanpa tabel kalender/libur terpisah.
 
 ================================================================================
 AKHIR DOKUMEN

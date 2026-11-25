@@ -2,10 +2,10 @@
   <div class="space-y-6">
     <div>
       <h1 class="page-title">Catatan Kejadian Sikap</h1>
-      <p class="page-subtitle">Catat kejadian sikap spiritual atau sosial yang benar-benar diamati (1 = Kurang, 5 = Sangat Baik)</p>
+      <p class="page-subtitle">Catat kejadian sikap spiritual atau sosial yang benar-benar diamati (1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik)</p>
       <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
-        Baris kosong berarti <strong>belum ada kejadian yang dicatat</strong> dan tidak akan disimpan. Siswa tanpa catatan
-        kejadian pada periode ini ditandai <strong>Data Belum Lengkap</strong>, bukan otomatis sangat baik.
+        Baris kosong berarti <strong>tidak ada kejadian yang dicatat</strong> dan tidak akan disimpan. Siswa tanpa
+        kejadian pada semester aktif langsung dinilai <strong>5 — Sangat Baik</strong>.
       </p>
     </div>
 

@@ -17,8 +17,7 @@ export const kehadiranMap = {
   alpa: { label: 'Alpa', cls: 'bg-status-berisiko/15 text-status-berisiko' }
 }
 
-// 1 dan 5 mengikuti keputusan sekolah. Label 2-4 bersifat sementara
-// menunggu instrumen resmi sekolah (lihat dokumen keputusan Tahap 1).
+// Label final sesuai instrumen/wawancara sekolah (lihat dokumen keputusan Tahap 1).
 export const labelSikap = {
   1: 'Kurang',
   2: 'Cukup',

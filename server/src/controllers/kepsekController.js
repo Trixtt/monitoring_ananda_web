@@ -1,11 +1,19 @@
 import { Kelas, Siswa, TahunAjaran, Laporan } from '../models/index.js'
 import { Op } from 'sequelize'
-import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, hitungSemuaSiswa } from '../services/spk.js'
+import {
+  hitungSkorSiswa,
+  mapelTerlemah,
+  rekomendasiUntuk,
+  hitungSemuaSiswa,
+  rentangSemester,
+  labelPeriode
+} from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
 
 export async function kepsekRingkasan(req, res) {
   const taId = req.query.tahunAjaranId ? Number(req.query.tahunAjaranId) : null
   const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
 
   const kelasList = await Kelas.findAll({ order: [['tingkat', 'ASC'], ['nama', 'ASC']] })
   const siswaWhere = {}
@@ -19,7 +27,7 @@ export async function kepsekRingkasan(req, res) {
     include: [{ association: 'kelas' }],
     order: [['kelasId', 'ASC'], ['nomorAbsen', 'ASC']]
   })
-  const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id ?? null)
+  const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id ?? null, rentang)
 
   const ringkasPerKelas = new Map()
   for (const { siswa, hasil } of hasilSemua) {
@@ -50,7 +58,15 @@ export async function kepsekRingkasan(req, res) {
 
   const semuaTahunAjaran = await TahunAjaran.findAll({ order: [['id', 'DESC']] })
 
-  return res.json({ perKelas, total, tahunAjaran: ta?.nama || null, tahunAjaranId: ta?.id || null, daftarTahunAjaran: semuaTahunAjaran })
+  return res.json({
+    perKelas,
+    total,
+    tahunAjaran: ta?.nama || null,
+    tahunAjaranId: ta?.id || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang,
+    daftarTahunAjaran: semuaTahunAjaran
+  })
 }
 
 export async function kepsekSiswaDetail(req, res) {
@@ -58,16 +74,25 @@ export async function kepsekSiswaDetail(req, res) {
   if (!siswa) return res.status(404).json({ message: 'Siswa tidak ditemukan.' })
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  const skor = await hitungSkorSiswa(siswa.id, ta?.id)
-  const lemah = await mapelTerlemah(siswa.id, ta?.id)
+  const rentang = rentangSemester(ta)
+  const skor = await hitungSkorSiswa(siswa.id, ta?.id, null, rentang)
+  const lemah = await mapelTerlemah(siswa.id, ta?.id, rentang)
   const rekomendasi = rekomendasiUntuk(skor, lemah?.nama)
 
-  return res.json({ siswa, skor, mapelTerlemah: lemah?.nama || null, rekomendasi })
+  return res.json({
+    siswa,
+    skor,
+    mapelTerlemah: lemah?.nama || null,
+    rekomendasi,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang
+  })
 }
 
 export async function kepsekSiswaRisiko(req, res) {
   const taId = req.query.tahunAjaranId ? Number(req.query.tahunAjaranId) : null
   const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
   const { kategori = 'berisiko', kelasId } = req.query
 
   const kelasWhere = kelasId ? { id: kelasId } : {}
@@ -80,7 +105,7 @@ export async function kepsekSiswaRisiko(req, res) {
     order: [['kelasId', 'ASC'], ['nomorAbsen', 'ASC']]
   })
 
-  const hasil = (await hitungSemuaSiswa(siswaList, ta?.id))
+  const hasil = (await hitungSemuaSiswa(siswaList, ta?.id, rentang))
     .filter(({ hasil: skor }) => skor.kategori.kode === kategori)
     .map(({ siswa, hasil: skor, mapelTerlemah: lemah }) => ({
       siswa,
@@ -88,7 +113,7 @@ export async function kepsekSiswaRisiko(req, res) {
       mapelTerlemah: lemah?.nama || null
     }))
 
-  return res.json({ list: hasil, kategori })
+  return res.json({ list: hasil, kategori, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
 }
 
 export async function kepsekDetailKelas(req, res) {
@@ -97,12 +122,13 @@ export async function kepsekDetailKelas(req, res) {
 
   const taId = Number(req.query.tahunAjaranId) || null
   const ta = taId ? await TahunAjaran.findByPk(taId) : (await TahunAjaran.findOne({ where: { isActive: true } })) || null
+  const rentang = rentangSemester(ta)
   const siswaList = await Siswa.findAll({
     where: { kelasId: kelas.id },
     include: [{ association: 'kelas' }],
     order: [['nomorAbsen', 'ASC']]
   })
-  const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id)
+  const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id, rentang)
 
   const ringkas = { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, total: hasilSemua.length }
   for (const { hasil } of hasilSemua) {
@@ -116,7 +142,14 @@ export async function kepsekDetailKelas(req, res) {
     rekomendasi: rekomendasiUntuk(skor, lemah?.nama)
   }))
 
-  return res.json({ kelas, ringkas, list: detail, tahunAjaran: ta?.nama || null })
+  return res.json({
+    kelas,
+    ringkas,
+    list: detail,
+    tahunAjaran: ta?.nama || null,
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang
+  })
 }
 
 function siswaSnapshot(siswa, skor, mapelTerlemah) {
@@ -138,7 +171,10 @@ export async function kepsekGenerateLaporan(req, res) {
   const { judul, kelasId, kategori, tanggalMulai, tanggalAkhir } = req.body || {}
 
   const ta = (await TahunAjaran.findOne({ where: { isActive: true } })) || null
-  const rentang = tanggalMulai || tanggalAkhir ? { mulai: tanggalMulai || null, akhir: tanggalAkhir || null } : null
+  const rentangEksplisit = Boolean(tanggalMulai || tanggalAkhir)
+  const rentang = rentangEksplisit
+    ? { mulai: tanggalMulai || null, akhir: tanggalAkhir || null }
+    : rentangSemester(ta)
 
   const kelasWhere = kelasId ? { id: kelasId } : {}
   const kelasList = await Kelas.findAll({ where: kelasWhere, order: [['tingkat', 'ASC'], ['nama', 'ASC']] })
@@ -162,17 +198,17 @@ export async function kepsekGenerateLaporan(req, res) {
 
   const labelKelas = kelasList.length === 1 ? kelasList[0].nama : `${kelasList.length} kelas`
   const labelKategori = kategori ? { aman: 'Baik/Aman', perhatian: 'Perlu Perhatian', berisiko: 'Berisiko', abk: 'ABK', data_belum_lengkap: 'Data Belum Lengkap' }[kategori] || kategori : 'Semua Kondisi'
-  const labelPeriode = rentang ? `${tanggalMulai || '…'} s/d ${tanggalAkhir || '…'}` : 'Seluruh Periode'
+  const labelWaktu = labelPeriode(ta, rentangEksplisit ? rentang : null)
   const judulLaporan =
-    judul?.trim() || `Laporan Siswa ${labelKategori} - ${labelKelas} (${labelPeriode})`
+    judul?.trim() || `Laporan Siswa ${labelKategori} - ${labelKelas} (${labelWaktu})`
 
   const laporan = await Laporan.create({
     judul: judulLaporan,
     kelasId: kelasId ? Number(kelasId) : null,
     kelasNama: labelKelas,
     kategori: kategori || null,
-    tanggalMulai: tanggalMulai || null,
-    tanggalAkhir: tanggalAkhir || null,
+    tanggalMulai: rentang.mulai || null,
+    tanggalAkhir: rentang.akhir || null,
     jumlah: snapshot.length,
     isi: JSON.stringify(snapshot),
     userId: req.user.id

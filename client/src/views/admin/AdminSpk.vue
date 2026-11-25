@@ -2,7 +2,7 @@
   <div class="space-y-6 max-w-5xl mx-auto">
     <div class="text-center">
       <h1 class="page-title">Konfigurasi SPK</h1>
-      <p class="page-subtitle">Atur bobot kriteria dan interval klasifikasi metode SAW</p>
+      <p class="page-subtitle">Atur bobot kriteria, interval klasifikasi, dan ambang rekomendasi metode SAW</p>
     </div>
 
     <div v-if="loading"><LoadingState /></div>
@@ -56,6 +56,28 @@
         </div>
       </div>
 
+      <div class="card p-6">
+        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Ambang Rekomendasi</h2>
+        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">
+          Skor di bawah ambang memicu rekomendasi untuk kriteria tersebut. Nilai bawaan:
+          0,65 akademik, 0,65 sikap, dan 0,80 kehadiran.
+        </p>
+        <div class="space-y-4">
+          <div>
+            <label class="label">Ambang Akademik</label>
+            <input v-model.number="form.ambangAkademik" type="number" min="0" max="1" step="0.01" class="input" />
+          </div>
+          <div>
+            <label class="label">Ambang Sikap</label>
+            <input v-model.number="form.ambangSikap" type="number" min="0" max="1" step="0.01" class="input" />
+          </div>
+          <div>
+            <label class="label">Ambang Kehadiran</label>
+            <input v-model.number="form.ambangKehadiran" type="number" min="0" max="1" step="0.01" class="input" />
+          </div>
+        </div>
+      </div>
+
       <p v-if="error" class="rounded-md bg-error-container text-on-error-container px-3 py-2 font-label-md md:col-span-2 text-center">{{ error }}</p>
 
       <div class="flex items-center justify-center gap-3 md:col-span-2">
@@ -95,7 +117,10 @@ const form = ref({
   bobotSikap: 38,
   intervalBaikBawah: 0.67,
   intervalPerhatianBawah: 0.34,
-  intervalBerisikoBawah: 0
+  intervalBerisikoBawah: 0,
+  ambangAkademik: 0.65,
+  ambangSikap: 0.65,
+  ambangKehadiran: 0.8
 })
 
 const bobotFields = computed(() => [
@@ -130,7 +155,10 @@ async function load() {
       bobotSikap: Math.round(Number(s.bobotSikap) * 100),
       intervalBaikBawah: Number(s.intervalBaikBawah),
       intervalPerhatianBawah: Number(s.intervalPerhatianBawah),
-      intervalBerisikoBawah: Number(s.intervalBerisikoBawah)
+      intervalBerisikoBawah: Number(s.intervalBerisikoBawah),
+      ambangAkademik: Number(s.ambangAkademik ?? 0.65),
+      ambangSikap: Number(s.ambangSikap ?? 0.65),
+      ambangKehadiran: Number(s.ambangKehadiran ?? 0.8)
     }
     bobotDiubah.value = false
   } finally {
@@ -154,7 +182,10 @@ async function save() {
     const payload = {
       intervalBaikBawah: form.value.intervalBaikBawah,
       intervalPerhatianBawah: form.value.intervalPerhatianBawah,
-      intervalBerisikoBawah: form.value.intervalBerisikoBawah
+      intervalBerisikoBawah: form.value.intervalBerisikoBawah,
+      ambangAkademik: form.value.ambangAkademik,
+      ambangSikap: form.value.ambangSikap,
+      ambangKehadiran: form.value.ambangKehadiran
     }
     // Kirim bobot hanya bila admin benar-benar mengubah slider. Jika tidak,
     // backend mempertahankan rasio presisi 4/13, 4/13, 5/13.

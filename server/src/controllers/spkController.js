@@ -48,6 +48,21 @@ export async function updateSpkSettings(req, res) {
     return res.status(400).json({ message: 'Interval harus berurutan: Baik > Perhatian > Berisiko.' })
   }
 
+  const ambang = {
+    ambangAkademik: req.body.ambangAkademik,
+    ambangSikap: req.body.ambangSikap,
+    ambangKehadiran: req.body.ambangKehadiran
+  }
+  for (const [k, v] of Object.entries(ambang)) {
+    if (v !== undefined) {
+      const n = Number(v)
+      if (!Number.isFinite(n) || n < 0 || n > 1) {
+        return res.status(400).json({ message: `${k} harus antara 0 dan 1.` })
+      }
+      setting[k] = n
+    }
+  }
+
   await setting.save()
   return res.json({ message: 'Pengaturan SPK disimpan.', setting })
 }

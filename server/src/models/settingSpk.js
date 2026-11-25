@@ -10,7 +10,10 @@ const SettingSpk = sequelize.define(
     bobotSikap: { type: DataTypes.FLOAT, defaultValue: 5 / 13 },
     intervalBaikBawah: { type: DataTypes.FLOAT, defaultValue: 0.67 },
     intervalPerhatianBawah: { type: DataTypes.FLOAT, defaultValue: 0.34 },
-    intervalBerisikoBawah: { type: DataTypes.FLOAT, defaultValue: 0.0 }
+    intervalBerisikoBawah: { type: DataTypes.FLOAT, defaultValue: 0.0 },
+    ambangAkademik: { type: DataTypes.FLOAT, defaultValue: 0.65 },
+    ambangSikap: { type: DataTypes.FLOAT, defaultValue: 0.65 },
+    ambangKehadiran: { type: DataTypes.FLOAT, defaultValue: 0.8 }
   },
   { tableName: 'setting_spk' }
 )
