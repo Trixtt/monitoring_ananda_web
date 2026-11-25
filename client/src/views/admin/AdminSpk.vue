@@ -21,11 +21,20 @@
               <span class="text-deep-navy dark:text-ice-white">{{ b.value }}%</span>
             </div>
             <input :value="b.value" type="range" min="0" max="100" step="1" class="w-full accent-dark-teal" :aria-label="`Bobot ${b.label}`" @input="setBobot(b.key, $event)" />
+            <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+              Skala bobot:
+              <span class="font-label-md text-deep-navy dark:text-ice-white">{{ b.mentah }}/{{ b.proporsi }}</span>
+              <span class="ml-1">(bobot mentah / proporsi, total mentah 13)</span>
+            </p>
           </div>
           <div class="flex items-center justify-between rounded-lg px-4 py-3 font-label-md" :class="total === 100 ? 'bg-status-aman/10 text-status-aman' : 'bg-status-berisiko/10 text-status-berisiko'">
             <span>Total Bobot</span>
             <span>{{ total }}%</span>
           </div>
+          <button type="button" class="btn-secondary w-full" :disabled="saving || resetting" @click="resetBobot">
+            <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+            Reset ke 4:4:5
+          </button>
         </div>
       </div>
 
@@ -73,7 +82,12 @@ import LoadingState from '../../components/LoadingState.vue'
 const toast = useToastStore()
 const loading = ref(true)
 const saving = ref(false)
+const resetting = ref(false)
 const error = ref('')
+// Slider hanya menyimpan persentase bulat untuk tampilan. Penanda ini
+// mencegah nilai presisi backend (4/13, 4/13, 5/13) ikut dibulatkan saat
+// admin menyimpan perubahan interval tanpa menyentuh bobot.
+const bobotDiubah = ref(false)
 
 const form = ref({
   bobotAkademik: 31,
@@ -88,7 +102,13 @@ const bobotFields = computed(() => [
   { key: 'bobotAkademik', label: 'Nilai Akademik', value: form.value.bobotAkademik },
   { key: 'bobotKehadiran', label: 'Kehadiran', value: form.value.bobotKehadiran },
   { key: 'bobotSikap', label: 'Sikap', value: form.value.bobotSikap }
-])
+].map((b) => ({
+  ...b,
+  // Proporsi dibulatkan untuk tampilan; bobot mentah dikonversi kembali
+  // ke skala total 13, sehingga keadaan bawaan terbaca 4/0,31 dan 5/0,38.
+  mentah: Math.round((b.value * 13) / 100),
+  proporsi: (b.value / 100).toFixed(2).replace('.', ',')
+})))
 
 const total = computed(() => bobotFields.value.reduce((a, b) => a + b.value, 0))
 
@@ -96,6 +116,7 @@ function setBobot(key, event) {
   // computed bobotFields hanya berisi salinan nilai; tulis langsung ke form
   // agar perubahan slider benar-benar ikut terkirim saat simpan.
   form.value[key] = Number(event.target.value)
+  bobotDiubah.value = true
 }
 
 async function load() {
@@ -111,6 +132,7 @@ async function load() {
       intervalPerhatianBawah: Number(s.intervalPerhatianBawah),
       intervalBerisikoBawah: Number(s.intervalBerisikoBawah)
     }
+    bobotDiubah.value = false
   } finally {
     loading.value = false
   }
@@ -129,19 +151,44 @@ async function save() {
   }
   saving.value = true
   try {
-    await api.put('/admin/spk', {
-      bobotAkademik: form.value.bobotAkademik / 100,
-      bobotKehadiran: form.value.bobotKehadiran / 100,
-      bobotSikap: form.value.bobotSikap / 100,
+    const payload = {
       intervalBaikBawah: form.value.intervalBaikBawah,
       intervalPerhatianBawah: form.value.intervalPerhatianBawah,
       intervalBerisikoBawah: form.value.intervalBerisikoBawah
-    })
+    }
+    // Kirim bobot hanya bila admin benar-benar mengubah slider. Jika tidak,
+    // backend mempertahankan rasio presisi 4/13, 4/13, 5/13.
+    if (bobotDiubah.value) {
+      payload.bobotAkademik = form.value.bobotAkademik / 100
+      payload.bobotKehadiran = form.value.bobotKehadiran / 100
+      payload.bobotSikap = form.value.bobotSikap / 100
+    }
+    await api.put('/admin/spk', payload)
     toast.success('Pengaturan SPK disimpan.')
+    await load()
   } catch (e) {
     error.value = e.response?.data?.message || 'Gagal menyimpan pengaturan.'
   } finally {
     saving.value = false
+  }
+}
+
+async function resetBobot() {
+  resetting.value = true
+  error.value = ''
+  try {
+    // Nilai presisi dikirim langsung, bukan hasil pembulatan 31/100.
+    await api.put('/admin/spk', {
+      bobotAkademik: 4 / 13,
+      bobotKehadiran: 4 / 13,
+      bobotSikap: 5 / 13
+    })
+    toast.success('Bobot dikembalikan ke rasio 4:4:5.')
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Gagal mereset bobot.'
+  } finally {
+    resetting.value = false
   }
 }
 
