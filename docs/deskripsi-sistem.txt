@@ -1851,7 +1851,7 @@ US-061
 
 14.3 Variabel Lingkungan Penting
     PORT            port server, default 5000.
-    APP_DOMAIN      alamat client untuk CORS, default http://localhost:5173.
+    APP_DOMAIN      alamat client untuk CORS, default http://localhost:5175.
     JWT_SECRET      kunci JWT; pada production wajib minimal 32 karakter.
     JWT_EXPIRES_IN  masa berlaku token, default 12h.
     DB_DIALECT      dialek basis data, default sqlite.

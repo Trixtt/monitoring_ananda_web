@@ -59,7 +59,7 @@ function siteFilesPlugin(siteUrl) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const siteUrl = String(env.VITE_SITE_URL || 'http://localhost:5173').replace(/\/+$/, '')
+  const siteUrl = String(env.VITE_SITE_URL || 'http://localhost:5175').replace(/\/+$/, '')
   const apiOrigin = String(env.VITE_API_ORIGIN || '').replace(/\/+$/, '')
   const devApiTarget = env.VITE_DEV_API_TARGET || 'http://localhost:5000'
   const isDev = mode === 'development'
@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => {
   if (isDev) {
     connectSrc.push(devApiTarget)
     connectSrc.push(devApiTarget.replace(/^http/, 'ws'))
-    connectSrc.push('ws://localhost:5173')
+    connectSrc.push('ws://localhost:5175')
   } else if (apiOrigin) {
     connectSrc.push(apiOrigin)
     connectSrc.push(apiOrigin.replace(/^http/, 'ws'))
@@ -101,8 +101,13 @@ export default defineConfig(({ mode }) => {
       siteFilesPlugin(siteUrl)
     ],
     server: {
-      port: 5173,
+      port: 5175,
       strictPort: true,
+
+      allowedHosts: [
+        'imperial-drivable-drinkable.ngrok-free.dev'
+      ],
+
       headers: {
         'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',

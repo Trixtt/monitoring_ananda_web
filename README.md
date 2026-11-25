@@ -170,7 +170,7 @@ npm run dev
 ```
 
 Akses:
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:5175
 - API: http://localhost:5000/api
 - Health check: http://localhost:5000/api/health
 

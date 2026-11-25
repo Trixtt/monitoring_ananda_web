@@ -29,14 +29,14 @@ DB_USER=root
 DB_PASSWORD=
 DEMO_MODE=true
 FONNTE_TOKEN=
-APP_DOMAIN=http://localhost:5173
-CORS_ORIGIN=http://localhost:5173
+APP_DOMAIN=http://localhost:5175
+CORS_ORIGIN=http://localhost:5175
 ```
 
 Atur `client/.env`:
 
 ```env
-VITE_SITE_URL=http://localhost:5173
+VITE_SITE_URL=http://localhost:5175
 VITE_DEMO_MODE=true
 VITE_DEV_API_TARGET=http://localhost:5000
 ```
@@ -54,7 +54,7 @@ npm run db:seed --prefix server
 npm run dev
 ```
 
-Buka **http://localhost:5173**. Kredensial demo tampil di halaman login karena `VITE_DEMO_MODE=true`.
+Buka **http://localhost:5175**. Kredensial demo tampil di halaman login karena `VITE_DEMO_MODE=true`.
 
 ## 3. Akun Demo
 

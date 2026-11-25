@@ -26,7 +26,7 @@ function boolean(nilai, fallback = false) {
   return ['1', 'true', 'yes', 'on'].includes(String(nilai).toLowerCase())
 }
 
-const corsOrigin = process.env.CORS_ORIGIN || process.env.APP_DOMAIN || 'http://localhost:5173'
+const corsOrigin = process.env.CORS_ORIGIN || process.env.APP_DOMAIN || 'http://localhost:5175'
 
 // Root aplikasi server (folder `server/`). Path upload & backup pada .env
 // diinterpretasikan relatif terhadap folder ini, sesuai dokumentasi.
@@ -44,7 +44,7 @@ export const env = {
   jwtAudience: process.env.JWT_AUDIENCE || 'monitoring-siswa-web',
   fonnteToken: process.env.FONNTE_TOKEN || '',
   fonnteUrl: process.env.FONNTE_URL || 'https://api.fonnte.com/send',
-  appDomain: process.env.APP_DOMAIN || 'http://localhost:5173',
+  appDomain: process.env.APP_DOMAIN || 'http://localhost:5175',
   corsOrigins: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
   uploadDir: path.resolve(serverRoot, process.env.UPLOAD_DIR || 'uploads'),
   uploadMaxBytes: angka(process.env.UPLOAD_MAX_BYTES, 5 * 1024 * 1024),
