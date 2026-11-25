@@ -38,7 +38,9 @@ export async function susunRapor({ siswaId, tahunAjaranId }) {
     if (k.status in ringkasKehadiran) ringkasKehadiran[k.status]++
   })
   const totalHari = kehadiranRows.length
-  const persenHadir = totalHari ? Math.round((ringkasKehadiran.hadir / totalHari) * 1000) / 10 : null
+  // Hadir, izin, dan sakit adalah kehadiran efektif; hanya alpa yang mengurangi.
+  const jumlahEfektif = ringkasKehadiran.hadir + ringkasKehadiran.izin + ringkasKehadiran.sakit
+  const persenHadir = totalHari ? Math.round((jumlahEfektif / totalHari) * 1000) / 10 : null
 
   const agregatSikap = { spiritual: { jumlah: 0, total: 0 }, sosial: { jumlah: 0, total: 0 } }
   sikapRows.forEach((s) => {

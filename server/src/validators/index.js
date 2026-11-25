@@ -100,6 +100,17 @@ export const spkSchema = z
     intervalBerisikoBawah: z.coerce.number().min(0).max(1)
   })
   .partial()
+  .refine((d) => {
+    const keys = ['bobotAkademik', 'bobotKehadiran', 'bobotSikap']
+    if (!keys.every((k) => d[k] !== undefined)) return true
+    const total = keys.reduce((a, k) => a + Number(d[k]), 0)
+    return Math.abs(total - 1) < 0.0001
+  }, { message: 'Jumlah bobot harus 1.' })
+  .refine((d) => {
+    const keys = ['intervalBaikBawah', 'intervalPerhatianBawah', 'intervalBerisikoBawah']
+    if (!keys.every((k) => d[k] !== undefined)) return true
+    return d.intervalBaikBawah > d.intervalPerhatianBawah && d.intervalPerhatianBawah > d.intervalBerisikoBawah
+  }, { message: 'Interval harus berurutan: Baik > Perhatian > Berisiko.' })
 
 export const nilaiSchema = z.object({
   siswaId: idInt,
@@ -125,7 +136,7 @@ export const sikapBulkSchema = z.object({
     z.object({
       siswaId: idInt,
       jenis: z.enum(['spiritual', 'sosial']).default('spiritual'),
-      nilai: z.coerce.number().int().min(1, 'Nilai sikap 1-4').max(4, 'Nilai sikap 1-4'),
+      nilai: z.coerce.number().int().min(1, 'Nilai sikap 1-5').max(5, 'Nilai sikap 1-5'),
       catatan: z.string().max(1000).nullable().optional(),
       tanggal: tanggal.optional()
     })

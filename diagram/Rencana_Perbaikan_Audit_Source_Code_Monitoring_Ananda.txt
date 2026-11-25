@@ -1,0 +1,618 @@
+DOKUMEN RENCANA PERBAIKAN SOURCE CODE SISTEM MONITORING DAN REKOMENDASI
+PERKEMBANGAN SISWA SD NEGERI 4 KELING, KABUPATEN JEPARA
+
+Basis pemeriksaan: - Source code: monitoring_ananda_web-main.zip -
+Fokus: frontend Vue, backend Express/Sequelize, layanan SAW, Rule-Based
+Recommendation, validasi, model, README, dan unit test. - Jenis
+pemeriksaan: audit statis terhadap source code. - Status: dokumen ini
+adalah daftar temuan dan spesifikasi perbaikan. Source code belum diubah
+dan pengujian runtime belum dijalankan.
+
+======================================================================
+A. RINGKASAN EKSEKUTIF
+======================================================================
+
+Audit menemukan beberapa hal yang perlu diperbaiki sebelum sistem
+digunakan sebagai implementasi final skripsi.
+
+Temuan prioritas tertinggi: 1. Skala penilaian sikap pada aplikasi masih
+1-4, sedangkan ketentuan sekolah yang dikonfirmasi peneliti adalah 1-5.
+2. Data sikap nilai 3 tidak disimpan oleh form, sementara perhitungan
+SAW hanya menghitung catatan yang tersimpan. Hal ini dapat membuat
+rata-rata sikap tidak mewakili seluruh pengamatan. 3. Data sikap kosong
+otomatis dianggap bernilai sempurna (skor normalisasi 1). 4. Data
+akademik atau kehadiran kosong otomatis diberi skor 0 dan tetap
+menghasilkan klasifikasi. 5. Slider bobot pada halaman Admin SPK
+mengubah objek hasil computed, bukan langsung mengubah form utama;
+fungsi sync() juga kosong. 6. Batas intervalBerisikoBawah disimpan,
+tetapi tidak dipakai dalam fungsi klasifikasi. 7. Ambang Rule-Based
+Recommendation ditulis tetap di kode. 8. Form kehadiran mengisi status
+“hadir” ketika belum ada catatan, sehingga data yang belum diinput
+berpotensi dianggap hadir. 9. Catatan keterangan kehadiran tidak
+diperbarui jika status kehadiran tidak berubah. 10. Unit test dan README
+masih mendokumentasikan beberapa perilaku skala 1-4 dan data kosong yang
+perlu diubah.
+
+Temuan di atas tidak berarti seluruh aplikasi gagal. Modul ABK,
+transaksi bulk, dan beberapa pengamanan akses sudah memiliki
+implementasi yang dapat dipertahankan. Perbaikan sebaiknya dilakukan
+bertahap agar fitur lain tidak rusak.
+
+======================================================================
+B. TEMUAN DAN RENCANA PERBAIKAN BERDASARKAN PRIORITAS
+======================================================================
+
+PRIORITAS 1 - SAMAKAN SKALA PENILAIAN SIKAP MENJADI 1-5
+
+Kondisi yang ditemukan: - client/src/views/guru/GuruSikap.vue
+menggunakan v-for=“n in 4”. - Teks halaman menjelaskan skala 1=Kurang
+sampai 4=Sangat Baik. - server/src/validators/index.js membatasi nilai
+sikap minimum 1 dan maksimum 4. -
+server/src/controllers/guruController.js menggunakan valid = [1, 2, 3,
+4]. - server/src/services/spk.js menormalisasi sikap dengan membagi
+rata-rata nilai dengan 4. - server/test/spk.test.js menguji normalisasi
+skala 4. - README.md masih menyebut penilaian sikap skala 1-4. -
+server/src/seed.js membuat data demo sikap pada rentang 2-4.
+
+Perbaikan yang diperlukan: 1. Ubah pilihan nilai pada GuruSikap.vue
+menjadi 1 sampai 5. 2. Ubah label setiap angka berdasarkan instrumen
+resmi sekolah. 3. Ubah validasi Zod pada validators/index.js agar
+menerima bilangan bulat 1 sampai 5. 4. Ubah validasi manual pada
+guruController.js agar menerima [1, 2, 3, 4, 5]. 5. Perbarui fungsi
+normalisasi pada services/spk.js. 6. Perbarui unit test untuk menguji
+batas nilai 1 dan 5. 7. Perbarui README.md, dokumentasi fitur, dan
+bagian logika SPK. 8. Perbarui seed.js agar data demo dapat mencakup
+nilai 1 sampai 5. 9. Periksa data lama sebelum migrasi atau perubahan
+perilaku. Jangan mengubah data historis tanpa rencana migrasi.
+
+CATATAN KEPUTUSAN YANG BELUM SELESAI: Arah skala 1-5 belum dikonfirmasi.
+Ada dua kemungkinan:
+
+Kemungkinan A: 1 = Kurang dan 5 = Sangat Baik. Rumus normalisasi
+benefit: R_S = (S_rata-rata - 1) / 4
+
+Kemungkinan B: 1 = Sangat Baik dan 5 = Kurang. Rumus pembalikan: R_S =
+(5 - S_rata-rata) / 4
+
+Rumus final tidak boleh dipilih berdasarkan asumsi. Periksa instrumen
+penilaian asli SD 4 Keling dan minta konfirmasi pihak sekolah. Setelah
+itu, gunakan arah skala yang sama pada form, database, perhitungan SAW,
+aturan rekomendasi, laporan, dan pengujian.
+
+File yang terkait: - client/src/views/guru/GuruSikap.vue -
+server/src/validators/index.js -
+server/src/controllers/guruController.js - server/src/services/spk.js -
+server/test/spk.test.js - server/src/seed.js - README.md
+
+PRIORITAS 2 - RANCANG ULANG PENCATATAN NILAI SIKAP
+
+Kondisi yang ditemukan: - GuruSikap.vue mengisi nilai awal setiap siswa
+dengan 3. - Daftar yang dikirim hanya siswa dengan nilai tidak sama
+dengan 3. - Backend hanya menyimpan nilai yang dikirim. -
+services/spk.js menghitung rata-rata hanya dari baris Sikap yang
+tersimpan. - Dengan demikian, nilai 3 yang tidak disimpan tidak ikut
+dalam rata-rata. - Jika tidak ada catatan sikap, sistem memberi skor
+sikap 1 (sempurna).
+
+Dampak: Contoh: seorang siswa diamati 10 kali dengan nilai 3 dan satu
+kali nilai 1. Jika nilai 3 tidak disimpan, sistem hanya menghitung
+nilai 1. Hasil rata-rata menjadi 1, padahal rata-rata seluruh pengamatan
+seharusnya berbeda.
+
+Perbaikan yang disarankan: 1. Tentukan dahulu apakah data sikap
+merupakan penilaian rutin skala 1-5 atau hanya catatan kejadian/insiden.
+2. Jika merupakan penilaian rutin, guru harus dapat menyimpan semua
+hasil penilaian, termasuk nilai 3. 3. Hindari menganggap nilai default
+sebagai hasil penilaian jika guru belum melakukan penilaian. 4. Gunakan
+status awal kosong/belum dinilai, lalu minta guru memilih nilai 1-5
+secara eksplisit. 5. Tampilkan indikator siswa yang belum dinilai. 6.
+Simpan nilai spiritual dan sosial secara konsisten sesuai jenis
+penilaian. 7. Tentukan apakah satu siswa dapat memiliki satu nilai per
+jenis per tanggal atau beberapa observasi dalam satu hari. 8. Jika satu
+nilai per jenis per tanggal, gunakan mekanisme update/upsert berdasarkan
+siswa, jenis, tanggal, dan tahun ajaran, bukan selalu membuat baris
+baru. 9. Jika riwayat beberapa observasi memang diperlukan, simpan
+seluruh observasi dan dokumentasikan cara agregasinya. 10. Jangan
+mengubah data historis secara otomatis tanpa aturan migrasi yang
+disetujui.
+
+Alternatif jika sekolah sebenarnya menggunakan pencatatan insiden: -
+Jangan memperlakukan baris insiden sebagai rata-rata penilaian rutin. -
+Definisikan indikator insiden, periode pengamatan, dan cara konversinya
+menjadi skor. - Tidak adanya insiden tidak boleh otomatis disebut nilai
+sempurna tanpa dasar kebijakan sekolah yang jelas.
+
+File yang terkait: - client/src/views/guru/GuruSikap.vue -
+server/src/controllers/guruController.js - server/src/services/spk.js -
+server/src/models/sikap.js - server/src/database/migrations/ -
+server/test/spk.test.js
+
+PRIORITAS 3 - PERBAIKI PENANGANAN DATA KOSONG / BELUM LENGKAP
+
+Kondisi yang ditemukan pada services/spk.js: - Tidak ada nilai akademik:
+skor akademik = 0. - Tidak ada catatan kehadiran: skor kehadiran = 0. -
+Tidak ada catatan sikap: skor sikap = 1. - Ketiga nilai tetap dihitung
+menjadi skor akhir dan kategori.
+
+Dampak: Siswa yang belum memiliki data dapat masuk kategori Perlu
+Perhatian atau Berisiko, meskipun datanya belum cukup untuk dinilai.
+Tidak adanya catatan sikap juga dianggap sempurna.
+
+Perbaikan yang disarankan: 1. Tambahkan pemeriksaan kelengkapan data
+sebelum menghitung nilai akhir. 2. Jika salah satu kriteria wajib belum
+memiliki data yang memadai, kembalikan status “data_belum_lengkap”. 3.
+Jangan mengisi data kosong dengan nilai 0 atau 1 secara otomatis. 4.
+Jangan menghasilkan klasifikasi atau rekomendasi normal ketika data
+belum lengkap. 5. Tampilkan keterangan kriteria mana yang belum
+tersedia. 6. Tampilkan status tersebut pada dashboard wali kelas, kepala
+sekolah, dan orang tua. 7. Pastikan rekap kelas membedakan kategori
+Baik, Perlu Perhatian, Berisiko, ABK, dan Data Belum Lengkap. 8.
+Tentukan batas minimal jumlah data/periode pengamatan bersama pihak
+sekolah. 9. Dokumentasikan kebijakan tersebut pada Bab III dan Bab IV.
+
+Catatan: Kelengkapan data harus mengikuti periode penilaian yang
+ditentukan. Misalnya, sistem perlu mengetahui apakah data nilai,
+kehadiran, dan sikap sudah tersedia untuk semester atau rentang tanggal
+yang sedang dinilai.
+
+File utama: - server/src/services/spk.js - client/src/views/guru/ -
+client/src/views/kepsek/ - client/src/views/orangtua/ -
+server/test/spk.test.js
+
+PRIORITAS 4 - PERBAIKI KONFIGURASI BOBOT SPK
+
+Kondisi yang ditemukan: - client/src/views/admin/AdminSpk.vue membuat
+bobotFields sebagai computed array yang berisi salinan nilai dari
+form.value. - Slider menggunakan v-model.number=“b.value”. - Perubahan
+pada b.value tidak otomatis mengubah form.value. - Fungsi sync()
+kosong. - Fungsi save() mengirim nilai dari form.value, bukan dari objek
+salinan bobotFields.
+
+Dampak: Slider dapat terlihat bergerak, tetapi nilai utama yang dikirim
+ke backend tidak berubah. Total bobot juga dihitung dari form utama
+sehingga tidak mencerminkan perubahan slider yang belum tersinkron.
+
+Perbaikan: 1. Ubah binding slider agar langsung memperbarui
+form.value[b.key], atau gunakan computed setter. 2. Hapus fungsi sync()
+jika tidak diperlukan. 3. Pastikan total bobot dihitung dari nilai form
+yang benar. 4. Tampilkan validasi total bobot harus 100%. 5. Pastikan
+tombol simpan mengirim nilai terbaru. 6. Setelah penyimpanan berhasil,
+muat ulang data konfigurasi dari server atau tampilkan nilai yang telah
+dikonfirmasi server. 7. Berikan validasi backend bahwa jumlah bobot sama
+dengan 1. 8. Validasi bahwa setiap bobot berada pada rentang 0 sampai 1.
+
+Bobot penelitian: - Akademik = bobot awal 4. - Kehadiran = bobot awal
+4. - Sikap = bobot awal 5. - Jumlah bobot awal = 13. - Bobot normalisasi
+tepat: 4/13, 4/13, dan 5/13. - Pembulatan dua desimal: 0,31; 0,31; dan
+0,38.
+
+Sebaiknya dokumentasikan apakah sistem menyimpan bobot pembulatan dua
+desimal atau rasio lebih presisi. Jangan sampai nilai di laporan berbeda
+dari nilai yang benar-benar disimpan aplikasi.
+
+File terkait: - client/src/views/admin/AdminSpk.vue -
+server/src/controllers/spkController.js -
+server/src/models/settingSpk.js - server/src/validators/index.js -
+server/src/seed.js
+
+PRIORITAS 5 - PERJELAS DAN PERBAIKI INTERVAL KLASIFIKASI SAW
+
+Kondisi yang ditemukan: - Model SettingSpk menyimpan intervalBaikBawah,
+intervalPerhatianBawah, dan intervalBerisikoBawah. - AdminSpk.vue
+menampilkan ketiga pengaturan. - spkController.js menerima dan menyimpan
+ketiganya. - kategoriDariSkor() pada services/spk.js hanya menggunakan
+intervalBaikBawah dan intervalPerhatianBawah. - intervalBerisikoBawah
+tidak digunakan dalam fungsi klasifikasi. - Backend belum memeriksa
+urutan logis antarinterval.
+
+Perbaikan: 1. Tentukan arti setiap batas interval. 2. Tentukan urutan
+nilai yang valid, misalnya 0 <= batas berisiko <= batas perhatian <=
+batas baik <= 1. 3. Jika batas berisiko memang tidak dibutuhkan karena
+kategori berisiko mencakup semua nilai di bawah batas perhatian, hapus
+pengaturan yang tidak digunakan dari UI/model/API setelah memastikan
+tidak dipakai bagian lain. 4. Jika batas berisiko memang dimaksudkan
+sebagai batas kategori tersendiri, gunakan secara eksplisit di fungsi
+klasifikasi. 5. Tambahkan validasi rentang dan urutan interval pada
+backend. 6. Pastikan nilai tepat pada batas masuk kategori yang
+konsisten. 7. Dokumentasikan interval default dan alasan penetapannya.
+8. Pastikan pengaturan di admin benar-benar memengaruhi hasil
+klasifikasi.
+
+File terkait: - server/src/services/spk.js -
+server/src/controllers/spkController.js -
+server/src/models/settingSpk.js - client/src/views/admin/AdminSpk.vue -
+server/src/validators/index.js - README.md
+
+PRIORITAS 6 - PERJELAS RULE-BASED RECOMMENDATION
+
+Kondisi yang ditemukan: - services/spk.js menetapkan akademik rendah
+jika skor < 0,65. - Sikap rendah jika skor < 0,65. - Kehadiran rendah
+jika skor < 0,80. - Ambang tersebut ditulis tetap di kode. - Aturan
+kehadiran hanya memberikan rekomendasi khusus jika akademik dan sikap
+tidak rendah. - Jika akademik dan sikap sama-sama rendah, tipe akhir
+menjadi “sikap” karena pemeriksaan sikap dilakukan setelah akademik,
+walaupun daftar rekomendasi berisi keduanya. - Jika kehadiran rendah
+bersamaan dengan akademik atau sikap rendah, rekomendasi khusus
+kehadiran tidak ditambahkan.
+
+Catatan penting: README juga menjelaskan kebijakan bahwa rekomendasi
+kehadiran diberikan ketika kehadiran rendah tetapi akademik dan sikap
+baik. Jadi perilaku tersebut mungkin memang disengaja. Jangan
+mengubahnya tanpa keputusan kebijakan penelitian.
+
+Perbaikan yang disarankan: 1. Buat tabel keputusan Rule-Based yang
+disetujui pihak sekolah/peneliti. 2. Tentukan ambang per kriteria dan
+dasar penetapannya. 3. Bedakan ambang kriteria untuk rekomendasi dengan
+interval nilai preferensi SAW. Keduanya merupakan fungsi yang berbeda
+dan tidak otomatis harus sama. 4. Tentukan apakah ambang rekomendasi
+tetap atau dapat dikonfigurasi admin. 5. Jika tetap, dokumentasikan
+angka 0,65 dan 0,80 serta dasar penetapannya. 6. Tentukan perilaku saat
+dua atau tiga kriteria rendah bersamaan. 7. Tentukan apakah tipe
+rekomendasi harus “gabungan” atau satu tipe utama dengan beberapa butir
+tindak lanjut. 8. Jika setiap kriteria harus menghasilkan tindak lanjut
+independen, buat pemeriksaan IF terpisah untuk setiap kriteria. 9.
+Pastikan data belum lengkap tidak menghasilkan rekomendasi normal. 10.
+Pastikan ABK tetap menggunakan jalur rekomendasi khusus dan tidak masuk
+klasifikasi otomatis.
+
+Contoh tabel keputusan yang harus dikonfirmasi: - Semua kriteria baik:
+pertahankan perkembangan. - Akademik rendah saja: bimbingan akademik dan
+fokus mapel terlemah. - Kehadiran rendah saja: investigasi penyebab
+ketidakhadiran dan komunikasi dengan orang tua. - Sikap rendah saja:
+pendekatan personal dan pembinaan karakter. - Akademik + sikap rendah:
+rekomendasi gabungan akademik dan sikap. - Akademik + kehadiran rendah:
+tentukan apakah rekomendasi gabungan atau mengikuti kebijakan saat
+ini. - Kehadiran + sikap rendah: tentukan rekomendasi gabungan atau
+mengikuti kebijakan saat ini. - Semua kriteria rendah: rekomendasi
+gabungan dan prioritas tindak lanjut. - ABK: pendekatan khusus, tidak
+dihitung dengan SAW. - Data belum lengkap: minta pelengkapan data, tidak
+memberi klasifikasi.
+
+File utama: - server/src/services/spk.js -
+server/src/controllers/guruController.js - README.md -
+server/test/spk.test.js
+
+PRIORITAS 7 - PERBAIKI INPUT DAN AGREGASI KEHADIRAN
+
+Kondisi yang ditemukan: - client/src/views/guru/GuruKehadiran.vue
+menetapkan status default “hadir” jika belum ada catatan. - Saat
+disimpan, seluruh baris siswa dikirim. - Backend menggunakan
+findOrCreate berdasarkan siswaId dan tanggal. - Backend hanya
+memperbarui status dan keterangan jika status berubah. - Jika status
+tetap sama tetapi keterangan berubah, keterangan tidak diperbarui. -
+services/spk.js menghitung jumlah hadir dibagi seluruh catatan
+kehadiran. - Status izin, sakit, dan alpa semuanya tidak dihitung
+sebagai hadir.
+
+Dampak: 1. Data yang belum diisi berpotensi tersimpan sebagai hadir. 2.
+Perubahan keterangan saja tidak tersimpan. 3. Nilai kehadiran menganggap
+izin dan sakit sama-sama tidak hadir untuk skor, kecuali kebijakan
+sekolah menyatakan demikian.
+
+Perbaikan: 1. Gunakan status awal kosong/belum dipilih untuk tanggal
+yang belum memiliki catatan, atau buat mekanisme konfirmasi kehadiran
+yang eksplisit. 2. Wajibkan guru memilih status untuk setiap siswa
+sebelum menyimpan. 3. Jangan otomatis menyimpan “hadir” untuk data yang
+belum dikonfirmasi. 4. Perbarui keterangan meskipun status tidak
+berubah. 5. Pertahankan mekanisme findOrCreate/upsert dengan kunci unik
+yang sesuai. 6. Tentukan kebijakan apakah izin dan sakit dihitung
+sebagai tidak hadir atau dikecualikan dari denominator. 7.
+Dokumentasikan definisi persentase kehadiran. 8. Pastikan hanya hari
+sekolah yang masuk dalam denominator; jangan memasukkan hari libur atau
+hari tanpa kegiatan sekolah. 9. Pastikan data kehadiran tidak
+terduplikasi. 10. Pastikan perubahan status memicu notifikasi sesuai
+kebijakan.
+
+Rumus yang saat ini dipakai: Skor Kehadiran = Jumlah catatan berstatus
+hadir / Jumlah seluruh catatan kehadiran.
+
+Rumus ini hanya boleh dipertahankan jika pihak sekolah menyetujui bahwa
+izin dan sakit tetap dihitung sebagai tidak hadir untuk indikator yang
+digunakan penelitian.
+
+File terkait: - client/src/views/guru/GuruKehadiran.vue -
+server/src/controllers/guruController.js -
+server/src/models/kehadiran.js - server/src/services/spk.js -
+server/src/database/migrations/
+
+PRIORITAS 8 - PERJELAS AGREGASI NILAI AKADEMIK
+
+Kondisi yang ditemukan: - services/spk.js menghitung rata-rata seluruh
+baris nilai siswa. - Jika jumlah catatan antar mata pelajaran berbeda,
+mata pelajaran dengan lebih banyak catatan memberi pengaruh lebih
+besar. - Fungsi agregasiMapel() menghitung rata-rata per mata pelajaran
+untuk menemukan mata pelajaran terlemah, tetapi fungsi ini tidak dipakai
+untuk menghitung skor akademik keseluruhan.
+
+Perbaikan: 1. Tentukan apakah setiap catatan nilai memiliki bobot yang
+sama atau setiap mata pelajaran memiliki bobot yang sama. 2. Jika setiap
+mata pelajaran memiliki bobot sama, hitung rata-rata per mata pelajaran
+dahulu, kemudian rata-rata dari rata-rata mata pelajaran. 3. Jika setiap
+penilaian memiliki bobot sama, pertahankan rata-rata seluruh catatan
+tetapi jelaskan alasannya. 4. Tentukan apakah nilai yang digunakan
+adalah semua jenis penilaian atau hanya nilai tertentu. 5. Tentukan
+periode pengambilan nilai. 6. Pastikan nilai berada pada rentang 0
+sampai 100. 7. Pastikan data kosong menghasilkan status belum lengkap.
+8. Pertahankan fungsi mapelTerlemah untuk rekomendasi hanya jika
+definisi mapel terlemah sesuai dengan kebijakan sekolah.
+
+File terkait: - server/src/services/spk.js -
+server/src/controllers/guruController.js - server/src/models/nilai.js -
+server/test/spk.test.js
+
+PRIORITAS 9 - PERBAIKI KONFIGURASI SPK DI BACKEND
+
+Kondisi yang ditemukan: - spkController.js menerima dan menyimpan
+bobot. - Backend memeriksa setiap bobot berada di antara 0 dan 1. -
+Backend memeriksa jumlah bobot mendekati 1. - Interval diterima dan
+disimpan, tetapi urutan antarinterval belum diperiksa.
+
+Perbaikan: 1. Tambahkan validasi relasional antarinterval. 2. Tolak
+bobot jika ada nilai kosong yang tidak boleh kosong, NaN, atau nilai di
+luar rentang. 3. Pastikan pembaruan parsial tidak menyebabkan total
+bobot menjadi tidak valid. 4. Kembalikan nilai konfigurasi aktual
+setelah penyimpanan. 5. Catat perubahan konfigurasi penting untuk audit
+jika diperlukan. 6. Pastikan layanan SAW membaca konfigurasi terbaru.
+
+File terkait: - server/src/controllers/spkController.js -
+server/src/validators/index.js - server/src/models/settingSpk.js -
+server/src/services/spk.js
+
+PRIORITAS 10 - PERIKSA DUPLIKASI DAN PEMBARUAN DATA SIKAP
+
+Kondisi yang ditemukan: - guruSikapBulk() menggunakan Sikap.create()
+untuk setiap item. - Pengiriman ulang pada tanggal/jenis yang sama akan
+membuat baris baru. - Model Sikap memiliki siswaId, jenis, nilai,
+catatan, tanggal, dan relasi tahun ajaran. - Belum terlihat mekanisme
+update berdasarkan kombinasi siswa, jenis, tanggal, dan tahun ajaran
+pada fungsi tersebut.
+
+Perbaikan: 1. Tentukan apakah input sikap merupakan catatan harian
+tunggal atau histori banyak observasi. 2. Jika satu penilaian per siswa,
+jenis, tanggal, dan tahun ajaran, gunakan upsert/update berdasarkan
+kombinasi tersebut. 3. Tambahkan unique index yang sesuai jika kebijakan
+datanya memang satu baris per kombinasi. 4. Jika histori multi-observasi
+dibutuhkan, pertahankan insert baru tetapi tampilkan identitas
+waktu/observasi dan rumus agregasinya. 5. Pastikan pengiriman ulang
+tidak menggandakan skor tanpa disengaja.
+
+File terkait: - server/src/controllers/guruController.js -
+server/src/models/sikap.js - server/src/database/migrations/ -
+client/src/views/guru/GuruSikap.vue
+
+PRIORITAS 11 - NOTIFIKASI
+
+Kondisi yang ditemukan: - README menyatakan notifikasi ganda saat nilai
+baru diinput. - guruController.js mengirim notifikasi in-app dan
+WhatsApp melalui Fonnte saat nilai akademik baru disimpan. - Perubahan
+kehadiran mengirim notifikasi in-app. - Catatan sikap mengirim
+notifikasi in-app. - Pengiriman WhatsApp untuk perubahan kehadiran dan
+sikap belum ditunjukkan pada fungsi yang diperiksa.
+
+Perbaikan: 1. Samakan klaim skripsi dengan fitur yang benar-benar
+tersedia. 2. Jangan menyebut WhatsApp otomatis untuk semua jenis
+perubahan jika implementasinya hanya untuk nilai akademik. 3. Tentukan
+apakah notifikasi WhatsApp juga diperlukan untuk kehadiran dan sikap. 4.
+Jika ditambahkan, gunakan pengiriman asinkron dan penanganan kegagalan.
+5. Pastikan penerima notifikasi sesuai relasi siswa-orang tua. 6.
+Hindari pengiriman notifikasi ganda ketika data diperbarui tanpa
+perubahan substantif. 7. Dokumentasikan pemicu setiap notifikasi.
+
+File terkait: - server/src/controllers/guruController.js -
+server/src/services/fonnte.js - server/src/services/notification.js -
+README.md - client/src/stores/notifikasi.js
+
+PRIORITAS 12 - HAK AKSES DAN ABK
+
+Hal yang sudah terlihat: - Sistem memiliki pemisahan role. - Terdapat
+helper validasi akses kelas. - Layanan SAW mengembalikan hasil khusus
+untuk siswa dengan statusABK. - Unit test untuk akses kelas dan hasil
+ABK tersedia.
+
+Perbaikan/verifikasi lanjutan: 1. Pastikan wali kelas hanya dapat
+melihat/mengubah siswa pada kelas yang menjadi kewenangannya. 2.
+Pastikan orang tua hanya dapat melihat data anak yang terhubung ke
+akunnya. 3. Pastikan kepala sekolah hanya memiliki hak sesuai kebijakan
+sistem. 4. Pastikan siswa ABK tetap muncul di dashboard dan laporan,
+tetapi tidak memiliki skor SAW otomatis. 5. Pastikan rekomendasi ABK
+tidak dianggap sebagai rekomendasi klasifikasi normal. 6. Periksa semua
+endpoint, bukan hanya tampilan frontend. 7. Pertahankan dan perluas unit
+test hak akses yang sudah tersedia.
+
+File terkait: - server/src/services/aksesKelas.js -
+server/src/controllers/ - server/src/middlewares/ -
+server/test/aksesKelas.test.js - server/test/security.test.js -
+server/src/services/spk.js
+
+PRIORITAS 13 - DASHBOARD DAN LAPORAN
+
+Perbaikan/verifikasi: 1. Pastikan dashboard mengambil hasil dari layanan
+SAW yang sama. 2. Pastikan dashboard wali kelas, kepala sekolah, dan
+orang tua menampilkan skor dan kategori yang sama untuk data yang sama.
+3. Pastikan status data belum lengkap dibedakan dari kategori berisiko.
+4. Pastikan siswa ABK tetap terlihat. 5. Pastikan rekomendasi pada
+dashboard sama dengan hasil Rule-Based. 6. Pastikan laporan PDF memakai
+data dan periode yang sama dengan dashboard. 7. Pastikan filter kelas
+dan tahun ajaran diterapkan konsisten. 8. Pastikan data pribadi siswa
+hanya ditampilkan kepada pengguna yang berhak.
+
+File terkait: - client/src/views/guru/ - client/src/views/kepsek/ -
+client/src/views/orangtua/ - server/src/controllers/guruController.js -
+server/src/controllers/kepsekController.js -
+server/src/controllers/ortuController.js - server/src/services/spk.js
+
+======================================================================
+C. KEPUTUSAN PENELITIAN YANG HARUS DIKONFIRMASI SEBELUM KODE DIUBAH
+======================================================================
+
+Keputusan 1 - Arah skala sikap - Apakah 1 = Kurang dan 5 = Sangat
+Baik? - Atau 1 = Sangat Baik dan 5 = Kurang? Sumber keputusan: instrumen
+asli sekolah dan konfirmasi kepala sekolah/wali kelas.
+
+Keputusan 2 - Bentuk pencatatan sikap - Apakah guru menilai semua siswa
+secara rutin dengan skor 1-5? - Atau guru hanya mencatat
+kejadian/penyimpangan dari kondisi normal? Dua model tersebut
+membutuhkan desain data dan agregasi yang berbeda.
+
+Keputusan 3 - Bobot SAW - Bobot mentah 4, 4, 5 dikonfirmasi berasal dari
+wawancara. - Perlu bukti/catatan wawancara atau lembar validasi yang
+menunjukkan angka tersebut. - Bobot normalisasi: 4/13, 4/13, 5/13. -
+Nilai pembulatan dua desimal: 0,31; 0,31; 0,38.
+
+Keputusan 4 - Definisi kehadiran - Apakah sakit dan izin dihitung
+sebagai tidak hadir? - Apakah hanya alpa yang mengurangi skor? - Apakah
+denominator hanya hari sekolah yang benar-benar berlangsung? Sumber
+keputusan: kebijakan pencatatan kehadiran sekolah.
+
+Keputusan 5 - Agregasi akademik - Apakah seluruh catatan nilai diberi
+bobot sama? - Atau setiap mata pelajaran diberi bobot sama? - Apakah ada
+bobot jenis penilaian? Sumber keputusan: kebijakan penilaian sekolah dan
+rancangan penelitian.
+
+Keputusan 6 - Ambang rekomendasi Rule-Based - Akademik < 0,65. - Sikap <
+0,65. - Kehadiran < 0,80. Konfirmasi apakah ambang ini merupakan
+ketetapan penelitian/sekolah atau hanya nilai awal dari implementasi.
+
+Keputusan 7 - Kombinasi rekomendasi Tentukan hasil untuk kondisi dua
+atau tiga kriteria rendah. Jangan membiarkan tipe utama rekomendasi
+ditentukan hanya karena urutan if dalam kode.
+
+Keputusan 8 - Data minimum Tentukan periode dan jumlah minimal data agar
+seorang siswa dapat diklasifikasikan. Jika data belum cukup, tampilkan
+status belum lengkap.
+
+======================================================================
+D. SPESIFIKASI PERILAKU SISTEM SETELAH PERBAIKAN
+======================================================================
+
+1.  Input sikap:
+    -   Nilai valid 1-5.
+    -   Label mengikuti instrumen sekolah.
+    -   Belum dinilai berbeda dari nilai 1 atau nilai 5.
+    -   Nilai 3 tidak boleh hilang dari agregasi jika memang merupakan
+        hasil pengamatan.
+    -   Pengiriman ulang mengikuti kebijakan update atau histori.
+2.  Input kehadiran:
+    -   Status valid: hadir, izin, sakit, alpa.
+    -   Status belum diisi tidak otomatis menjadi hadir.
+    -   Keterangan dapat diperbarui walaupun status tetap sama.
+    -   Hanya hari sekolah yang masuk perhitungan.
+3.  Perhitungan SAW:
+    -   Akademik, kehadiran, dan sikap berada pada rentang 0-1.
+    -   Semua kriteria memiliki arah yang sama: skor lebih tinggi
+        berarti kondisi lebih baik.
+    -   Bobot berjumlah 1.
+    -   Bobot 4,4,5 dinormalisasi secara konsisten.
+    -   Data tidak lengkap tidak menghasilkan klasifikasi normal.
+    -   ABK dikecualikan dari klasifikasi otomatis.
+4.  Klasifikasi:
+    -   Batas interval divalidasi.
+    -   Tidak ada rentang skor yang tidak terdefinisi.
+    -   Nilai tepat pada batas memiliki kategori yang konsisten.
+    -   Konfigurasi admin benar-benar digunakan oleh layanan SAW.
+5.  Rule-Based:
+    -   Ambang kriteria terdokumentasi.
+    -   Kombinasi kondisi memiliki hasil yang jelas.
+    -   Rekomendasi data lengkap dan ABK dibedakan.
+    -   Data belum lengkap tidak menerima rekomendasi kondisi
+        baik/berisiko.
+6.  Dashboard:
+    -   Semua role menampilkan hasil yang konsisten.
+    -   Status data belum lengkap terlihat.
+    -   ABK tetap masuk rekap monitoring.
+    -   Rekomendasi berasal dari fungsi Rule-Based yang sama.
+
+======================================================================
+E. URUTAN PELAKSANAAN PERBAIKAN
+======================================================================
+
+Tahap 1 - Konfirmasi kebijakan sekolah - Pastikan arah skala 1-5. -
+Pastikan model pencatatan sikap. - Pastikan definisi kehadiran. -
+Pastikan cara agregasi akademik. - Pastikan ambang rekomendasi. -
+Pastikan aturan data minimum.
+
+Tahap 2 - Perbaikan skema dan input data - Perbaiki form sikap. -
+Perbaiki validasi frontend dan backend. - Perbaiki pencatatan nilai
+normal/default. - Perbaiki form kehadiran. - Perbaiki update dan
+duplikasi data. - Periksa kebutuhan migrasi database.
+
+Tahap 3 - Perbaikan SAW - Perbaiki normalisasi sikap. - Perjelas
+agregasi akademik. - Perjelas skor kehadiran. - Perbaiki penanganan data
+kosong. - Perbaiki bobot dan interval. - Pastikan hasil SAW satu sumber
+untuk semua dashboard.
+
+Tahap 4 - Perbaikan Rule-Based - Definisikan ambang per kriteria. -
+Definisikan kombinasi kondisi. - Tentukan tipe rekomendasi gabungan. -
+Integrasikan status ABK dan data belum lengkap.
+
+Tahap 5 - Perbaikan integrasi - Periksa dashboard. - Periksa laporan
+PDF. - Periksa notifikasi in-app. - Periksa Fonnte. - Periksa
+Socket.io. - Periksa hak akses dan relasi data.
+
+Tahap 6 - Penyelarasan laporan skripsi - Bab II: teori SAW dan
+Rule-Based sesuai rumus final. - Bab III: kriteria, bobot, skala, sumber
+data, dan prosedur perhitungan. - Bab IV: screenshot dan penjelasan
+harus sesuai versi aplikasi final. - README dan dokumentasi teknis
+diperbarui. - Bab V ditulis setelah hasil penelitian dan pengujian
+tersedia.
+
+Tahap 7 - Pengujian (ditunda sesuai permintaan peneliti) Pengujian Black
+Box, unit test, pengujian perhitungan manual vs sistem, dan UAT belum
+dikerjakan pada tahap dokumen rencana ini. Pengujian dilakukan setelah
+perbaikan kode selesai.
+
+======================================================================
+F. KRITERIA SELESAI / ACCEPTANCE CRITERIA
+======================================================================
+
+Perbaikan dianggap selesai apabila: 1. Semua lapisan menerima dan
+menyimpan nilai sikap 1-5. 2. Arah skala sikap sesuai instrumen resmi
+sekolah. 3. Seluruh pengamatan sikap yang valid ikut dalam agregasi. 4.
+Data yang belum dinilai tidak dianggap sempurna atau buruk. 5. Data
+kriteria yang belum lengkap tidak diberi klasifikasi otomatis. 6. Bobot
+yang ditampilkan, disimpan, dan dipakai perhitungan sama. 7. Slider
+konfigurasi SPK benar-benar mengubah data yang disimpan. 8. Interval
+klasifikasi tervalidasi dan benar-benar digunakan. 9. Rekomendasi
+Rule-Based mengikuti tabel keputusan yang disetujui. 10. Status hadir
+tidak ditetapkan otomatis tanpa konfirmasi guru. 11. Keterangan
+kehadiran dapat diperbarui. 12. Agregasi akademik dan kehadiran
+mengikuti kebijakan sekolah. 13. ABK tetap terlihat dalam monitoring
+tetapi tidak dihitung dengan SAW otomatis. 14. Dashboard dan PDF
+menampilkan hasil yang sama. 15. Laporan skripsi menggambarkan perilaku
+aplikasi yang benar-benar ada.
+
+======================================================================
+G. STATUS AUDIT SAAT DOKUMEN INI DIBUAT
+======================================================================
+
+Sudah ditemukan dari pemeriksaan source code: - Skala sikap masih 1-4
+pada frontend, validator, controller, layanan SAW, test, README, dan
+seed data. - Nilai default 3 tidak dikirim dari form sikap. - Nilai
+sikap yang tidak dikirim tidak ikut rata-rata. - Data sikap kosong
+dianggap sempurna. - Data akademik/kehadiran kosong tetap menghasilkan
+skor. - Slider bobot tidak memperbarui form utama karena menggunakan
+nilai salinan dari computed. - Fungsi sync() kosong. - Interval berisiko
+disimpan tetapi tidak dipakai pada klasifikasi. - Ambang Rule-Based
+ditulis tetap. - Kehadiran baru default menjadi hadir pada frontend. -
+Keterangan kehadiran tidak diperbarui ketika status sama. - Rata-rata
+akademik dihitung dari seluruh baris nilai, bukan rata-rata per mata
+pelajaran terlebih dahulu. - Test SAW masih menguji perilaku skala 1-4
+dan data kosong lama.
+
+Belum dilakukan: - Perubahan source code. - Migrasi database. -
+Pengujian runtime. - Pengujian Black Box. - UAT. - Pengujian integrasi
+Fonnte/Socket.io. - Verifikasi hasil pada server produksi.
+
+Catatan teknis: ZIP tidak menyertakan folder node_modules. Karena itu,
+audit ini merupakan pemeriksaan statis. Unit test belum dijalankan pada
+saat dokumen ini dibuat. Setelah dependensi dipasang dari
+package-lock.json, jalankan lint, unit test, build, dan pengujian
+integrasi secara bertahap.
+
+PENTING: Jangan langsung mengubah seluruh kode berdasarkan asumsi.
+Selesaikan keputusan kebijakan sekolah pada Bagian C terlebih dahulu.
+Simpan salinan/branch backup sebelum perubahan, gunakan data uji
+tersamarkan, dan jangan memasukkan token Fonnte, JWT secret, file .env,
+atau data pribadi siswa ke repositori publik.
+
+AKHIR DOKUMEN

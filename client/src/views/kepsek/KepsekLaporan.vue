@@ -23,6 +23,7 @@
             <option value="aman">Baik / Aman</option>
             <option value="perhatian">Perlu Perhatian</option>
             <option value="berisiko">Berisiko</option>
+            <option value="data_belum_lengkap">Data Belum Lengkap</option>
             <option value="abk">ABK</option>
           </select>
         </div>
@@ -134,7 +135,8 @@ const kategoriLabels = {
   aman: 'Baik / Aman',
   perhatian: 'Perlu Perhatian',
   berisiko: 'Berisiko',
-  abk: 'ABK'
+  abk: 'ABK',
+  data_belum_lengkap: 'Data Belum Lengkap'
 }
 
 function kategoriLabel(k) {

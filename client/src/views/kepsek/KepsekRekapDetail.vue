@@ -101,7 +101,8 @@ const LABEL_KONDISI = {
   aman: 'Aman',
   perhatian: 'Perlu Perhatian',
   berisiko: 'Berisiko',
-  abk: 'ABK'
+  abk: 'ABK',
+  data_belum_lengkap: 'Data Belum Lengkap'
 }
 
 function exportData() {

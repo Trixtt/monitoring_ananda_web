@@ -1,0 +1,104 @@
+KEPUTUSAN DAN ASUMSI IMPLEMENTASI TAHAP 1
+MONITORING ANANDA — SD NEGERI 4 KELING
+
+Dokumen ini menyatukan:
+1. Keputusan yang SUDAH ditegaskan dalam
+   diagram/Spesifikasi_Teknis_Tahap_1_Monitoring_Ananda.txt.
+2. Pilihan konservatif yang dipakai implementasi untuk keputusan yang
+   MASIH TERBUKA di Bagian 6 dokumen tersebut.
+
+Pilihan pada poin 2 BUKAN kebijakan sekolah yang final. Jika sekolah
+menetapkan aturan berbeda, ubah konstanta/aturan yang disebut di kolom
+"Lokasi kode" lalu perbarui unit test dan dokumentasi ini.
+
+=====================================================================
+1. KEPUTUSAN YANG SUDAH DIKONFIRMASI (TIDAK DIASUMSIKAN)
+=====================================================================
+
+A. Sikap berbasis kejadian (event-based), bukan penilaian rutin harian.
+B. Skala sikap 1-5; 1 = Kurang, 5 = Sangat Baik.
+   Normalisasi benefit: R_S = (rata-rata kejadian - 1) / 4.
+C. Kehadiran efektif = hadir + izin + sakit. Hanya alpa yang menurunkan
+   skor.
+D. Bobot SAW = 4:4:5 untuk Akademik:Kehadiran:Sikap, total 13. Backend
+   memakai 4/13, 4/13, 5/13; pembulatan dua desimal hanya untuk UI.
+
+=====================================================================
+2. ASUMSI KONSERVATIF UNTUK 10 KEPUTUSAN YANG MASIH TERBUKA
+=====================================================================
+
+No | Keputusan spesifikasi | Pilihan implementasi | Alasan | Lokasi kode
+---|------------------------|----------------------|--------|------------
+1  | Agregasi kejadian sikap | Rata-rata semua kejadian; setiap kejadian bobot sama | Paling dekat dengan perilaku lama dan merupakan rekomendasi awal dokumen | services/spk.js -> hitungSkorData()
+2  | Tidak ada kejadian sikap | Dianggap Data Belum Lengkap. TIDAK diberi skor 5 | Kebijakan "tanpa kejadian = sangat baik" belum disetujui dan belum ada mekanisme konfirmasi pemantauan | services/spk.js -> kelengkapan.sikap
+3  | Spiritual vs sosial | Semua kejadian digabung dalam satu rata-rata (bobot per kejadian sama) | Perubahan minimal; dokumen menyarankan ini sampai ada persetujuan agregasi per jenis | services/spk.js -> sikapAngka
+4  | Periode penilaian | Tahun ajaran aktif; bila ada rentang tanggal (laporan), rentang tersebut yang dipakai | Menyesuaikan perilaku aplikasi yang sudah ada | controllers/* -> tahunAktif(); services/spk.js -> whereTanggal()
+5  | Denominator kehadiran | Jumlah tanggal unik yang tercatat pada tahun ajaran/periode. Setiap siswa wajib memiliki catatan untuk semua tanggal tersebut | Belum ada kalender hari sekolah. Ini proxy terbaik sekaligus memberi validasi cakupan, bukan sekadar menghitung jumlah baris | services/spk.js -> jumlahHariSekolah()
+6  | Agregasi akademik | Rata-rata semua catatan nilai | Sesuai perilaku lama; tidak diubah tanpa persetujuan | services/spk.js -> rataNilai
+7  | Interval klasifikasi | Dipertahankan 0,67 / 0,34 / 0,00, tetapi sekarang divalidasi urutannya dan batas berisiko dipakai eksplisit | Nilai lama dipakai sementara; validasi mencegah konfigurasi tidak masuk akal | validators/index.js; controllers/spkController.js
+8  | Ambang rule-based | Dipertahankan 0,65 akademik, 0,65 sikap, 0,80 kehadiran | Belum ada dasar pengganti; ditandai sebagai sementara | services/spk.js -> rekomendasiUntuk()
+9  | Kombinasi rekomendasi | Jika >= 2 kriteria rendah, tipe = "gabungan" dan semua rekomendasi relevan dicantumkan (termasuk kehadiran) | Menutup temuan lama bahwa kehadiran hilang saat kriteria lain rendah | services/spk.js -> rekomendasiUntuk()
+10 | Bobot dapat diubah admin | Ya, masih dapat diubah, dengan validasi total = 1 dan urutan interval | Menghindari perubahan hak akses tanpa keputusan sekolah; perubahan dicatat oleh audit log aplikasi yang sudah ada | AdminSpk.vue; spkController.js
+
+Label nilai sikap 2-4 memakai "Cukup", "Baik", "Baik Sekali" sebagai
+label sementara. Label 1 ("Kurang") dan 5 ("Sangat Baik") sesuai
+keputusan sekolah. Label 2-4 harus diganti bila instrumen sekolah
+menetapkan nama lain (client/src/utils/format.js -> labelSikap).
+
+=====================================================================
+3. CONTOH PERHITUNGAN MANUAL (ACUAN UNIT TEST)
+=====================================================================
+
+Setting: W_A = 4/13, W_K = 4/13, W_S = 5/13; aman >= 0,67;
+perhatian >= 0,34; berisiko < 0,34.
+
+Contoh 1 — semua kriteria lengkap dan baik
+  Nilai akademik: 100                -> R_A = 1,00
+  Kehadiran: hadir, izin, sakit (3 hari tercatat, 3 hari wajib)
+                                     -> R_K = 3/3 = 1,00
+  Sikap: satu kejadian nilai 5        -> R_S = (5-1)/4 = 1,00
+  Vi = 1*(4/13) + 1*(4/13) + 1*(5/13) = 1,0000 -> Baik / Aman
+
+Contoh 2 — izin/sakit tidak menurunkan skor, alpa menurunkan
+  Kehadiran: hadir, izin, sakit, alpa (4 hari wajib)
+                                     -> R_K = 3/4 = 0,75
+  Sikap: satu kejadian nilai 3        -> R_S = (3-1)/4 = 0,50
+  Akademik: rata-rata 85              -> R_A = 0,85
+  Vi = 0,85*(4/13) + 0,75*(4/13) + 0,50*(5/13)
+     = 8,9/13 = 0,6846 -> Baik / Aman
+
+Contoh 3 — tanpa catatan sikap
+  Akademik 90, kehadiran lengkap, sikap tidak ada
+  -> kategori Data Belum Lengkap, skor = null (BUKAN Berisiko)
+
+Contoh 4 — sebagian hari sekolah belum dicatat
+  3 catatan kehadiran untuk siswa, tetapi 4 tanggal tercatat di kelas
+  -> kategori Data Belum Lengkap, skor = null
+
+Contoh 5 — siswa ABK
+  -> kategori ABK, skor = null, tidak digabung dengan Data Belum Lengkap
+
+=====================================================================
+4. CATATAN IMPLEMENTASI / MIGRASI
+=====================================================================
+
+- Kolom `sikap.nilai` sudah INTEGER tanpa constraint 1-4, sehingga skala
+  1-5 tidak memerlukan perubahan skema. Validasi ada di Zod dan controller.
+- Unique index `kehadiran(siswaId, tanggal)` sudah dipasang oleh migrasi
+  hardening sebelumnya, sehingga pengiriman ulang tidak membuat baris ganda.
+- Migrasi 20261125000000-tahap-1-saw.cjs menyamakan bobot pada baris
+  setting_spk yang sudah ada ke rasio presisi 4/13, 4/13, 5/13.
+- Duplikasi kejadian sikap dicegah di aplikasi dengan kunci
+  (siswaId, jenis, nilai, catatan, tanggal, tahunAjaranId).
+- Status baru "Data Belum Lengkap" memakai kode `data_belum_lengkap`
+  dan tersedia pada StatusBadge, rekap kelas/kepsek, filter, serta laporan.
+
+Pengujian yang dijalankan setelah perubahan:
+  npm test --prefix server
+  npm run lint --prefix server
+  npm test --prefix client
+  npm run lint --prefix client
+  npm run build --prefix client
+
+Belum dijalankan: Black Box, UAT, dan perbandingan manual dengan sistem
+lama (sesuai batas spesifikasi Tahap 1).

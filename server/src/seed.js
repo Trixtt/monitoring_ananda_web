@@ -222,17 +222,19 @@ async function seed() {
           tahunAjaranId: taAktif.id
         })
       }
-      await Sikap.create({ siswaId: siswa.id, jenis: 'spiritual', nilai: 2 + Math.round(Math.random() * 2), tanggal: '2026-02-15', tahunAjaranId: taAktif.id })
-      await Sikap.create({ siswaId: siswa.id, jenis: 'sosial', nilai: 2 + Math.round(Math.random() * 2), tanggal: '2026-02-15', tahunAjaranId: taAktif.id })
+      // Catatan kejadian sikap memakai skala 1-5 (1 = Kurang, 5 = Sangat Baik).
+      await Sikap.create({ siswaId: siswa.id, jenis: 'spiritual', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2026-02-15', catatan: 'Contoh kejadian spiritual', tahunAjaranId: taAktif.id })
+      await Sikap.create({ siswaId: siswa.id, jenis: 'sosial', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2026-02-15', catatan: 'Contoh kejadian sosial', tahunAjaranId: taAktif.id })
     }
   }
 
   const spkAda = (await SettingSpk.count()) > 0
   if (!spkAda) {
     await SettingSpk.create({
-      bobotAkademik: 0.31,
-      bobotKehadiran: 0.31,
-      bobotSikap: 0.38,
+      // Rasio presisi 4:4:5. Tampilan dibulatkan menjadi 31%, 31%, 38%.
+      bobotAkademik: 4 / 13,
+      bobotKehadiran: 4 / 13,
+      bobotSikap: 5 / 13,
       intervalBaikBawah: 0.67,
       intervalPerhatianBawah: 0.34,
       intervalBerisikoBawah: 0.0

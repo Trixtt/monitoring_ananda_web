@@ -97,13 +97,13 @@ const loading = ref(true)
 const downloading = ref(false)
 
 const skorBars = computed(() => {
-  if (!data.value || data.value.skor.abk) return []
+  if (!data.value || data.value.skor.abk || data.value.skor.skor == null) return []
   const s = data.value.skor
   return [
     { key: 'akademik', label: 'Akademik', value: s.skorAkademik, color: 'bg-dark-teal' },
     { key: 'kehadiran', label: 'Kehadiran', value: s.skorKehadiran, color: 'bg-sky-600' },
     { key: 'sikap', label: 'Sikap', value: s.skorSikap, color: 'bg-purple-600' }
-  ]
+  ].filter((bar) => bar.value != null)
 })
 
 async function unduhPdf() {

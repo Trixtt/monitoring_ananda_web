@@ -207,12 +207,12 @@ const ringkasKehadiran = computed(() => {
 })
 
 const breakdown = computed(() => {
-  if (!skor.value || skor.value.abk) return []
+  if (!skor.value || skor.value.abk || skor.value.skor == null) return []
   return [
     { label: 'Nilai Akademik', value: skor.value.skorAkademik },
     { label: 'Kehadiran', value: skor.value.skorKehadiran },
     { label: 'Sikap', value: skor.value.skorSikap }
-  ]
+  ].filter((bar) => bar.value != null)
 })
 
 const borderRekomendasi = computed(() => {
@@ -221,6 +221,8 @@ const borderRekomendasi = computed(() => {
     akademik: 'border-status-perhatian',
     kehadiran: 'border-status-berisiko',
     sikap: 'border-status-perhatian',
+    gabungan: 'border-status-berisiko',
+    data_belum_lengkap: 'border-outline-variant',
     baik: 'border-status-aman'
   }
   return map[rekomendasi.value?.tipe] || 'border-dark-teal'

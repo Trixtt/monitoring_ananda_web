@@ -2,7 +2,8 @@ export const kategoriSiswa = {
   aman: { label: 'Baik / Aman', bg: 'bg-status-aman/15', text: 'text-status-aman', dot: 'bg-status-aman', icon: 'check_circle' },
   perhatian: { label: 'Perlu Perhatian', bg: 'bg-status-perhatian/20', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-status-perhatian', icon: 'priority_high' },
   berisiko: { label: 'Berisiko', bg: 'bg-status-berisiko/15', text: 'text-status-berisiko', dot: 'bg-status-berisiko', icon: 'warning' },
-  abk: { label: 'ABK', bg: 'bg-status-abk/15', text: 'text-status-abk', dot: 'bg-status-abk', icon: 'accessibility_new' }
+  abk: { label: 'ABK', bg: 'bg-status-abk/15', text: 'text-status-abk', dot: 'bg-status-abk', icon: 'accessibility_new' },
+  data_belum_lengkap: { label: 'Data Belum Lengkap', bg: 'bg-surface-container-low dark:bg-white/10', text: 'text-on-surface-variant dark:text-ice-white/70', dot: 'bg-on-surface-variant', icon: 'help_outline' }
 }
 
 export function kategoriInfo(kode) {
@@ -16,11 +17,14 @@ export const kehadiranMap = {
   alpa: { label: 'Alpa', cls: 'bg-status-berisiko/15 text-status-berisiko' }
 }
 
+// 1 dan 5 mengikuti keputusan sekolah. Label 2-4 bersifat sementara
+// menunggu instrumen resmi sekolah (lihat dokumen keputusan Tahap 1).
 export const labelSikap = {
   1: 'Kurang',
   2: 'Cukup',
   3: 'Baik',
-  4: 'Sangat Baik'
+  4: 'Baik Sekali',
+  5: 'Sangat Baik'
 }
 
 export function formatTanggal(iso) {

@@ -14,10 +14,11 @@
     <div v-if="loading && !data"><LoadingState skeleton variant="table" /></div>
 
     <template v-else-if="data">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Baik / Aman" :value="ringkas.aman" icon="check_circle" tone="green" />
         <StatCard label="Perlu Perhatian" :value="ringkas.perhatian" icon="priority_high" tone="amber" />
         <StatCard label="Berisiko" :value="ringkas.berisiko" icon="warning" tone="red" />
+        <StatCard label="Data Belum Lengkap" :value="ringkas.data_belum_lengkap" icon="help_outline" tone="slate" />
         <StatCard label="ABK" :value="ringkas.abk" icon="accessibility_new" tone="purple" />
       </div>
 
@@ -38,6 +39,7 @@
               <option value="aman">Baik / Aman</option>
               <option value="perhatian">Perlu Perhatian</option>
               <option value="berisiko">Berisiko</option>
+              <option value="data_belum_lengkap">Data Belum Lengkap</option>
               <option value="abk">ABK</option>
             </select>
           </div>
@@ -120,7 +122,7 @@ const filterKategori = ref('')
 const cari = ref('')
 
 const ringkas = computed(() => {
-  const r = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: data.value?.list.length || 0 }
+  const r = { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, total: data.value?.list.length || 0 }
   data.value?.list.forEach((it) => {
     if (it.skor.kategori.kode in r) r[it.skor.kategori.kode]++
   })
@@ -140,8 +142,8 @@ const filtered = computed(() => {
     )
   }
   return [...list].sort((a, b) => {
-    const sa = a.skor.abk ? -1 : a.skor.skor
-    const sb = b.skor.abk ? -1 : b.skor.skor
+    const sa = a.skor.abk || a.skor.skor == null ? -1 : a.skor.skor
+    const sb = b.skor.abk || b.skor.skor == null ? -1 : b.skor.skor
     return sb - sa
   })
 })

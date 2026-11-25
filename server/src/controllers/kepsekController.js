@@ -24,7 +24,7 @@ export async function kepsekRingkasan(req, res) {
   const ringkasPerKelas = new Map()
   for (const { siswa, hasil } of hasilSemua) {
     if (!ringkasPerKelas.has(siswa.kelasId)) {
-      ringkasPerKelas.set(siswa.kelasId, { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: 0 })
+      ringkasPerKelas.set(siswa.kelasId, { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, total: 0 })
     }
     const r = ringkasPerKelas.get(siswa.kelasId)
     r.total++
@@ -32,10 +32,10 @@ export async function kepsekRingkasan(req, res) {
   }
 
   const perKelas = []
-  const total = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, siswa: 0 }
+  const total = { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, siswa: 0 }
 
   for (const kelas of kelasList) {
-    const ringkas = ringkasPerKelas.get(kelas.id) || { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: 0 }
+    const ringkas = ringkasPerKelas.get(kelas.id) || { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, total: 0 }
     perKelas.push({
       kelas: { id: kelas.id, nama: kelas.nama, tingkat: kelas.tingkat, waliKelas: kelas.waliKelas },
       ...ringkas
@@ -43,6 +43,7 @@ export async function kepsekRingkasan(req, res) {
     total.aman += ringkas.aman
     total.perhatian += ringkas.perhatian
     total.berisiko += ringkas.berisiko
+    total.data_belum_lengkap += ringkas.data_belum_lengkap
     total.abk += ringkas.abk
     total.siswa += ringkas.total
   }
@@ -103,7 +104,7 @@ export async function kepsekDetailKelas(req, res) {
   })
   const hasilSemua = await hitungSemuaSiswa(siswaList, ta?.id)
 
-  const ringkas = { aman: 0, perhatian: 0, berisiko: 0, abk: 0, total: hasilSemua.length }
+  const ringkas = { aman: 0, perhatian: 0, berisiko: 0, data_belum_lengkap: 0, abk: 0, total: hasilSemua.length }
   for (const { hasil } of hasilSemua) {
     if (hasil.kategori.kode in ringkas) ringkas[hasil.kategori.kode]++
   }
@@ -160,7 +161,7 @@ export async function kepsekGenerateLaporan(req, res) {
   }
 
   const labelKelas = kelasList.length === 1 ? kelasList[0].nama : `${kelasList.length} kelas`
-  const labelKategori = kategori ? { aman: 'Baik/Aman', perhatian: 'Perlu Perhatian', berisiko: 'Berisiko', abk: 'ABK' }[kategori] || kategori : 'Semua Kondisi'
+  const labelKategori = kategori ? { aman: 'Baik/Aman', perhatian: 'Perlu Perhatian', berisiko: 'Berisiko', abk: 'ABK', data_belum_lengkap: 'Data Belum Lengkap' }[kategori] || kategori : 'Semua Kondisi'
   const labelPeriode = rentang ? `${tanggalMulai || '…'} s/d ${tanggalAkhir || '…'}` : 'Seluruh Periode'
   const judulLaporan =
     judul?.trim() || `Laporan Siswa ${labelKategori} - ${labelKelas} (${labelPeriode})`

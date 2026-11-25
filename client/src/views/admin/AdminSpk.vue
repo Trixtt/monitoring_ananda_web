@@ -10,14 +10,17 @@
     <form v-else @submit.prevent="save" class="grid md:grid-cols-2 gap-6 items-start">
       <div class="card p-6">
         <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Bobot Kriteria</h2>
-        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">Jumlah bobot harus sama dengan 1 (100%).</p>
+        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">
+          Jumlah bobot harus 100%. Nilai bawaan adalah 4:4:5 (tampilan dibulatkan menjadi 31%, 31%, 38%;
+          perhitungan backend memakai 4/13, 4/13, 5/13).
+        </p>
         <div class="space-y-4">
           <div v-for="b in bobotFields" :key="b.key">
             <div class="flex justify-between font-label-md mb-1">
               <span class="text-on-surface-variant dark:text-ice-white/60">{{ b.label }}</span>
               <span class="text-deep-navy dark:text-ice-white">{{ b.value }}%</span>
             </div>
-            <input v-model.number="b.value" type="range" min="0" max="100" step="1" class="w-full accent-dark-teal" @input="sync" />
+            <input :value="b.value" type="range" min="0" max="100" step="1" class="w-full accent-dark-teal" :aria-label="`Bobot ${b.label}`" @input="setBobot(b.key, $event)" />
           </div>
           <div class="flex items-center justify-between rounded-lg px-4 py-3 font-label-md" :class="total === 100 ? 'bg-status-aman/10 text-status-aman' : 'bg-status-berisiko/10 text-status-berisiko'">
             <span>Total Bobot</span>
@@ -89,7 +92,11 @@ const bobotFields = computed(() => [
 
 const total = computed(() => bobotFields.value.reduce((a, b) => a + b.value, 0))
 
-function sync() {}
+function setBobot(key, event) {
+  // computed bobotFields hanya berisi salinan nilai; tulis langsung ke form
+  // agar perubahan slider benar-benar ikut terkirim saat simpan.
+  form.value[key] = Number(event.target.value)
+}
 
 async function load() {
   loading.value = true
@@ -113,6 +120,11 @@ async function save() {
   error.value = ''
   if (total.value !== 100) {
     error.value = `Total bobot harus 100%. Saat ini ${total.value}%.`
+    return
+  }
+  if (!(form.value.intervalBaikBawah > form.value.intervalPerhatianBawah &&
+        form.value.intervalPerhatianBawah > form.value.intervalBerisikoBawah)) {
+    error.value = 'Interval harus berurutan: Baik > Perhatian > Berisiko.'
     return
   }
   saving.value = true

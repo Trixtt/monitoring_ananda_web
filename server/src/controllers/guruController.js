@@ -190,9 +190,11 @@ export async function guruKehadiranBulk(req, res) {
         transaction: t
       })
       const statusLama = dibuat ? null : row.status
-      if (row.status !== item.status) {
+      const keteranganBaru = String(item.keterangan || '').trim() || null
+      // Keterangan ikut diperbarui walaupun statusnya tidak berubah.
+      if (row.status !== item.status || row.keterangan !== keteranganBaru) {
         row.status = item.status
-        row.keterangan = item.keterangan || null
+        row.keterangan = keteranganBaru
         await row.save({ transaction: t })
       }
       if (item.status !== 'hadir' && statusLama !== item.status) {
@@ -255,13 +257,15 @@ export async function guruSikapBulk(req, res) {
     return res.status(400).json({ message: 'Data sikap wajib diisi.' })
   }
   const ta = await tahunAktif()
-  const valid = [1, 2, 3, 4]
+  const valid = [1, 2, 3, 4, 5]
 
   const akses = await validasiSiswaDalamKelas(req.user, daftar.map((item) => item.siswaId))
   if (akses.status) return res.status(akses.status).json({ message: akses.message })
 
   let tersimpan = 0
+  let duplikat = 0
   const perluNotifikasi = []
+  const sudahDalamBerkas = new Set()
   await sequelize.transaction(async (t) => {
     for (const item of daftar) {
       if (!item.siswaId || !valid.includes(Number(item.nilai))) continue
@@ -269,6 +273,30 @@ export async function guruSikapBulk(req, res) {
       const nilai = Number(item.nilai)
       const catatan = String(item.catatan || '').trim()
       const tanggalSikap = item.tanggal || new Date().toISOString().slice(0, 10)
+
+      // Cegah kejadian ganda akibat pengiriman ulang form yang sama.
+      const kunci = [item.siswaId, jenis, nilai, catatan, tanggalSikap, ta?.id || ''].join('|')
+      if (sudahDalamBerkas.has(kunci)) {
+        duplikat++
+        continue
+      }
+      sudahDalamBerkas.add(kunci)
+      const ada = await Sikap.findOne({
+        where: {
+          siswaId: item.siswaId,
+          jenis,
+          nilai,
+          catatan: catatan || null,
+          tanggal: tanggalSikap,
+          tahunAjaranId: ta?.id || null
+        },
+        transaction: t
+      })
+      if (ada) {
+        duplikat++
+        continue
+      }
+
       await Sikap.create({
         siswaId: item.siswaId,
         jenis,
@@ -313,7 +341,8 @@ export async function guruSikapBulk(req, res) {
     }
   }
 
-  return res.json({ message: `${tersimpan} penilaian sikap disimpan.` })
+  const infoDuplikat = duplikat ? ` ${duplikat} kejadian duplikat dilewati.` : ''
+  return res.json({ message: `${tersimpan} penilaian sikap disimpan.${infoDuplikat}`, tersimpan, duplikat })
 }
 
 export async function guruSikapBySiswa(req, res) {

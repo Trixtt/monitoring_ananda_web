@@ -3,6 +3,10 @@
     <div>
       <h1 class="page-title">Rekap Kehadiran</h1>
       <p class="page-subtitle">Input kehadiran harian seluruh siswa dalam satu kelas</p>
+      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+        Izin dan sakit dihitung sebagai kehadiran efektif; hanya alpa yang mengurangi skor.
+        Pilih status untuk setiap siswa sebelum menyimpan — tidak ada status otomatis.
+      </p>
     </div>
 
     <div class="card p-5">
@@ -52,6 +56,7 @@
                   <input type="radio" :name="'hadir-' + row.siswa.id" :value="st.value" v-model="row.status" class="accent-dark-teal" />
                   {{ st.label }}
                 </label>
+                <span v-if="!row.status" class="badge bg-status-perhatian/20 text-yellow-700 dark:text-yellow-300 ml-2">Belum diisi</span>
               </td>
               <td>
                 <input v-model="row.keterangan" class="input !py-1.5 md:w-48" placeholder="opsional" />
@@ -90,12 +95,15 @@ const loading = ref(true)
 const saving = ref(false)
 
 const summary = computed(() => {
-  const r = { hadir: 0, izin: 0, sakit: 0, alpa: 0 }
+  const r = { hadir: 0, izin: 0, sakit: 0, alpa: 0, 'belum diisi': 0 }
   rows.value.forEach((row) => {
-    if (r[row.status] !== undefined) r[row.status]++
+    if (!row.status) r['belum diisi']++
+    else if (r[row.status] !== undefined) r[row.status]++
   })
   return r
 })
+
+const belumDiisi = computed(() => rows.value.filter((r) => !r.status).length)
 
 function setHariIni() {
   tanggal.value = new Date().toISOString().slice(0, 10)
@@ -108,7 +116,7 @@ async function load() {
     const { data } = await api.get('/guru/kehadiran', { params: { tanggal: tanggal.value, ...params() } })
     rows.value = data.list.map(({ siswa, kehadiran }) => ({
       siswa,
-      status: kehadiran?.status || 'hadir',
+      status: kehadiran?.status || '',
       keterangan: kehadiran?.keterangan || ''
     }))
   } finally {
@@ -117,14 +125,20 @@ async function load() {
 }
 
 async function simpan() {
+  if (belumDiisi.value) {
+    toast.error(`Masih ada ${belumDiisi.value} siswa yang belum dipilih statusnya.`)
+    return
+  }
   saving.value = true
   try {
     await api.post('/guru/kehadiran', {
       tanggal: tanggal.value,
-      daftar: rows.value.map((r) => ({ siswaId: r.siswa.id, status: r.status, keterangan: r.keterangan }))
+      daftar: rows.value
+        .filter((r) => r.status)
+        .map((r) => ({ siswaId: r.siswa.id, status: r.status, keterangan: r.keterangan }))
     })
     toast.success('Kehadiran berhasil disimpan.')
-    load()
+    await load()
   } catch (e) {
     toast.error(e.response?.data?.message || 'Gagal menyimpan kehadiran.')
   } finally {

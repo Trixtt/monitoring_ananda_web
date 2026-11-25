@@ -29,12 +29,12 @@ Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dim
 |---|---|
 | **Landing page publik** | Info sekolah + daftar berita/artikel, halaman detail artikel. Bisa dibuka tanpa login. |
 | **Login terpusat** | Satu halaman login untuk semua role; redirect otomatis ke dashboard masing-masing. |
-| **Wali Kelas** | Unggah nilai (judul bebas + file pendukung), input kehadiran (Hadir/Izin/Sakit/Alpa), penilaian sikap (spiritual & sosial skala 1-4), tandai siswa **ABK**, lihat klasifikasi SPK & rekomendasi per siswa, kirim notifikasi. |
+| **Wali Kelas** | Unggah nilai (judul bebas + file pendukung), input kehadiran (Hadir/Izin/Sakit/Alpa), catat **kejadian** sikap spiritual & sosial (skala 1-5), tandai siswa **ABK**, lihat klasifikasi SPK & rekomendasi per siswa, kirim notifikasi. |
 | **Kepala Sekolah** | Dashboard rekap seluruh kelas, statistik distribusi kondisi, filter kategori/kelas/**tahun ajaran**, generate laporan, **ekspor PDF resmi** (kop surat + tanda tangan). |
 | **Orang Tua** | Login khusus (username = tahun angkatan + no absen), wajib ganti password pertama kali, lihat skor & grafik perkembangan anak, rekomendasi pendampingan di rumah, terima notifikasi ganda. |
 | **Admin** | CRUD data master (siswa, kelas, tahun ajaran, mapel) + validasi unik (NISN), CRUD akun + reset password + aktif/nonaktif, konfigurasi bobot SPK (validasi total = 100%), kelola artikel, akses **general** sebagai Wali Kelas / Kepala Sekolah. |
-| **SPK SAW** | Skoring & klasifikasi otomatis (Baik/Aman, Perlu Perhatian, Berisiko); siswa **ABK dikecualikan** dari skoring otomatis. Bobot & ambang batas bisa dikonfigurasi. |
-| **Rule-based recommendation** | Rekomendasi tindak lanjut beda tiap kondisi (akademik→les, kehadiran→investigasi, sikap→coaching, ABK→pendekatan khusus) + sorot mapel terlemah. |
+| **SPK SAW** | Skoring & klasifikasi otomatis (Baik/Aman, Perlu Perhatian, Berisiko, **Data Belum Lengkap**); siswa **ABK dikecualikan** dari skoring otomatis. Bobot & ambang batas bisa dikonfigurasi. |
+| **Rule-based recommendation** | Rekomendasi tindak lanjut beda tiap kondisi (akademik→les, kehadiran→investigasi, sikap→coaching, gabungan→gabungan, data belum lengkap→lengkapi data, ABK→pendekatan khusus) + sorot mapel terlemah. |
 | **Notifikasi ganda** | Saat nilai baru diinput: real-time in-app (badge/lonceng via Socket.io) + WhatsApp via Fonnte. |
 
 ---
@@ -304,30 +304,48 @@ npm run build --prefix client
 
 **Simple Additive Weighting (SAW)** — semua kriteria bersifat *benefit* (semakin tinggi semakin baik).
 
-| Kriteria | Bobot mentah | Bobot ternormalisasi |
-|---|---|---|
-| C1 Akademik | 4 | ~0.31 |
-| C2 Kehadiran | 4 | ~0.31 |
-| C3 Sikap | 5 | ~0.38 |
-| **Total** | **13** | **1.00** |
+| Kriteria | Bobot mentah | Bobot ternormalisasi (presisi) | Tampilan |
+|---|---|---|---|
+| C1 Akademik | 4 | 4/13 | 0,31 / 31% |
+| C2 Kehadiran | 4 | 4/13 | 0,31 / 31% |
+| C3 Sikap | 5 | 5/13 | 0,38 / 38% |
+| **Total** | **13** | **1** | **100%** |
 
-- Normalisasi benefit: `rij = xij / max(xij)`
-- Nilai preferensi: `Vi = Σ (Wj × rij)`
-- Klasifikasi (interval):
-  - `0.67 <= Vi <= 1.00` → **Baik / Aman**
-  - `0.34 <= Vi < 0.67` → **Perlu Perhatian**
-  - `0.00 <= Vi < 0.34` → **Berisiko / Butuh Tindak Lanjut**
+Backend menyimpan dan memakai rasio presisi `4/13`, `4/13`, `5/13`; pembulatan dua desimal hanya untuk tampilan.
 
-**Pengecualian**: siswa berstatus **ABK** tidak diikutkan skoring SAW; sistem menampilkan catatan "memerlukan pendekatan pembelajaran khusus".
+Normalisasi benefit (semakin tinggi semakin baik):
 
-Bobot dan ambang batas **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot harus = 100%.
+- Akademik: `R_A = rata-rata nilai / 100`
+- Kehadiran: `R_K = (hadir + izin + sakit) / hari sekolah yang dinilai` → hanya **alpa** yang menurunkan skor
+- Sikap: `R_S = (rata-rata nilai kejadian - 1) / 4` dengan skala **1 = Kurang** sampai **5 = Sangat Baik**
+
+Nilai preferensi: `Vi = (R_A × 4/13) + (R_K × 4/13) + (R_S × 5/13)`
+
+Klasifikasi (interval, dapat dikonfigurasi):
+
+- `0.67 <= Vi <= 1.00` → **Baik / Aman**
+- `0.34 <= Vi < 0.67` → **Perlu Perhatian**
+- `0.00 <= Vi < 0.34` → **Berisiko / Butuh Tindak Lanjut**
+
+Status khusus:
+
+- **Data Belum Lengkap** — salah satu kriteria wajib tidak tersedia (tidak ada nilai, rekap kehadiran tidak mencakup seluruh hari sekolah yang tercatat, atau belum ada kejadian sikap). Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko.
+- **ABK** — dikecualikan dari skoring otomatis dan tidak digabung dengan Data Belum Lengkap.
+
+Bobot dan interval **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100% dan urutan interval `Baik > Perhatian > Berisiko`.
 
 ### Rekomendasi berbasis aturan (rule-based)
 
-- Akademik rendah → les/bimbingan tambahan + sorot mapel terlemah (min nilai per mapel).
+Ambang default: akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`.
+
+- Akademik rendah → les/bimbingan tambahan + sorot mapel terlemah.
+- Kehadiran rendah → investigasi penyebab ketidakhadiran + coaching orang tua.
 - Sikap rendah → pendekatan personal/coaching ke siswa & orang tua.
-- Kehadiran rendah **tetapi** akademik & sikap baik → investigasi penyebab ketidakhadiran + coaching (bukan les tambahan).
+- Dua kriteria rendah atau lebih → tipe **`gabungan`**, semua rekomendasi yang relevan ditampilkan.
+- Data Belum Lengkap → minta pelengkapan data, bukan label Berisiko.
 - Status ABK → dikecualikan dari klasifikasi otomatis, tampilkan catatan pendekatan pembelajaran khusus.
+
+Asumsi kebijakan yang masih menunggu konfirmasi sekolah dirangkum di [`docs/keputusan-tahap-1.txt`](docs/keputusan-tahap-1.txt).
 
 ---
 
@@ -336,6 +354,8 @@ Bobot dan ambang batas **dapat dikonfigurasi ulang oleh Admin** dengan validasi 
 - Analisis tren lintas semester belum termasuk (future work).
 - Siswa tidak punya akun/akses ke sistem.
 - Tidak ada integrasi langsung ke E-Rapor Kemendikdasmen (input nilai manual).
+- Belum ada kalender hari sekolah eksplisit; denominator kehadiran memakai tanggal yang tercatat pada tahun ajaran/periode berjalan dan validasi cakupan per siswa.
+- Belum ada mekanisme konfirmasi "periode sudah dipantau tanpa kejadian"; siswa tanpa catatan sikap ditandai Data Belum Lengkap.
 - Notifikasi WhatsApp memakai **Fonnte** (bukan WhatsApp Business API resmi).
 - Data kesehatan & ekstrakurikuler tidak dicakup.
 

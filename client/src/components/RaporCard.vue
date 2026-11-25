@@ -91,7 +91,7 @@
               </div>
             </div>
             <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">
-              Persentase hadir: <span class="font-label-md text-dark-teal dark:text-light-teal">{{ rapor.persenHadir === null ? '-' : rapor.persenHadir + '%' }}</span>
+              Kehadiran efektif (hadir + izin + sakit): <span class="font-label-md text-dark-teal dark:text-light-teal">{{ rapor.persenHadir === null ? '-' : rapor.persenHadir + '%' }}</span>
               <template v-if="rapor.totalHari"> dari {{ rapor.totalHari }} hari</template>
             </p>
           </div>
@@ -101,7 +101,7 @@
             <div v-if="rapor.ringkasSikap.length" class="space-y-2">
               <div v-for="s in rapor.ringkasSikap" :key="s.jenis" class="flex items-center justify-between font-body-md text-sm">
                 <span class="text-on-surface-variant dark:text-ice-white/60">{{ s.jenis === 'spiritual' ? 'Spiritual' : 'Sosial' }}</span>
-                <span class="font-label-md text-deep-navy dark:text-ice-white">{{ s.jumlah ? labelSikap(Math.round(s.rata)) : '-' }}</span>
+                <span class="font-label-md text-deep-navy dark:text-ice-white">{{ s.jumlah ? (labelSikap[Math.round(s.rata)] || '-') : '-' }}</span>
               </div>
             </div>
             <p v-else class="font-body-md text-sm text-on-surface-variant dark:text-ice-white/60">Belum ada penilaian sikap.</p>
@@ -150,13 +150,13 @@ const props = defineProps({
 const printArea = ref(null)
 
 const skorBars = computed(() => {
-  if (props.rapor.skor.abk) return []
   const s = props.rapor.skor
+  if (s?.abk || s?.skor == null) return []
   return [
     { key: 'akademik', label: 'Akademik', value: s.skorAkademik, color: 'bg-dark-teal' },
     { key: 'kehadiran', label: 'Kehadiran', value: s.skorKehadiran, color: 'bg-sky-600' },
     { key: 'sikap', label: 'Sikap', value: s.skorSikap, color: 'bg-purple-600' }
-  ]
+  ].filter((bar) => bar.value != null)
 })
 
 const kehadiranStats = computed(() => {

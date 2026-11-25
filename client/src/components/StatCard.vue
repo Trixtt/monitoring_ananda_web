@@ -99,7 +99,8 @@ const toneMap = {
   green: { chip: 'bg-gradient-to-br from-status-aman to-emerald-400', color: 'text-white' },
   amber: { chip: 'bg-gradient-to-br from-amber-400 to-yellow-500', color: 'text-white' },
   red: { chip: 'bg-gradient-to-br from-status-berisiko to-orange-500', color: 'text-white' },
-  purple: { chip: 'bg-gradient-to-br from-status-abk to-fuchsia-400', color: 'text-white' }
+  purple: { chip: 'bg-gradient-to-br from-status-abk to-fuchsia-400', color: 'text-white' },
+  slate: { chip: 'bg-gradient-to-br from-slate-400 to-slate-600', color: 'text-white' }
 }
 
 const chipClass = computed(() =>

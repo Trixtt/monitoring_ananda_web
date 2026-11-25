@@ -90,7 +90,8 @@ const loading = ref(true)
 const statCards = computed(() => {
   if (!data.value) return []
   const { skor } = data.value
-  const abk = skor.abk
+  // Skor null berarti ABK atau Data Belum Lengkap; jangan ditampilkan sebagai 0.
+  const abk = skor.abk || skor.skor == null
   return [
     {
       label: 'Skor SPK',

@@ -70,7 +70,8 @@ Buka **http://localhost:5175**. Kredensial demo tampil di halaman login karena `
 1. **Landing page publik** — buka `/`, tunjukkan berita sekolah, buka detail artikel.
 2. **Login admin** — tunjukkan dashboard, data siswa/kelas/mapel/tahun ajaran.
 3. **Manajemen akun** — buat akun orang tua, tunjukkan password sementara muncul **sekali**.
-4. **Login wali kelas** — input nilai, kehadiran, dan sikap; tunjukkan monitoring SPK & rekomendasi.
+4. **Login wali kelas** — input nilai, kehadiran (pilih status satu per satu; izin/sakit tetap efektif), dan catat kejadian sikap skala 1-5; tunjukkan monitoring SPK & rekomendasi, termasuk status **Data Belum Lengkap** bila ada kriteria yang kosong.
+4a. **Admin → Konfigurasi SPK** — ubah slider bobot, pastikan total 100% dan nilai tersimpan setelah reload; bobot bawaan 4:4:5 ditampilkan sebagai 31%/31%/38%.
 5. **Login kepala sekolah** — rekap per kelas, daftar siswa berisiko, ekspor PDF rapor/laporan.
 6. **Login orang tua** — dashboard perkembangan anak, nilai, kehadiran, rekomendasi.
 7. **Ganti password** — dari menu Profil, tunjukkan validasi password kuat.

@@ -41,6 +41,7 @@ describe('kategoriInfo', () => {
     expect(kategoriInfo('perhatian').label).toBe('Perlu Perhatian')
     expect(kategoriInfo('berisiko').label).toBe('Berisiko')
     expect(kategoriInfo('abk').label).toBe('ABK')
+    expect(kategoriInfo('data_belum_lengkap').label).toBe('Data Belum Lengkap')
   })
 
   it('kode tidak dikenal jatuh ke aman', () => {
@@ -79,10 +80,11 @@ describe('formatTanggal', () => {
 })
 
 describe('labelSikap', () => {
-  it('skala 1-4 lengkap', () => {
+  it('skala 1-5 lengkap', () => {
     expect(labelSikap[1]).toBe('Kurang')
     expect(labelSikap[2]).toBe('Cukup')
     expect(labelSikap[3]).toBe('Baik')
-    expect(labelSikap[4]).toBe('Sangat Baik')
+    expect(labelSikap[4]).toBe('Baik Sekali')
+    expect(labelSikap[5]).toBe('Sangat Baik')
   })
 })

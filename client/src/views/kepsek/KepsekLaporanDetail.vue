@@ -166,7 +166,8 @@ const kategoriLabels = {
   aman: 'Baik / Aman',
   perhatian: 'Perlu Perhatian',
   berisiko: 'Berisiko',
-  abk: 'ABK'
+  abk: 'ABK',
+  data_belum_lengkap: 'Data Belum Lengkap'
 }
 
 function kategoriLabel(k) {

@@ -17,7 +17,7 @@ export async function updateSpkSettings(req, res) {
   for (const [k, v] of Object.entries(bobot)) {
     if (v !== undefined) {
       const n = Number(v)
-      if (n < 0 || n > 1) {
+      if (!Number.isFinite(n) || n < 0 || n > 1) {
         return res.status(400).json({ message: `Bobot ${k} harus antara 0 dan 1.` })
       }
       setting[k] = n
@@ -25,8 +25,8 @@ export async function updateSpkSettings(req, res) {
   }
 
   const totalBobot = Number(setting.bobotAkademik) + Number(setting.bobotKehadiran) + Number(setting.bobotSikap)
-  if (Math.abs(totalBobot - 1) > 0.001) {
-    return res.status(400).json({ message: `Jumlah bobot harus 1. Saat ini ${totalBobot.toFixed(2)}.` })
+  if (Math.abs(totalBobot - 1) > 0.0001) {
+    return res.status(400).json({ message: `Jumlah bobot harus 1. Saat ini ${totalBobot.toFixed(4)}.` })
   }
 
   const interval = {
@@ -35,7 +35,17 @@ export async function updateSpkSettings(req, res) {
     intervalBerisikoBawah: req.body.intervalBerisikoBawah
   }
   for (const [k, v] of Object.entries(interval)) {
-    if (v !== undefined) setting[k] = Number(v)
+    if (v !== undefined) {
+      const n = Number(v)
+      if (!Number.isFinite(n) || n < 0 || n > 1) {
+        return res.status(400).json({ message: `${k} harus antara 0 dan 1.` })
+      }
+      setting[k] = n
+    }
+  }
+  if (!(setting.intervalBaikBawah > setting.intervalPerhatianBawah &&
+        setting.intervalPerhatianBawah > setting.intervalBerisikoBawah)) {
+    return res.status(400).json({ message: 'Interval harus berurutan: Baik > Perhatian > Berisiko.' })
   }
 
   await setting.save()

@@ -323,21 +323,21 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - status: enum hadir, izin, sakit, alpa.
     - keterangan: teks, opsional.
     - Timestamps.
-    Catatan: tidak ada constraint unik pada kombinasi siswaId dan tanggal.
-    Pencarian data menggunakan findOrCreate, sehingga duplikasi dapat terjadi
-    bila data sudah ada lebih dari satu.
+    Catatan: unique index (siswaId, tanggal) dipasang oleh migrasi hardening,
+    sehingga pengiriman ulang tidak membuat baris ganda. Controller memakai
+    findOrCreate dan memperbarui status serta keterangan.
 
 5.9 Tabel sikap
     - id: kunci primer.
     - siswaId: relasi ke siswa.
     - tahunAjaranId: relasi ke tahun ajaran.
     - jenis: enum spiritual, sosial; default spiritual.
-    - nilai: bilangan 1 sampai 4.
+    - nilai: bilangan 1 sampai 5 (1 = Kurang, 5 = Sangat Baik).
     - catatan: teks, opsional.
     - tanggal: tanggal pencatatan.
     - Timestamps.
-    Catatan: tidak ada constraint unik; pencatatan massal memakai create
-    sehingga penyimpanan berulang dapat menduplikasi catatan.
+    Catatan: controller menolak kejadian duplikat dengan kunci siswa, jenis,
+    nilai, catatan, tanggal, dan tahun ajaran aktif.
 
 5.10 Tabel artikel
     - id: kunci primer.
@@ -372,7 +372,7 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - intervalBerisikoBawah: decimal 0 sampai 1.
     - Timestamps.
     Catatan: hanya satu baris konfigurasi yang dipakai. Total bobot harus
-    mendekati 1 dengan toleransi sekitar 0,001.
+    mendekati 1 dengan toleransi 0,0001 dan urutan interval divalidasi.
 
 5.13 Tabel laporan
     - id: kunci primer.
@@ -404,7 +404,8 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 
 5.15 Integritas dan Keterbatasan Data
     a. Constraint unik utama: username, nisn, nama kelas, nama mapel.
-    b. Tidak ada constraint unik pada kehadiran per tanggal maupun sikap.
+    b. Unique index kehadiran(siswaId, tanggal) sudah dipasang; duplikasi
+       kejadian sikap dicegah di controller.
     c. Penghapusan kelas, siswa, mapel, atau tahun ajaran dapat gagal karena
        foreign key. Aplikasi tidak menyediakan cascade, soft delete, atau
        penanganan khusus untuk konflik tersebut.
@@ -452,18 +453,27 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     1. Wali kelas memilih kelas dan tanggal.
     2. Sistem menampilkan daftar siswa.
     3. Wali kelas memilih status hadir, izin, sakit, atau alpa untuk setiap
-       siswa, serta keterangan bila perlu.
-    4. Server menyimpan atau memperbarui data kehadiran pada tanggal tersebut.
-    5. Data kehadiran langsung memengaruhi skor kehadiran pada perhitungan SPK.
-    Catatan: notifikasi otomatis untuk kehadiran belum diimplementasikan.
+       siswa, serta keterangan bila perlu. Status awal kosong; sistem tidak
+       menyimpan status default yang belum dikonfirmasi.
+    4. Server menyimpan atau memperbarui data kehadiran pada tanggal tersebut,
+       termasuk keterangan walaupun statusnya tidak berubah.
+    5. Hadir, izin, dan sakit dihitung sebagai kehadiran efektif; hanya alpa
+       yang menurunkan skor kehadiran pada perhitungan SPK.
+    Catatan: notifikasi dalam aplikasi untuk kehadiran sudah tersedia; pesan
+    WhatsApp dikirim terpisah hanya untuk nilai akademik.
 
 6.5 Alur Input Sikap
-    1. Wali kelas memilih kelas dan siswa.
-    2. Wali kelas memilih jenis sikap spiritual atau sosial.
-    3. Wali kelas memberi nilai 1 sampai 4 dan catatan.
-    4. Server menyimpan catatan sikap pada tahun ajaran aktif.
-    5. Catatan sikap memengaruhi skor sikap pada perhitungan SPK.
-    Catatan: notifikasi otomatis untuk sikap belum diimplementasikan.
+    1. Wali kelas memilih kelas, jenis sikap spiritual/sosial, dan tanggal
+       kejadian.
+    2. Wali kelas mencatat hanya kejadian yang benar-benar diamati, nilai bulat
+       1 sampai 5 dengan 1 = Kurang dan 5 = Sangat Baik.
+    3. Baris yang tidak dipilih dinyatakan belum ada catatan dan tidak dikirim;
+       siswa tanpa kejadian ditandai Data Belum Lengkap.
+    4. Server menyimpan setiap kejadian pada tahun ajaran aktif dan menolak
+       kejadian duplikat dengan kunci siswa, jenis, nilai, catatan, dan tanggal.
+    5. Seluruh kejadian spiritual dan sosial digabung dengan bobot sama per
+       kejadian, lalu dinormalisasi dengan (rata-rata - 1) / 4.
+    Catatan: notifikasi dalam aplikasi dikirim untuk nilai <= 2 atau bila ada catatan.
 
 6.6 Alur Monitoring dan Rekomendasi
     1. Wali kelas membuka halaman monitoring.
@@ -523,49 +533,55 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
 
 7.1 Metode
     Sistem menggunakan penjumlahan terbobot atas tiga dimensi: akademik,
-    kehadiran, dan sikap. Berbeda dari klaim README yang menyebut normalisasi
-    x/max (SAW klasik), implementasi aktual memakai normalisasi skala tetap.
-    Nilai mentah diubah ke rentang 0 sampai 1 dengan pembagi tetap, bukan
-    dibagi nilai maksimum pada kumpulan data.
+    kehadiran, dan sikap. Seluruh kriteria bersifat benefit (semakin tinggi
+    semakin baik) dan dinormalisasi dengan pembagi tetap ke rentang 0 sampai 1,
+    bukan dibagi nilai maksimum pada kumpulan data (SAW klasik x/max).
+    Bobot bawaan memakai rasio presisi 4:4:5 = 4/13, 4/13, 5/13. Pembulatan
+    dua desimal (0,31 / 0,31 / 0,38) hanya untuk tampilan.
 
 7.2 Normalisasi Akademik
-    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran terkait.
+    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran/periode terkait.
     skorAkademik = rataNilai / 100.
-    Bila tidak ada nilai, skorAkademik = 0.
+    Bila tidak ada nilai, kriteria dinyatakan tidak lengkap dan skor akhir tidak
+    dihitung (lihat 7.6).
 
 7.3 Normalisasi Kehadiran
-    jumlahHadir = banyak catatan dengan status hadir.
-    totalKehadiran = seluruh catatan kehadiran siswa.
-    skorKehadiran = jumlahHadir / totalKehadiran.
-    Bila tidak ada data kehadiran, skorKehadiran = 0.
-    Status izin, sakit, dan alpa tidak dihitung sebagai hadir.
+    jumlahEfektif = banyak catatan dengan status hadir, izin, atau sakit.
+    totalHari = jumlah tanggal unik yang tercatat pada tahun ajaran/periode.
+    skorKehadiran = jumlahEfektif / totalHariTercatat.
+    Hanya alpa yang menurunkan skor; izin dan sakit tetap dihitung hadir.
+    Bila jumlah tanggal yang tercatat untuk siswa lebih sedikit daripada
+    totalHari, kriteria dinyatakan tidak lengkap dan skor akhir tidak dihitung.
 
 7.4 Normalisasi Sikap
-    rataSikap = rata-rata nilai sikap dalam skala 1 sampai 4.
-    skorSikap = rataSikap / 4.
-    Bila tidak ada catatan sikap, skorSikap = 1 (dianggap baik). Kebijakan ini
-    dipilih karena sistem mencatat insiden, sehingga siswa tanpa catatan
-    dianggap tidak memiliki masalah sikap.
+    rataSikap = rata-rata seluruh kejadian sikap (spiritual dan sosial digabung).
+    Skala 1 sampai 5 dengan 1 = Kurang dan 5 = Sangat Baik.
+    skorSikap = (rataSikap - 1) / 4.
+    Bila tidak ada catatan kejadian, kriteria dinyatakan tidak lengkap dan skor
+    akhir tidak dihitung. Siswa tanpa kejadian TIDAK diberi skor 5 karena
+    kebijakan "tanpa kejadian = sangat baik" belum disetujui sekolah.
 
 7.5 Skor Akhir
     skor = (bobotAkademik x skorAkademik)
          + (bobotKehadiran x skorKehadiran)
          + (bobotSikap x skorSikap)
 
-    Nilai default:
-    bobotAkademik      = 0,31
-    bobotKehadiran     = 0,31
-    bobotSikap         = 0,38
+    Nilai default (presisi backend; tampilan dibulatkan):
+    bobotAkademik      = 4/13  (~0,31)
+    bobotKehadiran     = 4/13  (~0,31)
+    bobotSikap         = 5/13  (~0,38)
     intervalBaikBawah  = 0,67
     intervalPerhatianBawah = 0,34
     intervalBerisikoBawah  = 0,00
 
-    Total bobot wajib mendekati 1 dengan toleransi sekitar 0,001. Setiap bobot
-    dan interval harus berada pada rentang 0 sampai 1.
+    Total bobot wajib mendekati 1 dengan toleransi 0,0001. Setiap bobot dan
+    interval harus berada pada rentang 0 sampai 1, dengan urutan
+    Baik > Perhatian > Berisiko.
 
 7.6 Kategori
     skor >= intervalBaikBawah          -> aman
     skor >= intervalPerhatianBawah     -> perhatian
+    skor >= intervalBerisikoBawah      -> berisiko
     selain itu                         -> berisiko
 
     Label yang ditampilkan:
@@ -573,11 +589,11 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     perhatian  : Perlu Perhatian
     berisiko   : Berisiko / Butuh Tindak Lanjut
     abk        : Anak Berkebutuhan Khusus
+    data_belum_lengkap : Data Belum Lengkap
 
-    Catatan: intervalBerisikoBawah disimpan dan divalidasi, tetapi tidak dipakai
-    dalam fungsi kategoriDariSkor. Selain itu, tidak ada validasi yang memaksa
-    urutan intervalBaikBawah > intervalPerhatianBawah >
-    intervalBerisikoBawah.
+    Bila salah satu kriteria wajib tidak tersedia, skor bernilai null dan
+    kategori menjadi data_belum_lengkap, bukan berisiko. Hal ini berlaku juga
+    untuk siswa tanpa catatan kejadian sikap. Urutan interval kini divalidasi.
 
 7.7 Siswa ABK
     Bila statusABK true, sistem tidak menghitung skor numerik. Hasil yang
@@ -593,14 +609,17 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     - Sikap rendah bila skorSikap < 0,65.
 
     Aturan:
-    1. Bila akademik rendah, rekomendasi menekankan pendampingan belajar.
-    2. Bila sikap rendah, rekomendasi menekankan pembinaan sikap.
-    3. Bila kehadiran rendah dan akademik serta sikap tidak rendah, rekomendasi
-       menekankan peningkatan kehadiran.
-    4. Bila tidak ada kondisi rendah, rekomendasi menyatakan perkembangan baik
+    1. Bila akademik rendah, rekomendasi menekankan pendampingan belajar dan
+       menyorot mapel terlemah.
+    2. Bila sikap rendah, rekomendasi menekankan pendekatan personal/coaching.
+    3. Bila kehadiran rendah, rekomendasi menekankan investigasi penyebab
+       ketidakhadiran dan komunikasi dengan orang tua.
+    4. Bila dua kriteria atau lebih rendah, tipe menjadi gabungan dan semua
+       rekomendasi relevan ditampilkan (termasuk kehadiran).
+    5. Bila tidak ada kondisi rendah, rekomendasi menyatakan perkembangan baik
        dan anjuran mempertahankan.
-    5. Bila beberapa kondisi rendah, akademik atau sikap dapat menimpa tipe
-       rekomendasi kehadiran.
+    6. Data Belum Lengkap meminta pelengkapan data, bukan label Berisiko.
+    7. Siswa ABK dikecualikan dan memperoleh rekomendasi pendekatan khusus.
 
 7.9 Mapel Terlemah
     Sistem membandingkan rata-rata nilai per mata pelajaran untuk siswa.
@@ -610,28 +629,29 @@ implementasi yang perlu disampaikan secara jujur pada pembahasan.
     rekap.
 
 7.10 Contoh Perhitungan
-    Data siswa:
-    - Nilai: 80 dan 90, sehingga rataNilai = 85 dan skorAkademik = 0,85.
-    - Kehadiran: hadir 15 dari 18, sehingga skorKehadiran = 0,8333.
-    - Sikap: nilai 3 dan 4, sehingga rataSikap = 3,5 dan skorSikap = 0,875.
-    - Skor = 0,31 x 0,85 + 0,31 x 0,8333 + 0,38 x 0,875
-           = 0,2635 + 0,2583 + 0,3325
-           = 0,8543.
-    - Kategori: aman karena 0,8543 >= 0,67.
+    Contoh 1 (lengkap, baik):
+    - Nilai 100 -> R_A = 1,00.
+    - Kehadiran hadir, izin, sakit dari 3 hari wajib -> R_K = 3/3 = 1,00.
+    - Satu kejadian sikap nilai 5 -> R_S = (5-1)/4 = 1,00.
+    - Skor = 1 x 4/13 + 1 x 4/13 + 1 x 5/13 = 1,0000 -> aman.
 
-    Data kosong:
-    - skorAkademik = 0, skorKehadiran = 0, skorSikap = 1.
-    - Skor = 0,38.
-    - Kategori: perhatian karena 0,38 >= 0,34 tetapi < 0,67.
+    Contoh 2 (izin/sakit tidak menurunkan, alpa menurunkan):
+    - Nilai rata-rata 85 -> R_A = 0,85.
+    - Kehadiran hadir, izin, sakit, alpa dari 4 hari -> R_K = 3/4 = 0,75.
+    - Satu kejadian sikap nilai 3 -> R_S = (3-1)/4 = 0,50.
+    - Skor = 0,85 x 4/13 + 0,75 x 4/13 + 0,50 x 5/13
+           = 8,9/13 = 0,6846 -> aman (>= 0,67).
+
+    Contoh 3 (tanpa catatan sikap):
+    - kategori data_belum_lengkap, skor = null (BUKAN berisiko).
 
 7.11 Catatan Pembahasan
-    a. Perbedaan normalisasi perlu dijelaskan agar tidak terjadi klaim yang
-       bertentangan dengan kode.
-    b. Bobot sikap paling besar (0,38), sehingga siswa tanpa catatan sikap
-       memperoleh nilai sikap maksimal. Kebijakan ini perlu dibahas dari sisi
-       keadilan dan validitas data.
-    c. Ambang rekomendasi tidak dapat dikonfigurasi melalui antarmuka.
-    d. Interval berisiko bawah belum berfungsi.
+    a. Normalisasi memakai pembagi tetap, bukan x/max; penjelasan ini harus
+       konsisten dengan kode dan README.
+    b. Bobot sikap paling besar (5/13), tetapi siswa tanpa kejadian tidak lagi
+       diberi skor maksimal; kini ditandai data_belum_lengkap.
+    c. Ambang rekomendasi masih tetap dan belum dapat dikonfigurasi.
+    d. Interval berisiko bawah kini dipakai eksplisit dan urutannya divalidasi.
     e. Perhitungan dilakukan saat data diminta, bukan disimpan sebagai skor
        permanen. Perubahan nilai, kehadiran, sikap, atau bobot langsung
        memengaruhi hasil berikutnya.
@@ -1239,8 +1259,8 @@ US-038
                pembinaan karakter terdokumentasi.
     Kriteria :
     1. Wali kelas memilih siswa, jenis sikap spiritual atau sosial, nilai 1
-       sampai 4, catatan, dan tanggal.
-    2. Nilai di luar rentang 1 sampai 4 ditolak.
+       sampai 5 (1 = Kurang, 5 = Sangat Baik), catatan, dan tanggal kejadian.
+    2. Nilai di luar rentang 1 sampai 5 ditolak; baris kosong tidak disimpan.
     3. Data tersimpan pada tahun ajaran aktif.
     4. Data sikap memengaruhi skor sikap pada perhitungan SPK.
 
@@ -1544,7 +1564,7 @@ US-061
     |                     | 0-100; tanggal YYYY-MM-DD                    |
     | Kehadiran           | tanggal wajib; daftar wajib; status enum;    |
     |                     | keterangan maks 255                          |
-    | Sikap               | jenis spiritual/sosial; nilai 1-4; catatan   |
+    | Sikap               | jenis spiritual/sosial; nilai 1-5; catatan   |
     |                     | maks 1000; tanggal opsional                  |
     | ABK                 | status boolean; catatan maks 1000            |
     | Laporan             | judul maks 200; kelas opsional; kategori     |
@@ -1838,16 +1858,16 @@ US-061
     Variabel SEED_FORCE=true menghapus dan membuat ulang data.
 
 14.2 Akun Demo
-    Admin          : admin / admin123
-    Kepala sekolah : kepsek / password123
-    Wali kelas     : wali1 sampai wali6 / password123
-    Orang tua      : username 2025001 dan seterusnya
-                     password awal adalah tanggal lahir DDMMYYYY
+    Admin          : admin / Admin#2026
+    Kepala sekolah : kepsek / Kepsek#2026
+    Wali kelas     : wali1 sampai wali6 / Wali#2026
+    Orang tua      : username 2025001 dan seterusnya / Ortu#2026
 
     Akun orang tua memakai username tahun angkatan ditambah nomor absen tiga
     digit. Contoh: siswa tahun angkatan 2025 dengan nomor absen 1 memiliki
-    username 2025001. Password awal mengikuti tanggal lahir dan wajib diganti
-    pada login pertama.
+    username 2025001. Kata sandi demo dapat ditimpa lewat variabel lingkungan
+    DEMO_ADMIN_PASSWORD, DEMO_KEPSEK_PASSWORD, DEMO_WALI_PASSWORD, dan
+    DEMO_ORANGTUA_PASSWORD, serta wajib diganti pada login pertama.
 
 14.3 Variabel Lingkungan Penting
     PORT            port server, default 5000.
@@ -1907,19 +1927,20 @@ US-061
     Wali kelas      : Guru penanggung jawab satu kelas.
 
 15.2 Batasan Implementasi
-    1. Normalisasi SPK memakai skala tetap, bukan x/max seperti klaim README.
-    2. intervalBerisikoBawah disimpan tetapi tidak dipakai dalam penentuan
-       kategori.
-    3. Tidak ada validasi urutan interval.
+    1. Normalisasi SPK memakai skala tetap, bukan x/max; README kini sudah
+       sejalan dengan implementasi.
+    2. intervalBerisikoBawah dipakai eksplisit dalam penentuan kategori.
+    3. Urutan interval Baik > Perhatian > Berisiko divalidasi.
     4. Ambang rekomendasi tetap dan tidak mengikuti konfigurasi SPK.
     5. Notifikasi otomatis hanya dibuat untuk nilai.
     6. Checkbox kirim WhatsApp tidak dikirim ke server; server selalu mencoba
        mengirim bila memungkinkan.
     7. Lupa password hanya panduan statis; reset dilakukan admin.
     8. API nilai mendukung lampiran, tetapi antarmuka belum menyediakan unggah.
-    9. Input sikap massal memakai create, sehingga penyimpanan berulang dapat
-       menduplikasi data.
-    10. Siswa tanpa catatan sikap dianggap memiliki skor sikap maksimal.
+    9. Kejadian sikap duplikat ditolak di controller berdasarkan kunci siswa,
+       jenis, nilai, catatan, tanggal, dan tahun ajaran.
+    10. Siswa tanpa catatan kejadian sikap ditandai data_belum_lengkap, bukan
+        diberi skor sikap maksimal.
     11. Kategori Tips pada artikel tidak konsisten dengan enum model/validator.
     12. Endpoint daftar artikel menerima filter status tanpa autentikasi,
         sehingga draft berpotensi terbaca publik.
@@ -1946,16 +1967,17 @@ US-061
         laporan, bukan rekap.
     28. Tidak ada verifikasi email, pendaftaran mandiri, atau kebijakan
         kompleksitas password.
-    29. Tidak ada constraint unik pada kehadiran per tanggal dan sikap.
+    29. Unique index kehadiran per tanggal sudah ada; duplikasi kejadian
+        sikap dicegah di aplikasi (belum constraint database).
     30. Tidak ada mekanisme persetujuan orang tua atau pengaturan retensi data.
 
 15.3 Catatan untuk Pembahasan Bab 4
     a. Jelaskan bahwa sistem mengimplementasikan SAW dengan normalisasi skala
        tetap dan sebutkan alasan pemilihan tersebut.
-    b. Bahas bobot sikap yang paling besar serta kebijakan siswa tanpa catatan
-       sikap memperoleh nilai maksimal.
-    c. Jelaskan bahwa kategori ditentukan oleh dua ambang yang dipakai,
-       sedangkan ambang berisiko bawah belum berfungsi.
+    b. Bahas bobot sikap yang paling besar (5/13) dan alasan siswa tanpa
+       kejadian tidak diberi nilai maksimal, melainkan data_belum_lengkap.
+    c. Jelaskan bahwa kategori ditentukan oleh tiga ambang yang kini semuanya
+       dipakai, dengan urutan yang divalidasi.
     d. Bahas keterbatasan notifikasi otomatis yang baru mencakup nilai.
     e. Jelaskan perbedaan antara klaim README dan implementasi aktual secara
        terbuka, termasuk normalisasi dan fitur yang belum terhubung.
