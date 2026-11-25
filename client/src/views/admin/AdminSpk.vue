@@ -78,6 +78,24 @@
         </div>
       </div>
 
+      <div class="card p-6">
+        <h2 class="font-title-lg text-deep-navy dark:text-ice-white mb-4">Aturan Mata Pelajaran</h2>
+        <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 text-sm mb-4">
+          Memakai skala nilai 0–100. Rata-rata mapel di bawah KKM mendapat rekomendasi bimbingan;
+          rata-rata yang mencapai ambang unggul mendapat rekomendasi pengayaan. Bawaan: KKM 70 dan unggul 85.
+        </p>
+        <div class="space-y-4">
+          <div>
+            <label class="label">KKM Mata Pelajaran</label>
+            <input v-model.number="form.kkmMapel" type="number" min="0" max="100" step="1" class="input" />
+          </div>
+          <div>
+            <label class="label">Ambang Unggul Mata Pelajaran</label>
+            <input v-model.number="form.ambangUnggul" type="number" min="0" max="100" step="1" class="input" />
+          </div>
+        </div>
+      </div>
+
       <p v-if="error" class="rounded-md bg-error-container text-on-error-container px-3 py-2 font-label-md md:col-span-2 text-center">{{ error }}</p>
 
       <div class="flex items-center justify-center gap-3 md:col-span-2">
@@ -120,7 +138,9 @@ const form = ref({
   intervalBerisikoBawah: 0,
   ambangAkademik: 0.65,
   ambangSikap: 0.65,
-  ambangKehadiran: 0.8
+  ambangKehadiran: 0.8,
+  kkmMapel: 70,
+  ambangUnggul: 85
 })
 
 const bobotFields = computed(() => [
@@ -158,7 +178,9 @@ async function load() {
       intervalBerisikoBawah: Number(s.intervalBerisikoBawah),
       ambangAkademik: Number(s.ambangAkademik ?? 0.65),
       ambangSikap: Number(s.ambangSikap ?? 0.65),
-      ambangKehadiran: Number(s.ambangKehadiran ?? 0.8)
+      ambangKehadiran: Number(s.ambangKehadiran ?? 0.8),
+      kkmMapel: Number(s.kkmMapel ?? 70),
+      ambangUnggul: Number(s.ambangUnggul ?? 85)
     }
     bobotDiubah.value = false
   } finally {
@@ -177,6 +199,14 @@ async function save() {
     error.value = 'Interval harus berurutan: Baik > Perhatian > Berisiko.'
     return
   }
+  if ([form.value.kkmMapel, form.value.ambangUnggul].some((v) => !Number.isFinite(Number(v)) || Number(v) < 0 || Number(v) > 100)) {
+    error.value = 'KKM dan ambang unggul harus antara 0 dan 100.'
+    return
+  }
+  if (Number(form.value.ambangUnggul) <= Number(form.value.kkmMapel)) {
+    error.value = 'Ambang unggul harus lebih besar dari KKM mapel.'
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -185,7 +215,9 @@ async function save() {
       intervalBerisikoBawah: form.value.intervalBerisikoBawah,
       ambangAkademik: form.value.ambangAkademik,
       ambangSikap: form.value.ambangSikap,
-      ambangKehadiran: form.value.ambangKehadiran
+      ambangKehadiran: form.value.ambangKehadiran,
+      kkmMapel: form.value.kkmMapel,
+      ambangUnggul: form.value.ambangUnggul
     }
     // Kirim bobot hanya bila admin benar-benar mengubah slider. Jika tidak,
     // backend mempertahankan rasio presisi 4/13, 4/13, 5/13.

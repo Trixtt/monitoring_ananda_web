@@ -13,7 +13,10 @@ const SettingSpk = sequelize.define(
     intervalBerisikoBawah: { type: DataTypes.FLOAT, defaultValue: 0.0 },
     ambangAkademik: { type: DataTypes.FLOAT, defaultValue: 0.65 },
     ambangSikap: { type: DataTypes.FLOAT, defaultValue: 0.65 },
-    ambangKehadiran: { type: DataTypes.FLOAT, defaultValue: 0.8 }
+    ambangKehadiran: { type: DataTypes.FLOAT, defaultValue: 0.8 },
+    // Rulebase per mapel memakai skala nilai 0-100, bukan 0-1.
+    kkmMapel: { type: DataTypes.FLOAT, defaultValue: 70 },
+    ambangUnggul: { type: DataTypes.FLOAT, defaultValue: 85 }
   },
   { tableName: 'setting_spk' }
 )

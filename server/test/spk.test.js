@@ -2,6 +2,7 @@ import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   AMBANG_REKOMENDASI,
+  AMBANG_MAPEL,
   BOBOT_SAW,
   normalizeSikap,
   kategoriDariSkor,
@@ -17,11 +18,12 @@ const setting = {
   intervalBaikBawah: 0.67,
   intervalPerhatianBawah: 0.34,
   intervalBerisikoBawah: 0,
-  ...AMBANG_REKOMENDASI
+  ...AMBANG_REKOMENDASI,
+  ...AMBANG_MAPEL
 }
 
 const lengkap = {
-  nilaiAngka: [100],
+  nilaiRows: [{ mapel: { nama: 'IPA' }, nilai: 100 }],
   hadirStatus: ['hadir', 'izin', 'sakit'],
   sikapAngka: [5],
   totalHariSekolah: 3
@@ -111,7 +113,7 @@ describe('hitungSkorData - kelengkapan', () => {
   })
 
   test('tanpa nilai akademik menjadi data belum lengkap', () => {
-    const h = hitungSkorData({ ...lengkap, nilaiAngka: [] }, setting)
+    const h = hitungSkorData({ ...lengkap, nilaiRows: [] }, setting)
     assert.equal(h.lengkap, false)
     assert.equal(h.kategori.kode, 'data_belum_lengkap')
     assert.equal(h.kelengkapan.akademik, false)
@@ -157,24 +159,61 @@ describe('hitungSkorData - perhitungan', () => {
     assert.equal(h.skorSikap, 0.75)
   })
 
-  test('akademik rata-rata semua catatan dan bobot presisi dipakai sebelum pembulatan', () => {
+  test('akademik rata-rata tiap mapel dulu, bobot presisi dipakai sebelum pembulatan', () => {
     const h = hitungSkorData(
       {
-        nilaiAngka: [80, 90],
+        nilaiRows: [
+          { mapel: { nama: 'IPA' }, nilai: 80 },
+          { mapel: { nama: 'IPA' }, nilai: 90 },
+          { mapel: { nama: 'Bahasa Indonesia' }, nilai: 70 }
+        ],
         hadirStatus: ['hadir', 'izin', 'sakit', 'alpa'],
         sikapAngka: [3],
         totalHariSekolah: 4
       },
       setting
     )
-    const expected = Number((0.85 * (4 / 13) + 0.75 * (4 / 13) + 0.5 * (5 / 13)).toFixed(4))
-    assert.equal(h.detail.rataNilai, 85)
-    assert.equal(h.skorAkademik, 0.85)
+    const expected = Number((0.775 * (4 / 13) + 0.75 * (4 / 13) + 0.5 * (5 / 13)).toFixed(4))
+    assert.equal(h.detail.rataNilai, 77.5)
+    assert.deepEqual(h.detail.ringkasanMapel, [
+      { nama: 'IPA', rata: 85, jumlah: 2 },
+      { nama: 'Bahasa Indonesia', rata: 70, jumlah: 1 }
+    ])
+    assert.equal(h.skorAkademik, 0.775)
     assert.equal(h.skorKehadiran, 0.75)
     assert.equal(h.skorSikap, 0.5)
     assert.equal(h.skor, expected)
-    // 8,9/13 ≈ 0,6846 -> masih di atas batas aman 0,67.
-    assert.equal(h.kategori.kode, 'aman')
+    // 8,6/13 ≈ 0,6615 -> di bawah batas aman 0,67.
+    assert.equal(h.kategori.kode, 'perhatian')
+  })
+
+  test('banyak catatan pada satu mapel tidak menambah bobot mapel tersebut', () => {
+    const dasar = { hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 }
+    const duaMapel = hitungSkorData(
+      {
+        ...dasar,
+        nilaiRows: [
+          { mapel: { nama: 'IPA' }, nilai: 80 },
+          { mapel: { nama: 'Bahasa Indonesia' }, nilai: 60 }
+        ]
+      },
+      setting
+    )
+    const banyakCatatan = hitungSkorData(
+      {
+        ...dasar,
+        nilaiRows: [
+          { mapel: { nama: 'IPA' }, nilai: 80 },
+          { mapel: { nama: 'IPA' }, nilai: 80 },
+          { mapel: { nama: 'IPA' }, nilai: 80 },
+          { mapel: { nama: 'Bahasa Indonesia' }, nilai: 60 }
+        ]
+      },
+      setting
+    )
+    assert.equal(duaMapel.skorAkademik, 0.7)
+    assert.equal(banyakCatatan.skorAkademik, 0.7)
+    assert.equal(banyakCatatan.skor, duaMapel.skor)
   })
 })
 
@@ -250,7 +289,7 @@ describe('rekomendasiUntuk', () => {
 
   test('memakai ambang yang diatur admin', () => {
     const hasil = hitungSkorData(
-      { nilaiAngka: [70], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
+      { nilaiRows: [{ mapel: { nama: 'IPA' }, nilai: 70 }], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
       {
         ...setting,
         bobotAkademik: 1,
@@ -263,15 +302,81 @@ describe('rekomendasiUntuk', () => {
     assert.deepEqual(hasil.ambang, {
       ambangAkademik: 0.6,
       ambangSikap: 0.65,
-      ambangKehadiran: 0.8
+      ambangKehadiran: 0.8,
+      kkmMapel: 70,
+      ambangUnggul: 85
     })
     assert.equal(rekomendasiUntuk(hasil).tipe, 'baik')
 
     const hasilKetat = hitungSkorData(
-      { nilaiAngka: [70], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
+      { nilaiRows: [{ mapel: { nama: 'IPA' }, nilai: 70 }], hadirStatus: ['hadir'], sikapAngka: [5], totalHariSekolah: 1 },
       { ...setting, bobotAkademik: 1, bobotKehadiran: 0, bobotSikap: 0, ambangAkademik: 0.8 }
     )
     assert.equal(rekomendasiUntuk(hasilKetat).tipe, 'akademik')
+  })
+
+  test('rulebase memberi bimbingan mapel lemah dan pengayaan mapel unggul', () => {
+    const hasil = {
+      abk: false,
+      lengkap: true,
+      skor: 0.9,
+      skorAkademik: 0.9,
+      skorKehadiran: 0.95,
+      skorSikap: 0.9,
+      ambang: { ...AMBANG_REKOMENDASI, ...AMBANG_MAPEL },
+      batas: { intervalBerisikoBawah: 0 },
+      detail: {
+        ringkasanMapel: [
+          { nama: 'IPA', rata: 60, jumlah: 2 },
+          { nama: 'Matematika', rata: 90, jumlah: 1 }
+        ]
+      }
+    }
+    const r = rekomendasiUntuk(hasil)
+    assert.equal(r.tipe, 'mapel')
+    assert.ok(r.daftar.some((d) => /Bimbingan tambahan pada IPA/.test(d)))
+    assert.ok(r.daftar.some((d) => /Pengayaan\/pendalaman Matematika/.test(d)))
+  })
+
+  test('KKM yang diatur admin mengubah aturan mapel', () => {
+    const hasil = {
+      abk: false,
+      lengkap: true,
+      skor: 0.9,
+      skorAkademik: 0.9,
+      skorKehadiran: 0.95,
+      skorSikap: 0.9,
+      batas: { intervalBerisikoBawah: 0 },
+      detail: { ringkasanMapel: [{ nama: 'IPA', rata: 75, jumlah: 1 }] }
+    }
+    const ketat = rekomendasiUntuk({
+      ...hasil,
+      ambang: { ...AMBANG_REKOMENDASI, kkmMapel: 80, ambangUnggul: 90 }
+    })
+    assert.ok(ketat.daftar.some((d) => /IPA/.test(d) && /KKM 80/.test(d)))
+
+    const bawaan = rekomendasiUntuk({
+      ...hasil,
+      ambang: { ...AMBANG_REKOMENDASI, ...AMBANG_MAPEL }
+    })
+    assert.ok(!bawaan.daftar.some((d) => /IPA/.test(d)))
+  })
+
+  test('skor di bawah intervalBerisikoBawah menambah prioritas tanpa mengubah kategori', () => {
+    const interval = { intervalBaikBawah: 0.67, intervalPerhatianBawah: 0.34, intervalBerisikoBawah: 0.6 }
+    assert.equal(kategoriDariSkor(0.5, interval).kode, 'perhatian')
+
+    const r = rekomendasiUntuk({
+      abk: false,
+      lengkap: true,
+      skor: 0.5,
+      skorAkademik: 0.9,
+      skorKehadiran: 0.9,
+      skorSikap: 0.9,
+      ambang: { ...AMBANG_REKOMENDASI, ...AMBANG_MAPEL },
+      batas: { intervalBerisikoBawah: 0.6 }
+    })
+    assert.equal(r.daftar[0], 'Prioritaskan tindak lanjut intensif (skor di bawah batas berisiko).')
   })
 })
 

@@ -129,7 +129,9 @@ export const spkSchema = z
     intervalBerisikoBawah: z.coerce.number().min(0).max(1),
     ambangAkademik: z.coerce.number().min(0).max(1),
     ambangSikap: z.coerce.number().min(0).max(1),
-    ambangKehadiran: z.coerce.number().min(0).max(1)
+    ambangKehadiran: z.coerce.number().min(0).max(1),
+    kkmMapel: z.coerce.number().min(0).max(100),
+    ambangUnggul: z.coerce.number().min(0).max(100)
   })
   .partial()
   .refine((d) => {
@@ -143,6 +145,10 @@ export const spkSchema = z
     if (!keys.every((k) => d[k] !== undefined)) return true
     return d.intervalBaikBawah > d.intervalPerhatianBawah && d.intervalPerhatianBawah > d.intervalBerisikoBawah
   }, { message: 'Interval harus berurutan: Baik > Perhatian > Berisiko.' })
+  .refine((d) => {
+    if (d.kkmMapel === undefined || d.ambangUnggul === undefined) return true
+    return Number(d.ambangUnggul) > Number(d.kkmMapel)
+  }, { message: 'Ambang unggul harus lebih besar dari KKM mapel.' })
 
 export const nilaiSchema = z.object({
   siswaId: idInt,

@@ -63,6 +63,23 @@ export async function updateSpkSettings(req, res) {
     }
   }
 
+  const mapel = {
+    kkmMapel: req.body.kkmMapel,
+    ambangUnggul: req.body.ambangUnggul
+  }
+  for (const [k, v] of Object.entries(mapel)) {
+    if (v !== undefined) {
+      const n = Number(v)
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return res.status(400).json({ message: `${k} harus antara 0 dan 100.` })
+      }
+      setting[k] = n
+    }
+  }
+  if (Number(setting.ambangUnggul) <= Number(setting.kkmMapel)) {
+    return res.status(400).json({ message: 'Ambang unggul harus lebih besar dari KKM mapel.' })
+  }
+
   await setting.save()
   return res.json({ message: 'Pengaturan SPK disimpan.', setting })
 }

@@ -17,6 +17,13 @@ export const AMBANG_REKOMENDASI = Object.freeze({
   ambangKehadiran: 0.8
 })
 
+// Rulebase per mata pelajaran memakai skala nilai 0-100 (bukan 0-1).
+// KKM sekolah 70; ambang unggul 85. Keduanya dapat diatur Admin.
+export const AMBANG_MAPEL = Object.freeze({
+  kkmMapel: 70,
+  ambangUnggul: 85
+})
+
 // Rentang Kaldik SD/MI Jawa Tengah 2025/2026. Dipakai sebagai nilai awal
 // saat admin belum mengisi rentang pada tahun ajaran.
 export const RENTANG_SEMESTER = Object.freeze({
@@ -74,13 +81,11 @@ export function normalizeSikap(rataSikap) {
 export function kategoriDariSkor(skor, setting) {
   const baik = Number(setting.intervalBaikBawah ?? 0.67)
   const perhatian = Number(setting.intervalPerhatianBawah ?? 0.34)
-  const berisiko = Number(setting.intervalBerisikoBawah ?? 0)
 
-  // Interval diperiksa berurutan. Batas berisiko dipakai eksplisit agar
-  // konfigurasi tidak bisa "mati" silently saat diubah admin.
+  // Klasifikasi tetap tiga kategori. intervalBerisikoBawah tidak menambah
+  // kategori; nilainya dipakai sebagai penanda prioritas pada rekomendasi.
   if (skor >= baik) return { kode: 'aman', label: 'Baik / Aman' }
   if (skor >= perhatian) return { kode: 'perhatian', label: 'Perlu Perhatian' }
-  if (skor >= berisiko) return { kode: 'berisiko', label: 'Berisiko / Butuh Tindak Lanjut' }
   return { kode: 'berisiko', label: 'Berisiko / Butuh Tindak Lanjut' }
 }
 
@@ -88,7 +93,15 @@ function ambangDariSetting(setting = {}) {
   return {
     ambangAkademik: Number(setting.ambangAkademik ?? AMBANG_REKOMENDASI.ambangAkademik),
     ambangSikap: Number(setting.ambangSikap ?? AMBANG_REKOMENDASI.ambangSikap),
-    ambangKehadiran: Number(setting.ambangKehadiran ?? AMBANG_REKOMENDASI.ambangKehadiran)
+    ambangKehadiran: Number(setting.ambangKehadiran ?? AMBANG_REKOMENDASI.ambangKehadiran),
+    kkmMapel: Number(setting.kkmMapel ?? AMBANG_MAPEL.kkmMapel),
+    ambangUnggul: Number(setting.ambangUnggul ?? AMBANG_MAPEL.ambangUnggul)
+  }
+}
+
+function batasDariSetting(setting = {}) {
+  return {
+    intervalBerisikoBawah: Number(setting.intervalBerisikoBawah ?? 0)
   }
 }
 
@@ -106,7 +119,7 @@ export function hasilAbk(siswaId = null) {
   }
 }
 
-function hasilBelumLengkap(siswaId, kelengkapan, detail = {}) {
+function hasilBelumLengkap(siswaId, kelengkapan, detail = {}, setting = {}) {
   return {
     siswaId,
     abk: false,
@@ -119,13 +132,16 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}) {
     kelengkapan,
     detail: {
       rataNilai: detail.rataNilai ?? null,
+      ringkasanMapel: detail.ringkasanMapel ?? [],
       totalHari: detail.totalHari ?? null,
       hariTercatat: detail.hariTercatat ?? null,
       jumlahHadirEfektif: detail.jumlahHadirEfektif ?? null,
       jumlahAlpa: detail.jumlahAlpa ?? null,
       rataSikap: detail.rataSikap ?? null,
       sikapTanpaKejadian: detail.sikapTanpaKejadian ?? false
-    }
+    },
+    batas: batasDariSetting(setting),
+    ambang: ambangDariSetting(setting)
   }
 }
 
@@ -138,12 +154,13 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}) {
  *   dianggap Sangat Baik (nilai 5), sesuai keputusan final sekolah.
  */
 export function hitungSkorData(
-  { nilaiAngka = [], hadirStatus = [], sikapAngka = [], totalHariSekolah = null },
+  { nilaiRows = [], hadirStatus = [], sikapAngka = [], totalHariSekolah = null },
   setting = {}
 ) {
-  const rataNilai = nilaiAngka.length
-    ? nilaiAngka.reduce((a, b) => a + Number(b), 0) / nilaiAngka.length
-    : null
+  // Akademik: rata-rata tiap mapel lebih dulu, kemudian rata-rata dari
+  // seluruh rata-rata mapel. Jumlah catatan di satu mapel tidak menambah
+  // bobot mapel tersebut.
+  const { rata: rataNilai, perMapel } = agregasiNilai(nilaiRows)
   const skorAkademik = rataNilai === null ? null : rataNilai / 100
 
   const totalHariTercatat = hadirStatus.length
@@ -160,12 +177,13 @@ export function hitungSkorData(
   const skorSikap = normalizeSikap(rataSikap)
 
   const kelengkapan = {
-    akademik: nilaiAngka.length > 0,
+    akademik: perMapel.length > 0,
     kehadiran: Number(totalHariSekolah) > 0 && totalHariTercatat >= Number(totalHariSekolah),
     sikap: true
   }
   const detail = {
     rataNilai: rataNilai === null ? null : Number(rataNilai.toFixed(2)),
+    ringkasanMapel: perMapel.map((m) => ({ ...m, rata: Number(m.rata.toFixed(2)) })),
     totalHari: Number(totalHariSekolah) || 0,
     hariTercatat: totalHariTercatat,
     jumlahHadirEfektif,
@@ -175,7 +193,7 @@ export function hitungSkorData(
   }
 
   if (!kelengkapan.akademik || !kelengkapan.kehadiran) {
-    return hasilBelumLengkap(null, kelengkapan, detail)
+    return hasilBelumLengkap(null, kelengkapan, detail, setting)
   }
 
   const wA = Number(setting.bobotAkademik ?? BOBOT_SAW.bobotAkademik)
@@ -194,24 +212,45 @@ export function hitungSkorData(
     kategori: kategoriDariSkor(skor, setting),
     kelengkapan,
     detail,
+    batas: batasDariSetting(setting),
     ambang: ambangDariSetting(setting)
   }
 }
 
-export function agregasiMapel(nilaiRows = []) {
-  if (!nilaiRows.length) return null
+export function kelompokkanNilai(nilaiRows = []) {
   const perMapel = {}
   for (const r of nilaiRows) {
-    const nama = r.mapel?.nama || 'Tanpa mapel'
+    const nama = r.mapel?.nama || r.nama || 'Tanpa mapel'
     if (!perMapel[nama]) perMapel[nama] = []
     perMapel[nama].push(Number(r.nilai))
   }
-  const avgs = Object.entries(perMapel).map(([nama, vals]) => ({
+  return Object.entries(perMapel).map(([nama, nilai]) => ({ nama, nilai }))
+}
+
+export function agregasiNilai(nilaiRows = []) {
+  const perMapel = kelompokkanNilai(nilaiRows).map(({ nama, nilai }) => ({
     nama,
-    rata: vals.reduce((a, b) => a + b, 0) / vals.length
+    rata: nilai.reduce((a, b) => a + b, 0) / nilai.length,
+    jumlah: nilai.length
   }))
-  avgs.sort((a, b) => a.rata - b.rata)
-  return avgs[0]
+  const rata = perMapel.length
+    ? perMapel.reduce((a, m) => a + m.rata, 0) / perMapel.length
+    : null
+  return { rata, perMapel }
+}
+
+export function agregasiMapel(nilaiRows = []) {
+  const { perMapel } = agregasiNilai(nilaiRows)
+  if (!perMapel.length) return null
+  const terendah = [...perMapel].sort((a, b) => a.rata - b.rata)[0]
+  return { nama: terendah.nama, rata: terendah.rata }
+}
+
+export function agregasiMapelUnggul(nilaiRows = []) {
+  const { perMapel } = agregasiNilai(nilaiRows)
+  if (!perMapel.length) return null
+  const tertinggi = [...perMapel].sort((a, b) => b.rata - a.rata)[0]
+  return { nama: tertinggi.nama, rata: tertinggi.rata }
 }
 
 async function jumlahHariSekolah(tahunAjaranId, rentang) {
@@ -235,7 +274,7 @@ export async function hitungSkorSiswa(siswaId, tahunAjaranId, setting = null, re
   if (tahunAjaranId != null) whereTA.tahunAjaranId = tahunAjaranId
 
   const [nilaiRows, hadirRows, sikapRows, totalHari] = await Promise.all([
-    Nilai.findAll({ where: whereTA }),
+    Nilai.findAll({ where: whereTA, include: [{ association: 'mapel' }] }),
     Kehadiran.findAll({ where: whereTA }),
     Sikap.findAll({ where: whereTA }),
     jumlahHariSekolah(tahunAjaranId, periode)
@@ -243,7 +282,7 @@ export async function hitungSkorSiswa(siswaId, tahunAjaranId, setting = null, re
 
   const hasil = hitungSkorData(
     {
-      nilaiAngka: nilaiRows.map((n) => Number(n.nilai)),
+      nilaiRows,
       hadirStatus: hadirRows.map((k) => k.status),
       sikapAngka: sikapRows.map((x) => Number(x.nilai)),
       totalHariSekolah: totalHari
@@ -274,7 +313,8 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
     }
   }
 
-  const ambang = { ...AMBANG_REKOMENDASI, ...(hasil?.ambang || {}) }
+  const ambang = { ...AMBANG_REKOMENDASI, ...AMBANG_MAPEL, ...(hasil?.ambang || {}) }
+  const batas = { intervalBerisikoBawah: 0, ...(hasil?.batas || {}) }
   const { skorAkademik, skorKehadiran, skorSikap } = hasil
   const akademikRendah = Number(skorAkademik) < Number(ambang.ambangAkademik)
   const sikapRendah = Number(skorSikap) < Number(ambang.ambangSikap)
@@ -294,6 +334,29 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
     daftar.push('Bina karakter melalui kegiatan kelas dan pembiasaan positif')
   }
 
+  // Rulebase berbasis rata-rata per mapel. Dua aturan dapat muncul bersamaan
+  // untuk siswa yang sekaligus memiliki mapel lemah dan mapel unggul.
+  const ringkasanMapel = Array.isArray(hasil?.detail?.ringkasanMapel)
+    ? hasil.detail.ringkasanMapel
+    : []
+  const kkm = Number(ambang.kkmMapel)
+  const unggul = Number(ambang.ambangUnggul)
+  for (const m of ringkasanMapel) {
+    const rata = Number(m.rata)
+    if (rata < kkm) {
+      daftar.push(`Bimbingan tambahan pada ${m.nama} (rata ${m.rata} di bawah KKM ${kkm})`)
+    } else if (rata >= unggul) {
+      daftar.push(`Pengayaan/pendalaman ${m.nama} (rata ${m.rata} mencapai ambang unggul ${unggul})`)
+    }
+  }
+
+  // Batas bawah berisiko tidak menambah kategori; ia hanya menandai bahwa
+  // tindak lanjut perlu diprioritaskan.
+  const skorAkhir = Number(hasil?.skor)
+  if (Number.isFinite(skorAkhir) && skorAkhir < Number(batas.intervalBerisikoBawah)) {
+    daftar.unshift('Prioritaskan tindak lanjut intensif (skor di bawah batas berisiko).')
+  }
+
   if (!daftar.length) {
     return {
       tipe: 'baik',
@@ -303,11 +366,16 @@ export function rekomendasiUntuk(hasil, mapelTerlemah = null) {
   }
 
   const jumlahRendah = [akademikRendah, kehadiranRendah, sikapRendah].filter(Boolean).length
-  return {
-    tipe: jumlahRendah > 1 ? 'gabungan' : akademikRendah ? 'akademik' : kehadiranRendah ? 'kehadiran' : 'sikap',
-    pesan: daftar[0],
-    daftar
-  }
+  const tipe = jumlahRendah > 1
+    ? 'gabungan'
+    : akademikRendah
+      ? 'akademik'
+      : kehadiranRendah
+        ? 'kehadiran'
+        : sikapRendah
+          ? 'sikap'
+          : 'mapel'
+  return { tipe, pesan: daftar[0], daftar }
 }
 
 export async function rekapKelas(kelasId, tahunAjaranId, rentang = null) {
@@ -367,7 +435,7 @@ export async function hitungSemuaSiswa(siswaList, tahunAjaranId, rentang = null)
     const hasil = {
       ...hitungSkorData(
         {
-          nilaiAngka: nRows.map((n) => Number(n.nilai)),
+          nilaiRows: nRows,
           hadirStatus: (gHadir.get(siswa.id) || []).map((k) => k.status),
           sikapAngka: (gSikap.get(siswa.id) || []).map((x) => Number(x.nilai)),
           totalHariSekolah: totalHari

@@ -386,10 +386,12 @@ disampaikan secara jujur pada pembahasan.
     - ambangAkademik: decimal 0 sampai 1, bawaan 0,65.
     - ambangSikap: decimal 0 sampai 1, bawaan 0,65.
     - ambangKehadiran: decimal 0 sampai 1, bawaan 0,80.
+    - kkmMapel: decimal 0 sampai 100, bawaan 70 (skala nilai).
+    - ambangUnggul: decimal 0 sampai 100, bawaan 85 (skala nilai).
     - Timestamps.
     Catatan: hanya satu baris konfigurasi yang dipakai. Total bobot harus
-    mendekati 1 dengan toleransi 0,0001, urutan interval divalidasi, dan
-    ketiga ambang dapat diubah Admin.
+    mendekati 1 dengan toleransi 0,0001, urutan interval divalidasi, ambang
+    0-1 dapat diubah Admin, dan ambang unggul harus lebih besar dari KKM mapel.
 
 5.13 Tabel laporan
     - id: kunci primer.
@@ -577,11 +579,14 @@ disampaikan secara jujur pada pembahasan.
     tersebut.
 
 7.2 Normalisasi Akademik
-    rataNilai = rata-rata seluruh nilai siswa pada tahun ajaran dan periode
+    Nilai dikelompokkan per mata pelajaran pada tahun ajaran dan periode
     (semester aktif secara default) terkait.
+    rataMapel = rata-rata catatan nilai pada satu mata pelajaran.
+    rataNilai = rata-rata dari seluruh rataMapel; setiap mapel bobotnya sama,
+    sehingga banyaknya catatan pada satu mapel tidak menambah bobotnya.
     skorAkademik = rataNilai / 100.
     Bila tidak ada nilai, kriteria dinyatakan tidak lengkap dan skor akhir tidak
-    dihitung (lihat 7.6).
+    dihitung (lihat 7.6). Ringkasan rata per mapel juga dipakai rulebase (7.8).
 
 7.3 Normalisasi Kehadiran
     jumlahEfektif = banyak catatan dengan status hadir, izin, atau sakit.
@@ -616,16 +621,22 @@ disampaikan secara jujur pada pembahasan.
     ambangAkademik         = 0,65
     ambangSikap            = 0,65
     ambangKehadiran        = 0,80
+    kkmMapel               = 70   (skala 0-100)
+    ambangUnggul           = 85   (skala 0-100)
 
     Total bobot wajib mendekati 1 dengan toleransi 0,0001. Setiap bobot,
-    interval, dan ambang harus berada pada rentang 0 sampai 1, dengan urutan
-    Baik > Perhatian > Berisiko.
+    interval, dan ambang rekomendasi harus berada pada rentang 0 sampai 1,
+    dengan urutan Baik > Perhatian > Berisiko. KKM dan ambang unggul
+    berada pada rentang 0 sampai 100 dengan ambang unggul > KKM.
 
 7.6 Kategori
     skor >= intervalBaikBawah          -> aman
     skor >= intervalPerhatianBawah     -> perhatian
-    skor >= intervalBerisikoBawah      -> berisiko
     selain itu                         -> berisiko
+
+    Klasifikasi tetap tiga kategori. intervalBerisikoBawah TIDAK menambah
+    kategori keempat; bila skor di bawah batas tersebut, rekomendasi diberi
+    penanda prioritas tindak lanjut intensif (lihat 7.8).
 
     Label yang ditampilkan:
     aman       : Baik / Aman
@@ -652,6 +663,7 @@ disampaikan secara jujur pada pembahasan.
     - Akademik rendah bila skorAkademik < ambangAkademik (0,65).
     - Kehadiran rendah bila skorKehadiran < ambangKehadiran (0,80).
     - Sikap rendah bila skorSikap < ambangSikap (0,65).
+    - KKM mapel 70 dan ambang unggul 85 (skala nilai 0-100).
 
     Aturan:
     1. Bila akademik rendah, rekomendasi menekankan pendampingan belajar dan
@@ -659,16 +671,26 @@ disampaikan secara jujur pada pembahasan.
     2. Bila sikap rendah, rekomendasi menekankan pendekatan personal/coaching.
     3. Bila kehadiran rendah, rekomendasi menekankan investigasi penyebab
        ketidakhadiran dan komunikasi dengan orang tua.
-    4. Bila dua kriteria atau lebih rendah, tipe menjadi gabungan dan semua
+    4. Rulebase per mapel: rataMapel < kkmMapel menghasilkan rekomendasi
+       bimbingan tambahan pada mapel itu; rataMapel >= ambangUnggul menghasilkan
+       rekomendasi pengayaan/pendalaman. Keduanya dapat muncul bersamaan.
+    5. Bila skor di bawah intervalBerisikoBawah, kalimat prioritas tindak lanjut
+       intensif ditambahkan. Kategori siswa tetap tiga seperti 7.6.
+    6. Bila dua kriteria atau lebih rendah, tipe menjadi gabungan dan semua
        rekomendasi relevan ditampilkan (termasuk kehadiran).
-    5. Bila tidak ada kondisi rendah, rekomendasi menyatakan perkembangan baik
-       dan anjuran mempertahankan.
-    6. Data Belum Lengkap meminta pelengkapan data, bukan label Berisiko.
-    7. Siswa ABK dikecualikan dan memperoleh rekomendasi pendekatan khusus.
+    7. Bila tidak ada kondisi rendah maupun aturan mapel, rekomendasi menyatakan
+       perkembangan baik dan anjuran mempertahankan.
+    8. Data Belum Lengkap meminta pelengkapan data, bukan label Berisiko.
+    9. Siswa ABK dikecualikan dan memperoleh rekomendasi pendekatan khusus.
 
-7.9 Mapel Terlemah
-    Sistem membandingkan rata-rata nilai per mata pelajaran untuk siswa.
-    Mata pelajaran dengan rata-rata terendah ditampilkan sebagai mapel
+    Seluruh kalimat aturan dimasukkan ke rekomendasi.daftar sehingga tampil
+    pada monitoring guru/orang tua, rekap, dan PDF rapor tanpa kartu UI baru.
+
+7.9 Agregasi dan Mapel Terlemah
+    Fungsi agregasiNilai() mengelompokkan nilai per mata pelajaran, menghitung
+    rata-rata tiap mapel, lalu rata-rata dari semua rata mapel. Ringkasan ini
+    disimpan pada hasil.detail.ringkasanMapel dan dipakai oleh rulebase 7.8.
+    Mata pelajaran dengan rata-rata terendah tetap ditampilkan sebagai mapel
     terlemah. Bila belum ada nilai, mapel terlemah null. Perhitungan ini
     dilakukan per siswa dan dapat menimbulkan banyak query (N+1) pada halaman
     rekap.
@@ -1629,8 +1651,9 @@ US-061
     |                     | password opsional maks 200; nama 1-150;      |
     |                     | role enum; telepon/email opsional;           |
     |                     | kelas/siswa opsional                         |
-    | SPK                 | semua bobot/interval/ambang 0-1; total       |
-    |                     | bobot ~1; urutan Baik > Perhatian > Berisiko |
+    | SPK                 | bobot/interval/ambang 0-1; total bobot ~1;   |
+    |                     | urutan Baik > Perhatian > Berisiko; KKM &    |
+    |                     | unggul 0-100 dengan unggul > KKM             |
     | Nilai               | siswa dan mapel wajib; judul 1-150; nilai    |
     |                     | 0-100; tanggal YYYY-MM-DD                    |
     | Kehadiran           | tanggal wajib; daftar wajib; status enum;    |
@@ -1648,8 +1671,9 @@ US-061
     a. Login memeriksa keberadaan pengguna dan status aktif.
     b. Nilai dan kehadiran memeriksa keterkaitan siswa dengan kelas yang
        diampu.
-    c. SPK memeriksa jumlah bobot, urutan interval, dan rentang ambang;
-       tahun ajaran memeriksa pasangan serta urutan tanggal semester.
+    c. SPK memeriksa jumlah bobot, urutan interval, rentang ambang, serta
+       KKM dan ambang unggul (unggul > KKM); tahun ajaran memeriksa pasangan
+       serta urutan tanggal semester.
     d. Artikel memeriksa keberadaan judul dan isi.
     e. Laporan memeriksa data yang akan disnapshot.
     f. Akun memeriksa keunikan username dan menangani pesan duplikasi.
@@ -2011,7 +2035,8 @@ US-061
 15.2 Batasan Implementasi
     1. Normalisasi SPK memakai skala tetap, bukan x/max; README kini sudah
        sejalan dengan implementasi.
-    2. intervalBerisikoBawah dipakai eksplisit dalam penentuan kategori.
+    2. Klasifikasi SPK tetap tiga kategori; intervalBerisikoBawah dipakai
+       sebagai penanda prioritas pada rekomendasi, bukan kategori keempat.
     3. Urutan interval Baik > Perhatian > Berisiko divalidasi.
     4. Ambang rekomendasi bawaan 0,65/0,65/0,80 dapat diatur Admin.
     5. Notifikasi otomatis hanya dibuat untuk nilai.
@@ -2056,15 +2081,20 @@ US-061
     31. Belum ada kalender hari sekolah/libur; denominator kehadiran memakai
         tanggal yang tercatat pada semester aktif.
     32. Tidak ada tombol konfirmasi pemantauan sikap tanpa kejadian.
+    33. Agregasi akademik memakai rata-rata tiap mapel lalu dirata-ratkan
+        kembali; jumlah catatan pada satu mapel tidak menambah bobotnya.
+    34. Rulebase mapel (kkmMapel 70, ambangUnggul 85, skala 0-100) dapat
+        diatur Admin; hasilnya masuk rekomendasi.daftar tanpa kartu UI baru.
 
 15.3 Catatan untuk Pembahasan Bab 4
     a. Jelaskan bahwa sistem mengimplementasikan SAW dengan normalisasi skala
        tetap dan sebutkan alasan pemilihan tersebut.
     b. Bahas bobot sikap yang paling besar (5/13) dan keputusan bahwa siswa
        tanpa kejadian langsung diberi nilai maksimal (Sangat Baik).
-    c. Jelaskan bahwa kategori ditentukan oleh tiga interval yang semuanya
-       dipakai dengan urutan tervalidasi, serta tiga ambang rekomendasi yang
-       dapat diatur Admin.
+    c. Jelaskan bahwa kategori ditentukan oleh dua batas interval dengan
+       urutan tervalidasi (tiga kategori), batas berisiko menjadi penanda
+       prioritas, serta ambang rekomendasi yang dapat diatur Admin, termasuk
+       KKM dan ambang unggul mapel.
     d. Bahas keterbatasan notifikasi otomatis yang baru mencakup nilai.
     e. Jelaskan keselarasan README dan implementasi aktual secara terbuka,
        termasuk normalisasi, kebijakan semester, dan fitur yang belum terhubung.
@@ -2087,6 +2117,9 @@ US-061
        dipertanggungjawabkan.
     n. Jelaskan sumber acuan Kaldik 2025/2026 dan alasan rentang semester
        dipakai sebagai filter default, tanpa tabel kalender/libur terpisah.
+    o. Bahas rulebase per mapel: rata-rata tiap mapel dibandingkan dengan KKM
+       (bawaan 70) dan ambang unggul (bawaan 85) untuk bimbingan atau pengayaan,
+       dengan agregasi per mapel bobotnya sama.
 
 ================================================================================
 AKHIR DOKUMEN

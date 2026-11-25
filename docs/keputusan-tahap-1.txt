@@ -31,6 +31,9 @@ No | Keputusan final | Perilaku sistem | Lokasi kode
 3  | Label sikap | 1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik (sesuai instrumen/wawancara). | client/src/utils/format.js -> labelSikap
 4  | Periode penilaian | Default semester aktif. Admin mengubah semester aktif dan rentang di halaman Tahun Ajaran. Laporan dengan rentang eksplisit memakai rentang itu. | services/spk.js -> rentangSemester(); controllers/*; services/rapor.js
 5  | Ambang rekomendasi | Disetujui 0,65 akademik / 0,65 sikap / 0,80 kehadiran dan dapat diatur admin. | models/settingSpk.js; controllers/spkController.js; client/src/views/admin/AdminSpk.vue
+6  | Agregasi akademik | Rata-rata tiap mapel dihitung dulu, lalu dirata-ratakan lagi. Tiap mapel bobotnya sama, jumlah catatan tidak memengaruhi. Dipakai untuk R_A dan rulebase. | services/spk.js -> agregasiNilai(); hitungSkorData()
+7  | Rulebase per mapel | Rata mapel < kkmMapel (bawaan 70) mendapat bimbingan; rata >= ambangUnggul (bawaan 85) mendapat pengayaan. Keduanya dapat diatur admin pada skala 0-100 dan hasilnya masuk rekomendasi.daftar. | services/spk.js -> rekomendasiUntuk(); models/settingSpk.js; client/src/views/admin/AdminSpk.vue
+8  | Batas bawah berisiko | Klasifikasi tetap tiga kategori. intervalBerisikoBawah dipakai sebagai penanda prioritas tindak lanjut pada rekomendasi, bukan kategori keempat. | services/spk.js -> kategoriDariSkor(); rekomendasiUntuk()
 
 Dampak penting: "Data Belum Lengkap" kini hanya dipicu oleh nilai akademik
 atau kehadiran yang belum tersedia/lengkap. Siswa tanpa catatan sikap tidak
@@ -94,16 +97,26 @@ Contoh 6 — ambang dapat diatur
   Jika ambang akademik diubah ke 0,80 dan R_A = 0,70, maka rekomendasi
   akademik tetap muncul walaupun nilai tersebut memenuhi ambang bawaan 0,65.
 
+Contoh 7 — agregasi per mapel dan rulebase
+  IPA: 80 dan 90 -> rata 85 (dua catatan tetap dihitung sekali).
+  Matematika: 60 -> rata 60.
+  R_A = ((85 + 60) / 2) / 100 = 0,725.
+  IPA mencapai ambang unggul 85 -> rekomendasi pengayaan.
+  Matematika di bawah KKM 70 -> rekomendasi bimbingan tambahan.
+
 =====================================================================
 5. CATATAN IMPLEMENTASI / MIGRASI
 =====================================================================
 
 - Kolom `tahun_ajaran` baru: semesterAktif, ganjilMulai, ganjilAkhir,
   genapMulai, genapAkhir. Nilai awal 2025/2026 diisi migrasi dan seed.
-- Kolom `setting_spk` baru: ambangAkademik, ambangSikap, ambangKehadiran.
-- Migrasi baru: 20261125130000-semester-dan-ambang.cjs.
-  Migrasi Tahap 1 sebelumnya (20261125000000-tahap-1-saw.cjs) sudah
-  diterapkan dan tidak dijalankan ulang.
+- Kolom `setting_spk` baru: ambangAkademik, ambangSikap, ambangKehadiran,
+  kkmMapel (70), dan ambangUnggul (85).
+- Migrasi baru: 20261125130000-semester-dan-ambang.cjs dan
+  20261126000000-kkm-dan-ambang-unggul.cjs. Migrasi Tahap 1 sebelumnya
+  (20261125000000-tahap-1-saw.cjs) sudah diterapkan dan tidak dijalankan ulang.
+- `hitungSkorData()` menerima `nilaiRows` (baris nilai dengan relasi mapel),
+  bukan lagi `nilaiAngka` datar.
 - `sikap.nilai` tetap INTEGER dengan validasi Zod 1-5.
 - Duplikasi kejadian sikap dicegah di aplikasi dengan kunci
   (siswaId, jenis, nilai, catatan, tanggal, tahunAjaranId).

@@ -317,7 +317,7 @@ Secara default, seluruh perhitungan dan laporan memakai **semester aktif** yang 
 
 Normalisasi benefit (semakin tinggi semakin baik):
 
-- Akademik: `R_A = rata-rata nilai / 100`
+- Akademik: `R_A = rata-rata dari rata-rata tiap mata pelajaran / 100` (setiap mapel bobotnya sama, tanpa memedulikan jumlah catatan)
 - Kehadiran: `R_K = (hadir + izin + sakit) / tanggal kehadiran yang tercatat` → hanya **alpa** yang menurunkan skor
 - Sikap: `R_S = (rata-rata nilai kejadian - 1) / 4` dengan skala **1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik**. Tanpa kejadian pada semester aktif langsung `R_S = 1` (nilai 5).
 
@@ -334,15 +334,17 @@ Status khusus:
 - **Data Belum Lengkap** — nilai akademik atau rekap kehadiran belum tersedia/lengkap pada semester aktif. Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko. Siswa tanpa kejadian sikap **tidak** masuk status ini.
 - **ABK** — dikecualikan dari skoring otomatis dan tidak digabung dengan Data Belum Lengkap.
 
-Bobot, interval klasifikasi, dan ambang rekomendasi **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100%, urutan interval `Baik > Perhatian > Berisiko`, dan rentang ambang 0–1.
+Bobot, interval klasifikasi, dan ambang rekomendasi **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100%, urutan interval `Baik > Perhatian > Berisiko`, dan rentang ambang 0–1. Klasifikasi tetap tiga kategori; `intervalBerisikoBawah` dipakai sebagai penanda prioritas, bukan kategori keempat.
 
 ### Rekomendasi berbasis aturan (rule-based)
 
-Ambang bawaan (dapat diubah Admin): akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`.
+Ambang bawaan (dapat diubah Admin): akademik `< 0,65`, sikap `< 0,65`, kehadiran `< 0,80`; KKM mapel `70` dan ambang unggul `85` (skala 0–100).
 
 - Akademik rendah → les/bimbingan tambahan + sorot mapel terlemah.
 - Kehadiran rendah → investigasi penyebab ketidakhadiran + coaching orang tua.
 - Sikap rendah → pendekatan personal/coaching ke siswa & orang tua.
+- Rata-rata mapel `< KKM` → bimbingan tambahan pada mapel tersebut; `>= ambang unggul` → pengayaan/pendalaman.
+- Skor di bawah `intervalBerisikoBawah` → kalimat prioritas tindak lanjut intensif (kategori tetap tiga).
 - Dua kriteria rendah atau lebih → tipe **`gabungan`**, semua rekomendasi yang relevan ditampilkan.
 - Data Belum Lengkap → minta pelengkapan data, bukan label Berisiko.
 - Status ABK → dikecualikan dari klasifikasi otomatis, tampilkan catatan pendekatan pembelajaran khusus.

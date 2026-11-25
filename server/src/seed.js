@@ -248,7 +248,9 @@ async function seed() {
       intervalBerisikoBawah: 0.0,
       ambangAkademik: 0.65,
       ambangSikap: 0.65,
-      ambangKehadiran: 0.8
+      ambangKehadiran: 0.8,
+      kkmMapel: 70,
+      ambangUnggul: 85
     })
   }
 
