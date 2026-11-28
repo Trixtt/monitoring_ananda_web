@@ -117,30 +117,32 @@
         </div>
       </div>
 
-      <!-- Sikap -->
+      <!-- Catatan Sikap -->
       <div class="card overflow-hidden">
         <div class="px-5 py-4 border-b border-surface-variant dark:border-white/10">
-          <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Penilaian Sikap</h2>
+          <h2 class="font-title-lg text-deep-navy dark:text-ice-white">Riwayat Catatan Sikap</h2>
         </div>
         <div class="table-shell">
           <table class="table-base">
             <thead>
               <tr>
                 <th>Tanggal</th>
-                <th>Jenis</th>
-                <th>Nilai</th>
-                <th>Catatan</th>
+                <th>Jenis Kejadian</th>
+                <th>Aspek</th>
+                <th>Keterangan</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="s in sikap" :key="s.id">
                 <td>{{ formatTanggal(s.tanggal) }}</td>
-                <td class="capitalize">{{ s.jenis }}</td>
-                <td><span class="badge bg-ice-white dark:bg-white/10 text-dark-teal dark:text-light-teal">{{ labelSikap[s.nilai] }}</span></td>
-                <td class="text-on-surface-variant dark:text-ice-white/60">{{ s.catatan || '-' }}</td>
+                <td class="font-label-md text-deep-navy dark:text-ice-white">{{ s.kategori }}</td>
+                <td class="capitalize">{{ s.aspek }}</td>
+                <td class="text-on-surface-variant dark:text-ice-white/60">{{ s.keterangan || '-' }}</td>
               </tr>
               <tr v-if="!sikap.length">
-                <td colspan="4" class="text-center text-on-surface-variant dark:text-ice-white/60 py-8">Belum ada penilaian sikap</td>
+                <td colspan="4" class="text-center text-on-surface-variant dark:text-ice-white/60 py-8">
+                  Belum ada catatan kejadian pada periode ini.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -179,7 +181,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../../services/api'
 import { useToastStore } from '../../stores/toast'
-import { formatSkor, persen, formatTanggal, kehadiranMap, labelSikap } from '../../utils/format'
+import { formatSkor, persen, formatTanggal, kehadiranMap } from '../../utils/format'
 import StatusBadge from '../../components/StatusBadge.vue'
 import ModalDialog from '../../components/ModalDialog.vue'
 import LoadingState from '../../components/LoadingState.vue'

@@ -172,24 +172,30 @@ export async function unduhRaporPdf(rapor) {
   doc.text(`Persentase kehadiran: ${persenHadir}${rapor.totalHari ? ` dari ${rapor.totalHari} hari` : ''}`, ml, y)
   y += 7
 
-  // Ringkasan sikap
+  // Catatan sikap
   doc.setFont('times', 'bold')
   doc.setFontSize(11)
-  doc.text('Ringkasan Sikap', ml, y)
+  doc.text('Catatan Sikap', ml, y)
   y += 5
   doc.setFont('times', 'normal')
   doc.setFontSize(10)
-  const ringkasSikap = rapor.ringkasSikap || []
-  if (ringkasSikap.length) {
-    ringkasSikap.forEach((s) => {
-      const label = s.jenis === 'spiritual' ? 'Spiritual' : 'Sosial'
-      const nilai = s.jumlah ? formatSikap(Math.round(s.rata)) : '-'
-      doc.text(`${label}: ${nilai}`, ml, y)
-      y += 5
-    })
-  } else {
-    doc.text('Belum ada penilaian sikap.', ml, y)
+  const ringkasSikap = rapor.ringkasSikap || {}
+  doc.text(`Skor berdasarkan catatan: ${ringkasSikap.nilai ?? '-'} (${ringkasSikap.jumlahCatatan ?? 0} catatan pada periode ini)`, ml, y)
+  y += 5
+  if (ringkasSikap.tanpaCatatan) {
+    doc.text('Belum ada catatan kejadian pada periode ini.', ml, y)
     y += 5
+  } else {
+    ;(rapor.daftarSikap || []).forEach((s) => {
+      const keterangan = s.keterangan ? `: ${s.keterangan}` : ''
+      const baris = doc.splitTextToSize(`${s.tanggal || '-'} - ${s.kategori} (${s.aspek})${keterangan}`, cw)
+      if (y + baris.length * 4.6 > ph - 16) {
+        doc.addPage()
+        y = 18
+      }
+      doc.text(baris, ml, y)
+      y += baris.length * 4.6
+    })
   }
   y += 4
 
@@ -229,9 +235,4 @@ export async function unduhRaporPdf(rapor) {
   doc.text('( ................. )', scx, y, { align: 'center' })
 
   doc.save(namaFile(siswa))
-}
-
-function formatSikap(n) {
-  const labels = { 1: 'Kurang', 2: 'Cukup', 3: 'Baik', 4: 'Sangat Baik' }
-  return labels[n] || n
 }

@@ -2,7 +2,7 @@
 
 **SD Negeri 4 Keling, Kabupaten Jepara**
 
-Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dimensi — **akademik, kehadiran, dan sikap (spiritual & sosial)** — secara terintegrasi untuk Wali Kelas, Kepala Sekolah, Orang Tua, dan Admin. Sistem menggunakan **Sistem Pendukung Keputusan (SPK)** dengan metode **Simple Additive Weighting (SAW)** untuk mengklasifikasikan kondisi siswa, dilengkapi **rule-based recommendation** serta **notifikasi ganda** (real-time in-app via Socket.io + WhatsApp via Fonnte).
+Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dimensi — **akademik, kehadiran, dan catatan kejadian sikap** — secara terintegrasi untuk Wali Kelas, Kepala Sekolah, Orang Tua, dan Admin. Sistem menggunakan **Sistem Pendukung Keputusan (SPK)** dengan metode **Simple Additive Weighting (SAW)** untuk mengklasifikasikan kondisi siswa, dilengkapi **rule-based recommendation** serta **notifikasi ganda** (real-time in-app via Socket.io + WhatsApp via Fonnte).
 
 ---
 
@@ -16,6 +16,7 @@ Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dim
 - [Persiapan Lingkungan](#persiapan-lingkungan)
 - [Instalasi (Development)](#instalasi-development)
 - [Seed Data Demo](#seed-data-demo)
+- [Catatan Sikap & Migrasi v1.1](#catatan-sikap--migrasi-v11)
 - [Deploy & Produksi](#deploy--produksi)
 - [Backup & Restore Database](#backup--restore-database)
 - [Testing](#testing)
@@ -29,13 +30,13 @@ Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dim
 |---|---|
 | **Landing page publik** | Info sekolah + daftar berita/artikel, halaman detail artikel. Bisa dibuka tanpa login. |
 | **Login terpusat** | Satu halaman login untuk semua role; redirect otomatis ke dashboard masing-masing. |
-| **Wali Kelas** | Unggah nilai (judul bebas + file pendukung), input kehadiran (Hadir/Izin/Sakit/Alpa), catat **kejadian** sikap spiritual & sosial (skala 1-5), tandai siswa **ABK**, lihat klasifikasi SPK & rekomendasi per siswa, kirim notifikasi. |
+| **Wali Kelas** | Unggah nilai (judul bebas + file pendukung), input kehadiran (Hadir/Izin/Sakit/Alpa), buat **catatan kejadian sikap** (kategori + keterangan, tanpa skala 1-5), tandai siswa **ABK**, lihat klasifikasi SPK & rekomendasi per siswa, kirim notifikasi. |
 | **Kepala Sekolah** | Dashboard rekap seluruh kelas, statistik distribusi kondisi, filter kategori/kelas/**tahun ajaran**, generate laporan, **ekspor PDF resmi** (kop surat + tanda tangan). |
 | **Orang Tua** | Login khusus (username = tahun angkatan + no absen), wajib ganti password pertama kali, lihat skor & grafik perkembangan anak, rekomendasi pendampingan di rumah, terima notifikasi ganda. |
 | **Admin** | CRUD data master (siswa, kelas, tahun ajaran, mapel) + validasi unik (NISN), CRUD akun + reset password + aktif/nonaktif, konfigurasi bobot SPK (validasi total = 100%), kelola artikel, akses **general** sebagai Wali Kelas / Kepala Sekolah. |
 | **SPK SAW** | Skoring & klasifikasi otomatis (Baik/Aman, Perlu Perhatian, Berisiko, **Data Belum Lengkap**); siswa **ABK dikecualikan** dari skoring otomatis. Bobot & ambang batas bisa dikonfigurasi. |
 | **Rule-based recommendation** | Rekomendasi tindak lanjut beda tiap kondisi (akademik→les, kehadiran→investigasi, sikap→coaching, gabungan→gabungan, data belum lengkap→lengkapi data, ABK→pendekatan khusus) + sorot mapel terlemah. |
-| **Notifikasi ganda** | Saat nilai baru diinput: real-time in-app (badge/lonceng via Socket.io) + WhatsApp via Fonnte. |
+| **Notifikasi ganda** | Saat nilai baru diinput atau catatan sikap dibuat: real-time in-app (badge/lonceng via Socket.io) + WhatsApp via Fonnte. |
 
 ---
 
@@ -61,7 +62,7 @@ Sistem informasi berbasis web untuk memantau perkembangan siswa SD pada tiga dim
 - **Backend**: Node.js + Express, autentikasi JWT pada **httpOnly cookie**, otorisasi berbasis role (RBAC), validasi Zod, keamanan Helmet.
 - **Frontend**: Vue 3 + Vite + Pinia + Vue Router, Tailwind CSS.
 - **Real-time**: Socket.io (notifikasi in-app, badge lonceng).
-- **Database**: MySQL (relasional) via Sequelize ORM; skema dikelola `sequelize-cli` (migrasi).
+- **Database**: MySQL untuk produksi dan SQLite untuk development offline, keduanya via Sequelize ORM; skema dikelola `sequelize-cli` (migrasi). Migration terbaru memiliki cabang untuk kedua dialect.
 - **Perancangan**: metode **Prototyping**; perancangan UML (Use Case, Activity, Sequence, Class) disesuaikan dengan kebutuhan skripsi.
 
 ---
@@ -123,7 +124,7 @@ monitoring-sd-n-4-keling/
 | Role | Redirect | Akses |
 |---|---|---|
 | `admin` | `/admin` | Data master, akun, konfigurasi SPK, artikel, akses general sebagai guru/kepsek |
-| `wali_kelas` | `/guru` | Nilai, kehadiran, sikap, status ABK, dashboard klasifikasi kelas, rekomendasi |
+| `wali_kelas` | `/guru` | Nilai, kehadiran, catatan sikap, status ABK, dashboard klasifikasi kelas, rekomendasi |
 | `kepala_sekolah` | `/kepsek` | Rekap seluruh kelas, laporan, ekspor PDF, rapor |
 | `orang_tua` | `/orangtua` | Skor & rekomendasi anak, notifikasi |
 
@@ -178,7 +179,7 @@ Akses:
 
 ## Seed Data Demo
 
-Mengisi data contoh: admin, kepala sekolah, 6 wali kelas, siswa + akun orang tua, nilai/kehadiran/sikap, konfigurasi SPK, dan artikel.
+Mengisi data contoh: admin, kepala sekolah, 6 wali kelas, siswa + akun orang tua, nilai/kehadiran/catatan sikap, konfigurasi SPK, dan artikel.
 
 ```bash
 npm run db:seed --prefix server
@@ -202,6 +203,64 @@ Password demo dapat diganti lewat variabel `DEMO_ADMIN_PASSWORD`, `DEMO_KEPSEK_P
 > Bila database sudah berisi data demo lama dan hanya password akun yang perlu diselaraskan dengan tabel di atas, jalankan `npm run db:demo-passwords --prefix server`. Skrip ini menolak berjalan di produksi dan hanya menyentuh akun demo yang dikenal.
 
 > **Untuk demo lokal/offline**, buat `client/.env` berisi `VITE_DEMO_MODE=true` agar kredensial demo tampil di halaman login. Jangan aktifkan di produksi.
+
+---
+
+## Catatan Sikap & Migrasi v1.1
+
+Revisi v1.1 mengganti **Penilaian Sikap skala 1-5** dengan **Catatan Kejadian**. Tidak ada sistem baru yang dibangun: tabel `sikap` tetap dipakai, hanya kolom dan kontraknya yang disesuaikan.
+
+**Model penilaian**
+
+- Setiap catatan menyimpan `kategori`, `jenis` (aspek sosial/spiritual), `keterangan`, `tanggal`, `pengurangan`, `guruId`, dan opsional `kehadiranId`.
+- `nilaiSikap = max(0, 100 - totalPengurangan)`; `R_S = nilaiSikap / 100`.
+- Bolos wajib memiliki baris presensi `alpa` yang cocok (siswa + tanggal + periode sama). `tahunAjaranId` diambil dari baris `Kehadiran` tersebut, pengurangan sikapnya `0`, dan dampaknya hanya pada kriteria Kehadiran. Jika tidak ada presensi yang cocok, catatan ditolak tanpa membuat/mengubah presensi.
+- Tanggal kejadian harus berada di dalam rentang semester/periode aktif.
+- Tanpa catatan ≠ predikat tertentu. Skor 100 (`R_S = 1`) adalah konsekuensi model insidental; jumlah catatan hanya ditampilkan sebagai informasi, bukan bobot SAW tambahan.
+
+**Kategori dan angka pengurangan (konfigurasi teknis sementara)**
+
+| Kategori | Pengurangan |
+|---|---|
+| Bolos | 0 |
+| Tidak mengerjakan tugas | 5 |
+| Berkelahi dengan teman | 10 |
+| Memalak uang teman | 20 |
+| Membully teman/perundungan | 20 |
+| Berbicara kotor kepada teman | 5 |
+| Tidak sopan kepada guru | 10 |
+| Lainnya (aspek + keterangan wajib) | 5 |
+
+> Angka-angka di atas **bukan keputusan resmi kepala sekolah**. Nilai resmi dapat dimasukkan kemudian dengan mengubah hanya `server/src/config/sikap.js`; riwayat catatan lama tetap memakai `pengurangan` yang tersimpan pada barisnya masing-masing.
+
+**Perubahan struktur tabel `sikap`**
+
+| Sebelum | Sesudah |
+|---|---|
+| `id`, `jenis`, **`nilai` (INTEGER 1-5)**, `catatan`, `tanggal`, `siswaId`, `tahunAjaranId`, `createdAt`, `updatedAt` | `id`, `jenis`, **`kategori`**, **`pengurangan`**, `catatan`, `tanggal`, `siswaId`, `tahunAjaranId`, **`guruId`**, **`kehadiranId`**, `createdAt`, `updatedAt` |
+| Index `sikap_siswa_ta_idx` | Index `sikap_siswa_ta_idx` + index unik `sikap_kehadiran_unik` pada `kehadiranId` |
+
+Tabel lain tidak diubah. Migration `20261128000000-catatan-kejadian-sikap.cjs` memiliki cabang SQLite (membangun ulang tabel `sikap` karena keterbatasan `ALTER TABLE ... ADD CONSTRAINT`) dan MySQL (penambahan kolom/FK/index secara inkremental). Cabang `down` hanya mengembalikan struktur lama; **baris demo yang dihapus tidak dapat dipulihkan tanpa backup**.
+
+**Menjalankan migrasi**
+
+```bash
+# WAJIB: backup dulu. MySQL:
+npm run db:backup --prefix server
+# SQLite: salin server/database/dev.sqlite ke lokasi aman
+
+npm run db:migrate --prefix server
+```
+
+> Migration revisi v1.1 **sudah dijalankan** setelah backup dibuat: `server/backups/monitoring_siswa_20261128_144338.sql` (SHA-256 `c806f8ac37663a460ba3f78aaffffee06ef73a10210761a3c56d15f31dde4c71`). Seed dijalankan tanpa `SEED_FORCE=true` dan **dilewati** karena data demo sudah ada, sehingga baris sikap demo yang dibersihkan migrasi belum terisi ulang. Test server 77/77 lulus, test client 11/11 lulus, lint server/client bersih, dan build client berhasil. UAT/Black Box **belum dijalankan**. Jangan menjalankan `SEED_FORCE=true` tanpa izin eksplisit.
+
+**Kontrak API yang berubah**
+
+- `POST /api/guru/sikap` → `{ daftar: [{ siswaId, kategori, jenis?, catatan?, tanggal? }] }`
+- `GET /api/guru/sikap/:siswaId` → `list` berisi `{ id, tanggal, kategori, aspek, keterangan }`
+- `GET /api/ortu/sikap` → `ringkas: { nilai, jumlahCatatan, tanpaCatatan }` dan `list` berisi catatan (tanpa `guruId`)
+- `GET /api/ortu/monitoring` → `sikap` dikelompokkan per tanggal: `{ tanggal, daftar: [...] }`
+- `GET /api/ortu/rapor` → `ringkasSikap` berupa objek dan `daftarSikap`
 
 ---
 
@@ -318,8 +377,8 @@ Secara default, seluruh perhitungan dan laporan memakai **semester aktif** yang 
 Normalisasi benefit (semakin tinggi semakin baik):
 
 - Akademik: `R_A = rata-rata dari rata-rata tiap mata pelajaran / 100` (setiap mapel bobotnya sama, tanpa memedulikan jumlah catatan)
-- Kehadiran: `R_K = (hadir + izin + sakit) / tanggal kehadiran yang tercatat` → hanya **alpa** yang menurunkan skor
-- Sikap: `R_S = (rata-rata nilai kejadian - 1) / 4` dengan skala **1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik**. Tanpa kejadian pada semester aktif langsung `R_S = 1` (nilai 5).
+- Kehadiran: `R_K = (hadir + izin + sakit) / tanggal kehadiran yang tercatat` → hanya **alpa** yang menurunkan skor; izin dan sakit tetap dihitung hadir efektif
+- Sikap: `nilaiSikap = max(0, 100 - totalPengurangan)` dari seluruh catatan pada semester aktif, lalu `R_S = nilaiSikap / 100`. Kategori **Bolos** memiliki pengurangan 0 karena dampaknya hanya pada kriteria Kehadiran (alpa). Tanpa catatan, `nilaiSikap = 100` sehingga `R_S = 1`; ini adalah konsekuensi model catatan insidental, bukan predikat "Sangat Baik". Jumlah catatan hanya informasi pendukung, bukan kriteria SAW tambahan.
 
 Nilai preferensi: `Vi = (R_A × 4/13) + (R_K × 4/13) + (R_S × 5/13)`
 
@@ -331,7 +390,7 @@ Klasifikasi (interval, dapat dikonfigurasi):
 
 Status khusus:
 
-- **Data Belum Lengkap** — nilai akademik atau rekap kehadiran belum tersedia/lengkap pada semester aktif. Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko. Siswa tanpa kejadian sikap **tidak** masuk status ini.
+- **Data Belum Lengkap** — nilai akademik atau rekap kehadiran belum tersedia/lengkap pada semester aktif. Skor **tidak dihitung final** dan siswa **tidak** diklasifikasikan Berisiko. Siswa tanpa catatan sikap **tidak** masuk status ini.
 - **ABK** — dikecualikan dari skoring otomatis dan tidak digabung dengan Data Belum Lengkap.
 
 Bobot, interval klasifikasi, dan ambang rekomendasi **dapat dikonfigurasi ulang oleh Admin** dengan validasi jumlah bobot = 100%, urutan interval `Baik > Perhatian > Berisiko`, dan rentang ambang 0–1. Klasifikasi tetap tiga kategori; `intervalBerisikoBawah` dipakai sebagai penanda prioritas, bukan kategori keempat.
@@ -359,7 +418,8 @@ Keputusan final kebijakan Tahap 1 dirangkum di [`docs/keputusan-tahap-1.txt`](do
 - Siswa tidak punya akun/akses ke sistem.
 - Tidak ada integrasi langsung ke E-Rapor Kemendikdasmen (input nilai manual).
 - Belum ada kalender hari sekolah eksplisit; denominator kehadiran memakai tanggal yang tercatat pada semester aktif dan validasi cakupan per siswa.
-- Tanpa kejadian sikap di semester aktif langsung dinilai 5 (Sangat Baik); tidak ada tombol konfirmasi pemantauan.
+- Tanpa catatan sikap di semester aktif, skor sikap bernilai 100 (`R_S = 1`) karena model hanya mencatat kejadian; tidak ada predikat/konfirmasi pemantauan.
+- Angka pengurangan per kategori saat ini masih **konfigurasi teknis sementara**, bukan angka resmi kepala sekolah (lihat `server/src/config/sikap.js`).
 - Notifikasi WhatsApp memakai **Fonnte** (bukan WhatsApp Business API resmi).
 - Data kesehatan & ekstrakurikuler tidak dicakup.
 

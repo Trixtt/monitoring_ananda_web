@@ -17,15 +17,6 @@ export const kehadiranMap = {
   alpa: { label: 'Alpa', cls: 'bg-status-berisiko/15 text-status-berisiko' }
 }
 
-// Label final sesuai instrumen/wawancara sekolah (lihat dokumen keputusan Tahap 1).
-export const labelSikap = {
-  1: 'Kurang',
-  2: 'Cukup',
-  3: 'Baik',
-  4: 'Baik Sekali',
-  5: 'Sangat Baik'
-}
-
 export function formatTanggal(iso) {
   if (!iso) return '-'
   const d = new Date(iso)

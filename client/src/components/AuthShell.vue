@@ -13,10 +13,10 @@
 
       <div class="relative flex-1 hidden lg:flex flex-col items-center justify-center py-10">
         <h1 class="font-display-hero text-[40px] leading-tight text-center max-w-md">
-          Pantau Tumbuh <span class="text-light-teal">Kembang Anak</span>
+          Lihat Perkembangan <span class="text-light-teal">Anak di Sekolah</span>
         </h1>
         <p class="text-center text-ice-white/75 font-body-md mt-4 max-w-md">
-          Nilai, kehadiran, dan sikap dalam satu tempat. Orang tua bisa memantau perkembangan putra-putri secara real-time.
+          Lihat informasi nilai, kehadiran, dan catatan perilaku anak selama di sekolah.
         </p>
 
         <div class="relative w-full max-w-md mt-10 float-in" aria-hidden="true">
@@ -53,7 +53,7 @@
           </div>
           <div class="absolute -left-8 bottom-4 flex items-center gap-2 rounded-xl bg-white/95 text-deep-navy px-3 py-2 shadow-lift-md">
             <span class="material-symbols-outlined text-[18px] text-status-abk" data-fill="true">favorite</span>
-            <span class="font-label-sm">Sikap Sangat Baik</span>
+            <span class="font-label-sm">2 catatan sikap</span>
           </div>
         </div>
       </div>

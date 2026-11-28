@@ -1,5 +1,6 @@
 import { Op } from 'sequelize'
 import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
+import { hitungNilaiSikap } from '../config/sikap.js'
 import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, rentangSemester, labelPeriode } from './spk.js'
 
 function whereTanggal(rentang) {
@@ -56,17 +57,18 @@ export async function susunRapor({ siswaId, tahunAjaranId, rentang = null }) {
   const jumlahEfektif = ringkasKehadiran.hadir + ringkasKehadiran.izin + ringkasKehadiran.sakit
   const persenHadir = totalHari ? Math.round((jumlahEfektif / totalHari) * 1000) / 10 : null
 
-  const agregatSikap = { spiritual: { jumlah: 0, total: 0 }, sosial: { jumlah: 0, total: 0 } }
-  sikapRows.forEach((s) => {
-    if (agregatSikap[s.jenis]) {
-      agregatSikap[s.jenis].jumlah++
-      agregatSikap[s.jenis].total += Number(s.nilai)
-    }
-  })
-  const ringkasSikap = Object.entries(agregatSikap).map(([jenis, v]) => ({
-    jenis,
-    jumlah: v.jumlah,
-    rata: v.jumlah ? Math.round((v.total / v.jumlah) * 10) / 10 : null
+  // Satu kriteria Sikap gabungan: aspek sosial/spiritual hanya informasi
+  // pendukung pada catatan, bukan dua nilai terpisah.
+  const ringkasSikap = {
+    nilai: hitungNilaiSikap(sikapRows),
+    jumlahCatatan: sikapRows.length,
+    tanpaCatatan: sikapRows.length === 0
+  }
+  const daftarSikap = sikapRows.map((s) => ({
+    tanggal: s.tanggal,
+    kategori: s.kategori,
+    aspek: s.jenis,
+    keterangan: s.catatan || null
   }))
 
   const skor = await hitungSkorSiswa(siswa.id, ta?.id, null, periode)
@@ -85,6 +87,7 @@ export async function susunRapor({ siswaId, tahunAjaranId, rentang = null }) {
     totalHari,
     persenHadir,
     ringkasSikap,
+    daftarSikap,
     skor,
     mapelTerlemah: lemah?.nama || null,
     rekomendasi

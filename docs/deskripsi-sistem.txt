@@ -7,7 +7,7 @@ SD NEGERI 4 KELING, KABUPATEN JEPARA
 Dokumen ini disusun sebagai bahan penyusunan Bab 4 (Hasil dan Pembahasan)
 skripsi. Seluruh isi ditulis dalam bentuk teks polos agar mudah diolah kembali.
 Dokumen menjelaskan sistem yang benar-benar diimplementasikan pada repositori,
-termasuk kebijakan final Tahap 1 (semester aktif, tanpa kejadian sikap, dan
+termasuk kebijakan final Tahap 1 (semester aktif, tanpa catatan sikap, dan
 ambang rekomendasi), keterbatasan, serta catatan implementasi yang perlu
 disampaikan secara jujur pada pembahasan.
 
@@ -26,7 +26,8 @@ disampaikan secara jujur pada pembahasan.
 1.2 Dimensi yang Dipantau
     a. Akademik, berupa nilai per mata pelajaran.
     b. Kehadiran, berupa status hadir, izin, sakit, dan alpa.
-    c. Sikap, berupa sikap spiritual dan sikap sosial.
+    c. Sikap, berupa catatan kejadian perilaku yang diberi aspek sosial atau
+       spiritual. Tidak ada penilaian harian skala 1 sampai 5.
 
 1.3 Tujuan Dokumen
     a. Menjelaskan fungsi setiap modul dan aktivitas setiap aktor.
@@ -339,18 +340,26 @@ disampaikan secara jujur pada pembahasan.
     sehingga pengiriman ulang tidak membuat baris ganda. Controller memakai
     findOrCreate dan memperbarui status serta keterangan.
 
-5.9 Tabel sikap
+5.9 Tabel sikap (catatan kejadian)
     - id: kunci primer.
     - siswaId: relasi ke siswa.
     - tahunAjaranId: relasi ke tahun ajaran.
-    - jenis: enum spiritual, sosial; default spiritual.
-    - nilai: bilangan 1 sampai 5 (1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali,
-      5 Sangat Baik).
-    - catatan: teks, opsional.
-    - tanggal: tanggal pencatatan.
+    - jenis: enum spiritual, sosial; dipakai sebagai aspek catatan, bukan dua
+      nilai tersendiri.
+    - kategori: teks nama kejadian (Bolos, Tidak mengerjakan tugas, Berkelahi
+      dengan teman, Memalak uang teman, Membully teman/perundungan, Berbicara
+      kotor kepada teman, Tidak sopan kepada guru, Lainnya).
+    - pengurangan: bilangan bulat yang tersimpan sebagai snapshot pada catatan.
+    - catatan: keterangan kejadian, teks opsional; wajib untuk kategori Lainnya.
+    - tanggal: tanggal kejadian.
+    - guruId: relasi ke users (pencatat), dapat null.
+    - kehadiranId: relasi ke kehadiran, dapat null; unik bila diisi.
     - Timestamps.
-    Catatan: controller menolak kejadian duplikat dengan kunci siswa, jenis,
-    nilai, catatan, tanggal, dan tahun ajaran aktif.
+    Catatan: kolom nilai 1-5 sudah dihapus oleh migrasi
+    20261128000000-catatan-kejadian-sikap.cjs. Controller menolak duplikat
+    dengan kunci siswa, kategori, aspek, keterangan, tanggal, tahun ajaran, dan
+    kehadiran. Angka pengurangan per kategori adalah konfigurasi teknis awal
+    pada server/src/config/sikap.js, bukan kutipan keputusan kepala sekolah.
 
 5.10 Tabel artikel
     - id: kunci primer.
@@ -416,15 +425,16 @@ disampaikan secara jujur pada pembahasan.
     - TahunAjaran hasMany Siswa sebagai siswa.
     - Nilai belongsTo Siswa, Mapel, dan TahunAjaran.
     - Kehadiran belongsTo Siswa dan TahunAjaran.
-    - Sikap belongsTo Siswa dan TahunAjaran.
+    - Sikap belongsTo Siswa, TahunAjaran, User (guru), dan Kehadiran.
+    - Kehadiran hasOne Sikap sebagai catatanBolos.
     - Artikel belongsTo User sebagai author.
     - Notifikasi belongsTo User.
     - Laporan belongsTo User dan Kelas.
 
 5.15 Integritas dan Keterbatasan Data
     a. Constraint unik utama: username, nisn, nama kelas, nama mapel.
-    b. Unique index kehadiran(siswaId, tanggal) sudah dipasang; duplikasi
-       kejadian sikap dicegah di controller.
+    b. Unique index kehadiran(siswaId, tanggal) dan sikap(kehadiranId) sudah
+       dipasang; duplikasi catatan sikap dicegah di controller.
     c. Penghapusan kelas, siswa, mapel, atau tahun ajaran dapat gagal karena
        foreign key. Aplikasi tidak menyediakan cascade, soft delete, atau
        penanganan khusus untuk konflik tersebut.
@@ -455,7 +465,8 @@ disampaikan secara jujur pada pembahasan.
     4. Admin membuat akun wali kelas dan menautkannya ke kelas.
     5. Admin membuat data siswa dan akun orang tua.
     6. Admin memeriksa konfigurasi bobot, interval, dan ambang rekomendasi SPK.
-    7. Wali kelas masuk dan mulai mengisi nilai, kehadiran, serta sikap.
+    7. Wali kelas masuk dan mulai mengisi nilai, kehadiran, serta catatan
+       kejadian sikap.
 
 6.2 Login dan Perubahan Password Wajib
     1. Pengguna membuka halaman login.
@@ -492,27 +503,32 @@ disampaikan secara jujur pada pembahasan.
     Catatan: notifikasi dalam aplikasi untuk kehadiran sudah tersedia; pesan
     WhatsApp dikirim terpisah hanya untuk nilai akademik.
 
-6.5 Alur Input Sikap
-    1. Wali kelas memilih kelas, jenis sikap spiritual/sosial, dan tanggal
-       kejadian.
-    2. Wali kelas mencatat hanya kejadian yang benar-benar diamati, nilai bulat
-       1 sampai 5 dengan 1 = Kurang dan 5 = Sangat Baik.
-    3. Baris yang tidak dipilih dinyatakan tidak ada kejadian dan tidak dikirim;
-       siswa tanpa kejadian pada semester aktif langsung dinilai 5 (Sangat Baik),
-       tanpa tombol konfirmasi pemantauan.
-    4. Server menyimpan setiap kejadian pada tahun ajaran dan semester aktif
-       serta menolak kejadian duplikat dengan kunci siswa, jenis, nilai,
-       catatan, tanggal, dan tahun ajaran.
-    5. Seluruh kejadian spiritual dan sosial digabung dengan bobot sama per
-       kejadian, lalu dinormalisasi dengan (rata-rata - 1) / 4.
-    Catatan: notifikasi dalam aplikasi dikirim untuk nilai <= 2 atau bila ada catatan.
+6.5 Alur Input Catatan Sikap
+    1. Wali kelas memilih siswa, kategori kejadian, aspek sosial/spiritual,
+       tanggal kejadian, dan keterangan bila perlu.
+    2. Catatan dibuat hanya saat ada kejadian yang benar-benar diamati. Tidak
+       ada penilaian angka 1 sampai 5 dan tidak ada kewajiban mengisi setiap
+       hari.
+    3. Server memvalidasi tanggal terhadap rentang semester aktif. Untuk
+       kategori Lainnya, aspek dan keterangan wajib diisi.
+    4. Kategori Bolos wajib memiliki baris presensi alpa yang cocok pada siswa
+       dan tanggal yang sama; tahunAjaranId diambil dari baris Kehadiran
+       tersebut. Bila tidak ada, catatan ditolak tanpa membuat/mengubah
+       presensi.
+    5. Server menyimpan pengurangan dari konfigurasi sebagai snapshot pada
+       catatan, mencatat guruId, dan menolak duplikat dengan kunci siswa,
+       kategori, aspek, keterangan, tanggal, tahun ajaran, dan kehadiran.
+    6. Skor sikap = max(0, 100 - totalPengurangan), lalu R_S = skor/100. Tanpa
+       catatan berarti tidak ada pengurangan, bukan predikat tertentu.
+    Catatan: notifikasi dalam aplikasi dikirim kepada orang tua setiap kali
+    catatan sikap tersimpan.
 
 6.6 Alur Monitoring dan Rekomendasi
     1. Wali kelas membuka halaman monitoring.
     2. Sistem mengambil daftar siswa pada kelas tersebut dan memfilter data ke
        semester aktif.
     3. Untuk setiap siswa, sistem menghitung rata-rata nilai, persentase
-       kehadiran, rata-rata sikap, skor akhir, kategori, dan rekomendasi.
+       kehadiran, skor sikap berdasarkan catatan, skor akhir, kategori, dan rekomendasi.
     4. Wali kelas dapat memfilter siswa berdasarkan kategori atau kriteria lain.
     5. Wali kelas membuka detail siswa untuk melihat rincian dan rekomendasi.
     6. Siswa ABK ditandai khusus dan tidak memperoleh skor numerik.
@@ -599,12 +615,15 @@ disampaikan secara jujur pada pembahasan.
     totalHari, kriteria dinyatakan tidak lengkap dan skor akhir tidak dihitung.
 
 7.4 Normalisasi Sikap
-    rataSikap = rata-rata seluruh kejadian sikap (spiritual dan sosial digabung).
-    Skala 1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik.
-    skorSikap = (rataSikap - 1) / 4.
-    Bila tidak ada kejadian pada semester aktif, rataSikap ditetapkan 5 sehingga
-    skorSikap = 1. Kriteria sikap selalu dianggap lengkap; tidak ada tombol
-    konfirmasi "sudah dipantau tanpa kejadian".
+    totalPengurangan = jumlah pengurangan seluruh catatan pada semester aktif.
+    nilaiSikap = max(0, 100 - totalPengurangan).
+    skorSikap = nilaiSikap / 100.
+    Kategori Bolos memiliki pengurangan 0; dampaknya hanya pada kehadiran (alpa).
+    Bila tidak ada catatan pada semester aktif, nilaiSikap = 100 sehingga
+    skorSikap = 1. Ini adalah konsekuensi model catatan insidental, bukan
+    predikat "Sangat Baik". Kriteria sikap selalu dianggap lengkap; tidak ada
+    tombol konfirmasi "sudah dipantau tanpa kejadian". Aspek sosial/spiritual
+    hanya informasi pendukung pada catatan, bukan dua nilai yang dirata-rata.
 
 7.5 Skor Akhir
     skor = (bobotAkademik x skorAkademik)
@@ -647,7 +666,7 @@ disampaikan secara jujur pada pembahasan.
 
     Bila nilai akademik atau rekap kehadiran tidak tersedia/lengkap, skor
     bernilai null dan kategori menjadi data_belum_lengkap, bukan berisiko.
-    Siswa tanpa kejadian sikap TIDAK masuk status ini. Urutan interval
+    Siswa tanpa catatan sikap TIDAK masuk status ini. Urutan interval
     divalidasi.
 
 7.7 Siswa ABK
@@ -699,26 +718,28 @@ disampaikan secara jujur pada pembahasan.
     Contoh 1 (lengkap, baik):
     - Nilai 100 -> R_A = 1,00.
     - Kehadiran hadir, izin, sakit dari 3 hari wajib -> R_K = 3/3 = 1,00.
-    - Satu kejadian sikap nilai 5 -> R_S = (5-1)/4 = 1,00.
+    - Tidak ada catatan sikap -> nilaiSikap = 100 -> R_S = 1,00.
     - Skor = 1 x 4/13 + 1 x 4/13 + 1 x 5/13 = 1,0000 -> aman.
 
     Contoh 2 (izin/sakit tidak menurunkan, alpa menurunkan):
     - Nilai rata-rata 85 -> R_A = 0,85.
     - Kehadiran hadir, izin, sakit, alpa dari 4 hari -> R_K = 3/4 = 0,75.
-    - Satu kejadian sikap nilai 3 -> R_S = (3-1)/4 = 0,50.
+    - Tiga catatan dengan pengurangan total 50 (Memalak 20 + Membully 20 +
+      Tidak sopan 10) -> nilaiSikap = 50 -> R_S = 0,50.
     - Skor = 0,85 x 4/13 + 0,75 x 4/13 + 0,50 x 5/13
            = 8,9/13 = 0,6846 -> aman (>= 0,67).
 
     Contoh 3 (tanpa catatan sikap, kebijakan final):
-    - R_S = (5-1)/4 = 1,00.
+    - nilaiSikap = 100 -> R_S = 1,00.
     - Bila nilai dan kehadiran lengkap, skor dihitung final dan kategori
       ditentukan seperti biasa (BUKAN data_belum_lengkap).
 
 7.11 Catatan Pembahasan
     a. Normalisasi memakai pembagi tetap, bukan x/max; penjelasan ini harus
        konsisten dengan kode dan README.
-    b. Bobot sikap paling besar (5/13); siswa tanpa kejadian langsung diberi
-       skor sikap maksimal (R_S = 1).
+    b. Bobot sikap paling besar (5/13); siswa tanpa catatan memperoleh
+       nilaiSikap 100 (R_S = 1) karena tidak ada pengurangan, bukan karena
+       diberi predikat tertentu.
     c. Ambang rekomendasi bawaan 0,65/0,65/0,80 dapat dikonfigurasi Admin.
     d. Periode default semester aktif; denominator kehadiran tetap tanggal
        yang tercatat, tanpa kalender/libur baru.
@@ -744,16 +765,17 @@ disampaikan secara jujur pada pembahasan.
     - Klik notifikasi dapat mengarahkan pengguna ke tautan terkait.
     - Notifikasi baru muncul tanpa memuat ulang halaman melalui Socket.io.
 
-8.3 Notifikasi Nilai
+8.3 Notifikasi Nilai dan Catatan Sikap
     Saat wali kelas menyimpan nilai, server membuat notifikasi untuk akun orang
     tua siswa. Notifikasi berisi informasi nilai dan tautan ke halaman nilai
-    anak. Ini adalah satu-satunya pemicu notifikasi otomatis yang
-    diimplementasikan saat ini.
+    anak. Saat wali kelas menyimpan catatan sikap, server juga membuat notifikasi
+    berisi kategori, tanggal, dan keterangan tanpa angka skala lama, dengan
+    tautan ke halaman catatan sikap anak.
 
-8.4 Notifikasi Kehadiran dan Sikap
-    Belum diimplementasikan sebagai notifikasi otomatis. Perubahan kehadiran
-    dan sikap hanya memengaruhi data dan skor. Bila diperlukan pada pembahasan,
-    hal ini dapat disebut sebagai pengembangan lanjutan.
+8.4 Notifikasi Kehadiran
+    Perubahan kehadiran belum memicu notifikasi otomatis; data tersebut hanya
+    memengaruhi skor kehadiran. Kategori Bolos pada catatan sikap tetap memicu
+    notifikasi karena catatan dibuat secara eksplisit oleh guru.
 
 8.5 Integrasi Fonnte
     Fungsi kirimWhatsApp(phone, message) mengirim pesan melalui API Fonnte.
@@ -821,8 +843,8 @@ disampaikan secara jujur pada pembahasan.
     h. Menerima notifikasi aktivitas nilai.
     i. Menginput kehadiran harian.
     j. Melihat kalender kehadiran.
-    k. Menginput sikap spiritual dan sosial.
-    l. Melihat riwayat sikap.
+    k. Membuat catatan kejadian sikap dengan kategori dan aspek sosial/spiritual.
+    l. Melihat riwayat catatan sikap.
     m. Melihat rekomendasi tindak lanjut.
     n. Menggunakan pemilihan kelas yang tersimpan untuk kenyamanan.
 
@@ -848,7 +870,7 @@ disampaikan secara jujur pada pembahasan.
     e. Mengunduh rapor PDF.
     f. Melihat identitas anak, tahun ajaran, dan semester aktif.
     g. Memantau kehadiran bulanan.
-    h. Memantau sikap bulanan.
+    h. Memantau catatan sikap bulanan.
     i. Menerima notifikasi nilai.
     j. Mengubah profil dan password.
     k. Mengalami perubahan password wajib pada login pertama.
@@ -1332,24 +1354,28 @@ US-037
 US-038
     Aktor    : Wali kelas.
     Prioritas: Tinggi.
-    Cerita   : Sebagai wali kelas, saya ingin menginput sikap siswa agar
+    Cerita   : Sebagai wali kelas, saya ingin mencatat kejadian sikap siswa agar
                pembinaan karakter terdokumentasi.
     Kriteria :
-    1. Wali kelas memilih siswa, jenis sikap spiritual atau sosial, nilai 1
-       Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik, catatan, dan
-       tanggal kejadian.
-    2. Nilai di luar rentang 1 sampai 5 ditolak; baris kosong tidak disimpan.
-    3. Data tersimpan pada tahun ajaran dan semester aktif.
-    4. Tanpa kejadian, siswa langsung mendapat nilai 5; data sikap tetap
-       memengaruhi skor pada perhitungan SPK.
+    1. Wali kelas memilih siswa, kategori kejadian, aspek sosial/spiritual,
+       tanggal kejadian, dan keterangan bila perlu. Kategori Lainnya mensyaratkan
+       aspek dan keterangan.
+    2. Tidak ada input nilai 1 sampai 5. Pengurangan diambil dari konfigurasi
+       teknis dan disimpan sebagai snapshot pada catatan.
+    3. Tanggal di luar semester aktif ditolak; data tersimpan pada tahun ajaran
+       yang berlaku.
+    4. Kategori Bolos ditolak bila tidak ada presensi alpa yang cocok; dampaknya
+       hanya pada kehadiran.
+    5. Tanpa catatan, nilaiSikap = 100 (R_S = 1) sebagai konsekuensi model, bukan
+       predikat "Sangat Baik".
 
 US-039
     Aktor    : Wali kelas.
     Prioritas: Sedang.
-    Cerita   : Sebagai wali kelas, saya ingin melihat riwayat sikap agar
+    Cerita   : Sebagai wali kelas, saya ingin melihat riwayat catatan sikap agar
                perkembangan karakter siswa dapat dipantau.
     Kriteria :
-    1. Riwayat menampilkan jenis, nilai, catatan, dan tanggal.
+    1. Riwayat menampilkan tanggal, kategori, aspek, dan keterangan.
     2. Riwayat dapat difilter berdasarkan siswa.
     3. Data diurutkan dari yang terbaru.
     4. Wali kelas dapat menambahkan catatan baru.
@@ -1587,15 +1613,16 @@ US-058
 US-059
     Aktor    : Orang tua.
     Prioritas: Sedang.
-    Cerita   : Sebagai orang tua, saya ingin memantau sikap bulanan agar
-               perkembangan karakter anak dapat diketahui.
+    Cerita   : Sebagai orang tua, saya ingin memantau catatan sikap bulanan agar
+               perilaku anak yang tercatat di sekolah dapat diketahui.
     Kriteria :
-    1. Halaman monitoring menampilkan kalender sikap bulanan.
-    2. Jenis sikap spiritual dan sosial dibedakan.
-    3. Catatan sikap dapat dibaca.
+    1. Halaman monitoring menampilkan kalender catatan sikap bulanan.
+    2. Satu tanggal dapat memuat beberapa catatan; semua ditampilkan.
+    3. Tiap catatan menampilkan kategori, aspek, dan keterangan.
     4. Orang tua dapat berpindah bulan.
-    5. Bulan awal mengikuti semester aktif; tanpa kejadian ditampilkan
-       sebagai Sangat Baik.
+    5. Bulan awal mengikuti semester aktif; tanggal tanpa catatan memakai
+       keterangan netral "Tidak ada catatan kejadian pada tanggal ini", bukan
+       predikat tertentu.
 
 US-060
     Aktor    : Orang tua.
@@ -1658,8 +1685,8 @@ US-061
     |                     | 0-100; tanggal YYYY-MM-DD                    |
     | Kehadiran           | tanggal wajib; daftar wajib; status enum;    |
     |                     | keterangan maks 255                          |
-    | Sikap               | jenis spiritual/sosial; nilai 1-5; catatan   |
-    |                     | maks 1000; tanggal opsional                  |
+    | Catatan sikap       | siswa wajib; kategori; aspek sosial/spiritual  |
+    |                     | keterangan maks 1000; tanggal opsional       |
     | ABK                 | status boolean; catatan maks 1000            |
     | Laporan             | judul maks 200; kelas opsional; kategori     |
     |                     | maks 50; tanggal mulai/akhir opsional        |
@@ -1677,6 +1704,9 @@ US-061
     d. Artikel memeriksa keberadaan judul dan isi.
     e. Laporan memeriksa data yang akan disnapshot.
     f. Akun memeriksa keunikan username dan menangani pesan duplikasi.
+    g. Catatan sikap memeriksa rentang semester aktif, kategori yang dikenal,
+       aspek dan keterangan untuk Lainnya, serta keberadaan presensi alpa yang
+       cocok untuk Bolos. tahunAjaranId Bolos diambil dari baris Kehadiran.
 
 11.4 Kode Status HTTP
     200: permintaan berhasil.
@@ -1947,7 +1977,8 @@ US-061
     - Sekitar 42 akun orang tua.
     - Sekitar 168 nilai, empat nilai per siswa.
     - Sekitar 630 catatan kehadiran, 15 per siswa.
-    - Sekitar 84 catatan sikap, dua per siswa.
+    - Sekitar 42 catatan sikap, satu per siswa, memakai kategori "Tidak
+      mengerjakan tugas" dan pengurangan dari konfigurasi (bukan skala 1-5).
     - Empat artikel: tiga publish dan satu draft.
     - Satu konfigurasi SPK default.
     - Tahun ajaran 2025/2026 aktif dengan semester Ganjil; rentang Ganjil
@@ -2039,15 +2070,16 @@ US-061
        sebagai penanda prioritas pada rekomendasi, bukan kategori keempat.
     3. Urutan interval Baik > Perhatian > Berisiko divalidasi.
     4. Ambang rekomendasi bawaan 0,65/0,65/0,80 dapat diatur Admin.
-    5. Notifikasi otomatis hanya dibuat untuk nilai.
+    5. Notifikasi otomatis dibuat untuk nilai dan catatan sikap; kehadiran
+       belum memicu notifikasi otomatis.
     6. Checkbox kirim WhatsApp tidak dikirim ke server; server selalu mencoba
        mengirim bila memungkinkan.
     7. Lupa password hanya panduan statis; reset dilakukan admin.
     8. API nilai mendukung lampiran, tetapi antarmuka belum menyediakan unggah.
-    9. Kejadian sikap duplikat ditolak di controller berdasarkan kunci siswa,
-       jenis, nilai, catatan, tanggal, dan tahun ajaran.
-    10. Siswa tanpa kejadian sikap langsung diberi skor sikap maksimal
-        (R_S = 1), bukan data_belum_lengkap.
+    9. Catatan sikap duplikat ditolak di controller berdasarkan kunci siswa,
+       kategori, aspek, keterangan, tanggal, tahun ajaran, dan kehadiran.
+    10. Siswa tanpa catatan sikap memperoleh nilaiSikap 100 (R_S = 1), bukan
+        predikat tertentu dan bukan data_belum_lengkap.
     11. Kategori Tips pada artikel tidak konsisten dengan enum model/validator.
     12. Endpoint daftar artikel menerima filter status tanpa autentikasi,
         sehingga draft berpotensi terbaca publik.
@@ -2075,27 +2107,37 @@ US-061
         laporan, bukan rekap.
     28. Tidak ada verifikasi email, pendaftaran mandiri, atau kebijakan
         kompleksitas password.
-    29. Unique index kehadiran per tanggal sudah ada; duplikasi kejadian
-        sikap dicegah di aplikasi (belum constraint database).
+    29. Unique index kehadiran per tanggal dan index unik kehadiranId pada
+        sikap sudah ada; duplikasi dicegah di aplikasi dan database.
     30. Tidak ada mekanisme persetujuan orang tua atau pengaturan retensi data.
     31. Belum ada kalender hari sekolah/libur; denominator kehadiran memakai
         tanggal yang tercatat pada semester aktif.
-    32. Tidak ada tombol konfirmasi pemantauan sikap tanpa kejadian.
+    32. Tidak ada tombol konfirmasi pemantauan sikap tanpa catatan.
     33. Agregasi akademik memakai rata-rata tiap mapel lalu dirata-ratkan
         kembali; jumlah catatan pada satu mapel tidak menambah bobotnya.
     34. Rulebase mapel (kkmMapel 70, ambangUnggul 85, skala 0-100) dapat
         diatur Admin; hasilnya masuk rekomendasi.daftar tanpa kartu UI baru.
+    35. Angka pengurangan per kategori catatan sikap adalah konfigurasi teknis
+        awal pada server/src/config/sikap.js, bukan keputusan resmi kepala
+        sekolah. Perubahan angka tidak mengubah riwayat yang sudah tersimpan.
+    36. Migrasi 20261128000000-catatan-kejadian-sikap.cjs hanya membersihkan
+        baris demo pada tabel sikap; tabel lain tidak diubah. Backup wajib
+        karena cabang down tidak memulihkan data demo. Migrasi sudah dijalankan
+        setelah backup monitoring_siswa_20261128_144338.sql dibuat; backup tidak
+        di-commit.
 
 15.3 Catatan untuk Pembahasan Bab 4
     a. Jelaskan bahwa sistem mengimplementasikan SAW dengan normalisasi skala
        tetap dan sebutkan alasan pemilihan tersebut.
     b. Bahas bobot sikap yang paling besar (5/13) dan keputusan bahwa siswa
-       tanpa kejadian langsung diberi nilai maksimal (Sangat Baik).
+       tanpa catatan memperoleh nilaiSikap 100 (R_S = 1) sebagai konsekuensi
+       model catatan insidental, bukan predikat "Sangat Baik".
     c. Jelaskan bahwa kategori ditentukan oleh dua batas interval dengan
        urutan tervalidasi (tiga kategori), batas berisiko menjadi penanda
        prioritas, serta ambang rekomendasi yang dapat diatur Admin, termasuk
        KKM dan ambang unggul mapel.
-    d. Bahas keterbatasan notifikasi otomatis yang baru mencakup nilai.
+    d. Bahas notifikasi otomatis untuk nilai dan catatan sikap, serta belum
+       adanya notifikasi otomatis untuk perubahan kehadiran.
     e. Jelaskan keselarasan README dan implementasi aktual secara terbuka,
        termasuk normalisasi, kebijakan semester, dan fitur yang belum terhubung.
     f. Bahas dampak skema validasi yang membuang tahunAjaranId terhadap

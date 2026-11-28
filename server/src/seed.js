@@ -17,6 +17,7 @@ import {
   AuditLog
 } from './models/index.js'
 import { Op } from 'sequelize'
+import { penguranganUntuk } from './config/sikap.js'
 
 const MAPELS = ['Matematika', 'Bahasa Indonesia', 'Ilmu Pengetahuan Alam', 'Ilmu Pengetahuan Sosial', 'Pendidikan Pancasila', 'Pendidikan Agama dan Budi Pekerti', 'Pendidikan Jasmani, Olahraga, dan Kesehatan', 'Seni Budaya dan Prakarya', 'Bahasa Inggris']
 
@@ -230,9 +231,17 @@ async function seed() {
           tahunAjaranId: taAktif.id
         })
       }
-      // Catatan kejadian sikap memakai skala 1-5 (1 = Kurang, 5 = Sangat Baik).
-      await Sikap.create({ siswaId: siswa.id, jenis: 'spiritual', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2025-10-15', catatan: 'Contoh kejadian spiritual', tahunAjaranId: taAktif.id })
-      await Sikap.create({ siswaId: siswa.id, jenis: 'sosial', nilai: 2 + Math.round(Math.random() * 3), tanggal: '2025-10-15', catatan: 'Contoh kejadian sosial', tahunAjaranId: taAktif.id })
+      // Contoh catatan kejadian memakai kategori dan pengurangan dari konfigurasi.
+      const kategoriDemo = 'Tidak mengerjakan tugas'
+      await Sikap.create({
+        siswaId: siswa.id,
+        jenis: 'sosial',
+        kategori: kategoriDemo,
+        pengurangan: penguranganUntuk(kategoriDemo),
+        tanggal: '2025-10-15',
+        catatan: 'Contoh catatan tugas yang belum dikumpulkan.',
+        tahunAjaranId: taAktif.id
+      })
     }
   }
 

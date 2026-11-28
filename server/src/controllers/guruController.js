@@ -4,6 +4,7 @@ import { rekapKelas, hitungSkorSiswa, hitungSemuaSiswa, mapelTerlemah, rekomenda
 import { kirimNotifikasiInApp } from '../services/notification.js'
 import { kirimWhatsApp, formatPesanNilai } from '../services/fonnte.js'
 import { cariSiswaTerakses, validasiSiswaDalamKelas } from '../services/aksesKelas.js'
+import { KATEGORI_SIKAP, penguranganUntuk } from '../config/sikap.js'
 import { env } from '../config/env.js'
 
 async function tahunAktif() {
@@ -47,6 +48,16 @@ function tanggalIndo(value) {
   const d = new Date(`${value}T00:00:00`)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function catatanSikapPublic(s) {
+  return {
+    id: s.id,
+    tanggal: s.tanggal,
+    kategori: s.kategori,
+    aspek: s.jenis,
+    keterangan: s.catatan || null
+  }
 }
 
 async function petaNamaSiswa(siswaIds) {
@@ -134,7 +145,16 @@ export async function guruSiswaDetail(req, res) {
     where: { siswaId: siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) }
   })
 
-  return res.json({ siswa, skor, rekomendasi, nilai, kehadiran, sikap, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
+  return res.json({
+    siswa,
+    skor,
+    rekomendasi,
+    nilai,
+    kehadiran,
+    sikap: sikap.map(catatanSikapPublic),
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang
+  })
 }
 
 export async function guruNilaiUnggah(req, res) {
@@ -286,69 +306,125 @@ export async function guruKehadiranByDate(req, res) {
   return res.json({ list: rows })
 }
 
+function diDalamPeriode(tanggal, rentang) {
+  if (!rentang || (!rentang.mulai && !rentang.akhir)) return true
+  if (rentang.mulai && tanggal < rentang.mulai) return false
+  if (rentang.akhir && tanggal > rentang.akhir) return false
+  return true
+}
+
 export async function guruSikapBulk(req, res) {
   const { daftar } = req.body
-  if (!Array.isArray(daftar)) {
-    return res.status(400).json({ message: 'Data sikap wajib diisi.' })
+  if (!Array.isArray(daftar) || !daftar.length) {
+    return res.status(400).json({ message: 'Minimal satu catatan sikap wajib diisi.' })
   }
   const ta = await tahunAktif()
-  const valid = [1, 2, 3, 4, 5]
+  if (!ta) return res.status(400).json({ message: 'Tahun ajaran aktif belum tersedia.' })
+  const rentang = periodeAktif(ta)
 
   const akses = await validasiSiswaDalamKelas(req.user, daftar.map((item) => item.siswaId))
   if (akses.status) return res.status(akses.status).json({ message: akses.message })
+
+  const hariIni = new Date().toISOString().slice(0, 10)
+  const items = []
+  for (const item of daftar) {
+    const kategori = String(item.kategori || '').trim()
+    if (!KATEGORI_SIKAP.includes(kategori)) {
+      return res.status(400).json({ message: 'Kategori catatan tidak valid.' })
+    }
+    const aspek = item.jenis || 'sosial'
+    if (!['sosial', 'spiritual'].includes(aspek)) {
+      return res.status(400).json({ message: 'Aspek harus sosial atau spiritual.' })
+    }
+    const keterangan = String(item.catatan || '').trim()
+    if (kategori === 'Lainnya') {
+      if (!item.jenis) return res.status(400).json({ message: 'Aspek wajib dipilih untuk kategori Lainnya.' })
+      if (!keterangan) return res.status(400).json({ message: 'Keterangan wajib diisi untuk kategori Lainnya.' })
+    }
+
+    const tanggalSikap = item.tanggal || hariIni
+    if (!diDalamPeriode(tanggalSikap, rentang)) {
+      return res.status(400).json({
+        message: `Tanggal ${tanggalSikap} berada di luar periode ${rentang.mulai} sampai ${rentang.akhir}.`
+      })
+    }
+
+    let kehadiranId = null
+    let tahunAjaranId = ta.id
+    if (kategori === 'Bolos') {
+      // Ambil tahun ajaran dari baris presensi yang cocok, bukan dari asumsi.
+      const presensi = await Kehadiran.findOne({
+        where: { siswaId: item.siswaId, tanggal: tanggalSikap, status: 'alpa' },
+        order: [['id', 'ASC']]
+      })
+      if (!presensi || !diDalamPeriode(String(presensi.tanggal).slice(0, 10), rentang)) {
+        return res.status(400).json({
+          message: `Tidak ada presensi alpa untuk siswa ini pada ${tanggalSikap}. Isi kehadiran terlebih dahulu.`
+        })
+      }
+      kehadiranId = presensi.id
+      tahunAjaranId = presensi.tahunAjaranId || ta.id
+    }
+
+    items.push({
+      siswaId: Number(item.siswaId),
+      kategori,
+      aspek,
+      keterangan,
+      tanggal: tanggalSikap,
+      pengurangan: penguranganUntuk(kategori),
+      kehadiranId,
+      tahunAjaranId
+    })
+  }
 
   let tersimpan = 0
   let duplikat = 0
   const perluNotifikasi = []
   const sudahDalamBerkas = new Set()
   await sequelize.transaction(async (t) => {
-    for (const item of daftar) {
-      if (!item.siswaId || !valid.includes(Number(item.nilai))) continue
-      const jenis = item.jenis === 'sosial' ? 'sosial' : 'spiritual'
-      const nilai = Number(item.nilai)
-      const catatan = String(item.catatan || '').trim()
-      const tanggalSikap = item.tanggal || new Date().toISOString().slice(0, 10)
-
-      // Cegah kejadian ganda akibat pengiriman ulang form yang sama.
-      const kunci = [item.siswaId, jenis, nilai, catatan, tanggalSikap, ta?.id || ''].join('|')
+    for (const item of items) {
+      const kunci = [
+        item.siswaId,
+        item.kategori,
+        item.aspek,
+        item.keterangan,
+        item.tanggal,
+        item.tahunAjaranId,
+        item.kehadiranId || ''
+      ].join('|')
       if (sudahDalamBerkas.has(kunci)) {
         duplikat++
         continue
       }
       sudahDalamBerkas.add(kunci)
-      const ada = await Sikap.findOne({
-        where: {
-          siswaId: item.siswaId,
-          jenis,
-          nilai,
-          catatan: catatan || null,
-          tanggal: tanggalSikap,
-          tahunAjaranId: ta?.id || null
-        },
-        transaction: t
-      })
+
+      const where = {
+        siswaId: item.siswaId,
+        kategori: item.kategori,
+        jenis: item.aspek,
+        catatan: item.keterangan || null,
+        tanggal: item.tanggal,
+        tahunAjaranId: item.tahunAjaranId
+      }
+      if (item.kehadiranId) where.kehadiranId = item.kehadiranId
+      const ada = await Sikap.findOne({ where, transaction: t })
       if (ada) {
         duplikat++
         continue
       }
 
       await Sikap.create({
-        siswaId: item.siswaId,
-        jenis,
-        nilai,
-        catatan: catatan || null,
-        tanggal: tanggalSikap,
-        tahunAjaranId: ta?.id || null
+        ...where,
+        pengurangan: item.pengurangan,
+        guruId: req.user.id
       }, { transaction: t })
-      if (nilai <= 2 || catatan) {
-        perluNotifikasi.push({
-          siswaId: Number(item.siswaId),
-          jenis,
-          nilai,
-          catatan,
-          tanggal: tanggalSikap
-        })
-      }
+      perluNotifikasi.push({
+        siswaId: item.siswaId,
+        kategori: item.kategori,
+        keterangan: item.keterangan,
+        tanggal: item.tanggal
+      })
       tersimpan++
     }
   })
@@ -362,12 +438,12 @@ export async function guruSikapBulk(req, res) {
           const ortu = ortuMap.get(item.siswaId)
           if (!ortu) return null
           const nama = namaMap.get(item.siswaId) || 'Ananda'
-          const catatan = item.catatan ? ` Catatan: ${item.catatan}.` : ''
+          const keterangan = item.keterangan ? ` Keterangan: ${item.keterangan}.` : ''
           return kirimNotifikasiInApp(ortu.id, {
             judul: 'Catatan sikap',
-            pesan: `${nama}: sikap ${item.jenis} bernilai ${item.nilai} pada ${tanggalIndo(item.tanggal)}.${catatan}`,
+            pesan: `${nama}: ${item.kategori} pada ${tanggalIndo(item.tanggal)}.${keterangan}`,
             tipe: 'sikap',
-            link: `${env.appDomain}/orangtua/rekap`
+            link: `${env.appDomain}/orangtua/sikap`
           })
         })
       )
@@ -376,8 +452,8 @@ export async function guruSikapBulk(req, res) {
     }
   }
 
-  const infoDuplikat = duplikat ? ` ${duplikat} kejadian duplikat dilewati.` : ''
-  return res.json({ message: `${tersimpan} penilaian sikap disimpan.${infoDuplikat}`, tersimpan, duplikat })
+  const infoDuplikat = duplikat ? ` ${duplikat} catatan duplikat dilewati.` : ''
+  return res.json({ message: `${tersimpan} catatan sikap disimpan.${infoDuplikat}`, tersimpan, duplikat })
 }
 
 export async function guruSikapBySiswa(req, res) {
@@ -390,7 +466,7 @@ export async function guruSikapBySiswa(req, res) {
     where: { siswaId: hasil.siswa.id, tahunAjaranId: ta?.id, ...whereRentang(rentang) },
     order: [['createdAt', 'DESC']]
   })
-  return res.json({ list })
+  return res.json({ list: list.map(catatanSikapPublic) })
 }
 
 export async function daftarNilaiUntukWali(req, res) {

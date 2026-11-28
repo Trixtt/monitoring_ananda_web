@@ -3,7 +3,9 @@
     <div>
       <h1 class="page-title">Monitor Anak</h1>
       <p class="page-subtitle">{{ siswa?.nama }} &middot; Kelas {{ siswa?.kelas?.nama }} &middot; {{ tahunAjaran || '' }}</p>
-      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">Pantau kehadiran dan sikap Ananda setiap hari selama satu bulan.</p>
+      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+        Pantau kehadiran dan catatan sikap Ananda. Catatan dibuat hanya saat ada kejadian yang perlu disampaikan.
+      </p>
     </div>
 
     <div v-if="loading && !data"><LoadingState /></div>
@@ -33,9 +35,9 @@
           @click-day="pilihKehadiran"
         />
 
-        <!-- Kalender Sikap -->
+        <!-- Kalender Catatan Sikap -->
         <ContributionCalendar
-          title="Sikap"
+          title="Catatan Sikap"
           :tahun="tahun"
           :bulan="bulan"
           :cells="cellsSikap"
@@ -74,16 +76,13 @@
           </button>
         </div>
         <p v-if="detailSikap.kosong" class="font-body-md text-on-surface-variant dark:text-ice-white/60">
-          Belum ada penilaian sikap untuk hari ini. Guru akan mengisinya setelah hari berjalan.
+          Tidak ada catatan kejadian pada tanggal ini.
         </p>
         <template v-else>
-          <p class="font-body-md text-on-surface-variant dark:text-ice-white/60">
-            Nilai sikap: <span class="font-label-md text-deep-navy dark:text-ice-white">{{ labelSikap[Math.round(detailSikap.nilaiRata)] || '-' }}</span>
-          </p>
-          <p v-if="detailSikap.catatan" class="mt-3 font-body-md text-on-surface-variant dark:text-ice-white/60">
-            Catatan guru: {{ detailSikap.catatan }}
-          </p>
-          <p v-else class="mt-3 font-body-sm text-on-surface-variant dark:text-ice-white/40">Tidak ada catatan khusus dari guru.</p>
+          <div v-for="(item, i) in detailSikap.daftar" :key="item.id || i" class="py-2 border-b border-surface-variant dark:border-white/10 last:border-0">
+            <p class="font-label-md text-deep-navy dark:text-ice-white">{{ item.kategori }} <span class="font-body-sm text-on-surface-variant dark:text-ice-white/60">&middot; {{ item.aspek }}</span></p>
+            <p v-if="item.keterangan" class="font-body-md text-on-surface-variant dark:text-ice-white/60">Keterangan: {{ item.keterangan }}</p>
+          </div>
         </template>
       </div>
     </template>
@@ -93,7 +92,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import api from '../../services/api'
-import { formatTanggal, labelSikap } from '../../utils/format'
+import { formatTanggal } from '../../utils/format'
 import { useOrtuProfil } from '../../composables/useOrtuProfil'
 import ContributionCalendar from '../../components/ContributionCalendar.vue'
 import LoadingState from '../../components/LoadingState.vue'
@@ -142,10 +141,10 @@ const cellsSikap = computed(() => {
     if (date.getDay() === 0) continue
     const iso = `${tahun.value}-${String(bulan.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const rec = data.value?.sikap?.find((s) => s.tanggal === iso)
-    if (rec) {
-      cells[iso] = { cls: rec.catatan ? 'bg-sky-500' : 'bg-status-aman', tip: rec.catatan ? 'Ada catatan guru' : 'Baik', info: rec }
+    if (rec?.daftar?.length) {
+      cells[iso] = { cls: 'bg-sky-500', tip: `${rec.daftar.length} catatan kejadian`, info: rec }
     } else {
-      cells[iso] = { cls: 'bg-surface-variant/50 dark:bg-white/10', tip: 'Belum dinilai', empty: true, info: { tanggal: iso, nilaiRata: null, catatan: null } }
+      cells[iso] = { cls: 'bg-surface-variant/50 dark:bg-white/10', tip: 'Tidak ada catatan', empty: true, info: { tanggal: iso, daftar: [] } }
     }
   }
   return cells
@@ -158,8 +157,7 @@ const legendKehadiran = [
 ]
 
 const legendSikap = [
-  { cls: 'bg-status-aman', label: 'Sikap Baik' },
-  { cls: 'bg-sky-500', label: 'Ada catatan guru' }
+  { cls: 'bg-sky-500', label: 'Ada catatan kejadian' }
 ]
 
 function statusBadge(status) {

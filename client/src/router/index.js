@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
-  { path: '/', name: 'landing', component: () => import('../views/public/LandingPage.vue'), meta: { public: true, title: 'Beranda', description: 'Sistem monitoring perkembangan siswa SD Negeri 4 Keling. Nilai, kehadiran, dan sikap dalam satu tempat.' } },
+  { path: '/', name: 'landing', component: () => import('../views/public/LandingPage.vue'), meta: { public: true, title: 'Beranda', description: 'Sistem monitoring perkembangan siswa SD Negeri 4 Keling. Lihat informasi nilai, kehadiran, dan catatan perilaku anak selama di sekolah.' } },
   { path: '/artikel', name: 'artikel-list', component: () => import('../views/public/ArticleList.vue'), meta: { public: true, title: 'Berita Sekolah', description: 'Berita dan pengumuman terbaru dari SD Negeri 4 Keling.' } },
   { path: '/artikel/:id', name: 'artikel-detail', component: () => import('../views/public/ArticleDetail.vue'), meta: { public: true, title: 'Artikel', description: 'Artikel dan berita SD Negeri 4 Keling.' } },
   { path: '/login', name: 'login', component: () => import('../views/auth/LoginPage.vue'), meta: { public: true, noindex: true, title: 'Masuk' } },
@@ -25,7 +25,7 @@ const routes = [
       { path: 'guru/nilai/riwayat', name: 'guru-nilai-riwayat', component: () => import('../views/guru/GuruNilaiRiwayat.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Riwayat Nilai' } },
       { path: 'guru/kehadiran', name: 'guru-kehadiran', component: () => import('../views/guru/GuruKehadiran.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Input Kehadiran' } },
       { path: 'guru/kehadiran/kalender', name: 'guru-kehadiran-kalender', component: () => import('../views/guru/GuruKehadiranKalender.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Kalender Kehadiran' } },
-      { path: 'guru/sikap', name: 'guru-sikap', component: () => import('../views/guru/GuruSikap.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Penilaian Sikap' } },
+      { path: 'guru/sikap', name: 'guru-sikap', component: () => import('../views/guru/GuruSikap.vue'), meta: { roles: ['wali_kelas', 'admin'], title: 'Catatan Sikap', description: 'Catat kejadian yang perlu dicatat, bukan penilaian harian.' } },
 
       { path: 'kepsek', name: 'kepsek-dashboard', component: () => import('../views/kepsek/KepsekDashboard.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Dashboard Kepala Sekolah' } },
       { path: 'kepsek/rekap', name: 'kepsek-rekap', component: () => import('../views/kepsek/KepsekRekap.vue'), meta: { roles: ['kepala_sekolah', 'admin'], title: 'Rekap per Kelas' } },

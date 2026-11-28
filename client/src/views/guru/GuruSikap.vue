@@ -1,90 +1,81 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="page-title">Catatan Kejadian Sikap</h1>
-      <p class="page-subtitle">Catat kejadian sikap spiritual atau sosial yang benar-benar diamati (1 Kurang, 2 Cukup, 3 Baik, 4 Baik Sekali, 5 Sangat Baik)</p>
+      <h1 class="page-title">Catatan Sikap</h1>
+      <p class="page-subtitle">Catat kejadian yang perlu mendapat perhatian atau dokumentasi.</p>
       <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
-        Baris kosong berarti <strong>tidak ada kejadian yang dicatat</strong> dan tidak akan disimpan. Siswa tanpa
-        kejadian pada semester aktif langsung dinilai <strong>5 — Sangat Baik</strong>.
+        Catatan dibuat hanya saat ada kejadian. Tidak perlu mengisi setiap hari. Skor dihitung dari 100 dikurangi
+        pengurangan catatan yang tersimpan pada semester ini. Tanpa catatan berarti tidak ada pengurangan, bukan
+        penilaian menyeluruh.
       </p>
     </div>
 
-    <div class="card p-5 flex flex-col md:flex-row md:items-end gap-4">
-      <div>
-        <label class="label">Jenis Sikap</label>
-        <select v-model="jenis" class="input md:w-56">
-          <option value="spiritual">Spiritual</option>
-          <option value="sosial">Sosial</option>
-        </select>
-      </div>
-      <div>
-        <label class="label">Tanggal Kejadian</label>
-        <input v-model="tanggal" type="date" class="input md:w-56" />
-      </div>
-      <button class="btn-primary" :disabled="saving || !tercatat" @click="simpan">
-        <span v-if="saving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-        <span class="material-symbols-outlined text-[18px]" v-else>save</span>
-        Simpan Kejadian
-      </button>
-      <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 md:ml-auto">
-        {{ tercatat }} kejadian akan dicatat
-      </p>
-    </div>
+    <div v-if="loading"><LoadingState /></div>
 
-    <div v-if="loading && !rows.length"><LoadingState /></div>
-
-    <div v-else-if="rows.length" class="card overflow-hidden">
-      <div class="table-shell">
-        <table class="table-base">
-          <thead>
-            <tr>
-              <th>Absen</th>
-              <th>Nama</th>
-              <th>Nilai Kejadian (1-5)</th>
-              <th>Status</th>
-              <th>Catatan Kejadian</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.siswa.id">
-              <td>{{ row.siswa.nomorAbsen }}</td>
-              <td class="font-label-md text-deep-navy dark:text-ice-white">{{ row.siswa.nama }}</td>
-              <td>
-                <div class="flex gap-1">
-                  <button
-                    v-for="n in 5"
-                    :key="n"
-                    type="button"
-                    class="w-9 h-9 rounded-lg border font-label-md transition-colors"
-                    :class="Number(row.nilai) === n ? 'bg-dark-teal text-white border-dark-teal dark:border-light-teal' : 'border-outline-variant dark:border-white/15 text-on-surface-variant dark:text-ice-white/60 hover:bg-surface-container-low dark:hover:bg-white/10'"
-                    @click="row.nilai = n"
-                  >
-                    {{ n }}
-                  </button>
-                  <button
-                    v-if="row.nilai !== null"
-                    type="button"
-                    class="w-9 h-9 rounded-lg border border-outline-variant font-label-md text-on-surface-variant dark:border-white/15 dark:text-ice-white/60"
-                    title="Kosongkan (tidak ada kejadian)"
-                    @click="row.nilai = null"
-                  >
-                    ×
-                  </button>
-                </div>
-              </td>
-              <td class="text-on-surface-variant dark:text-ice-white/60">
-                {{ row.nilai === null ? 'Belum ada catatan' : labelSikap[row.nilai] }}
-              </td>
-              <td>
-                <input v-model="row.catatan" class="input !py-1.5 md:w-56" placeholder="opsional" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <EmptyState v-else title="Belum ada siswa" message="Daftar siswa pada kelas ini masih kosong." icon="favorite" />
+    <template v-else>
+      <form class="card p-5 space-y-4" @submit.prevent="simpan">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="label" for="sikap-siswa">Siswa</label>
+            <select id="sikap-siswa" v-model="siswaId" class="input" :disabled="saving">
+              <option :value="null">Pilih siswa</option>
+              <option v-for="row in rows" :key="row.siswa.id" :value="row.siswa.id">
+                {{ row.siswa.nomorAbsen }}. {{ row.siswa.nama }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="sikap-kategori">Jenis Kejadian</label>
+            <select id="sikap-kategori" v-model="kategori" class="input" :disabled="saving" @change="sesuaikanAspek">
+              <option value="">Pilih kejadian</option>
+              <option v-for="item in daftarKategori" :key="item" :value="item">{{ item }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="sikap-aspek">Aspek</label>
+            <select id="sikap-aspek" v-model="aspek" class="input" :disabled="saving">
+              <option value="" disabled>Pilih aspek</option>
+              <option value="sosial">Sosial</option>
+              <option value="spiritual">Spiritual</option>
+            </select>
+            <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+              Kejadian baku dari sekolah menggunakan aspek Sosial. Untuk "Lainnya", aspek wajib dipilih.
+            </p>
+          </div>
+          <div>
+            <label class="label" for="sikap-tanggal">Tanggal Kejadian</label>
+            <input id="sikap-tanggal" v-model="tanggal" type="date" class="input" :disabled="saving" />
+            <p v-if="kategori === 'Bolos'" class="font-label-sm text-status-perhatian mt-1">
+              Presensi tanggal ini harus sudah berstatus Alpa sebelum catatan Bolos disimpan.
+            </p>
+          </div>
+        </div>
+        <div>
+          <label class="label" for="sikap-keterangan">Keterangan Kejadian</label>
+          <textarea
+            id="sikap-keterangan"
+            v-model="keterangan"
+            class="input min-h-24"
+            maxlength="1000"
+            :disabled="saving"
+            :placeholder="kategori === 'Lainnya' ? 'Wajib diisi. Jelaskan kejadian yang terjadi.' : 'Tambahkan keterangan bila perlu.'"
+          ></textarea>
+          <p v-if="kategori === 'Lainnya'" class="font-label-sm text-status-perhatian mt-1">
+            Keterangan wajib diisi untuk kategori Lainnya.
+          </p>
+        </div>
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <p class="font-label-sm text-on-surface-variant dark:text-ice-white/60">
+            {{ rows.length }} siswa terdaftar di kelas ini.
+          </p>
+          <button class="btn-primary" type="submit" :disabled="saving || !bisaDisimpan">
+            <span v-if="saving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span v-else class="material-symbols-outlined text-[18px]">save</span>
+            Simpan Catatan
+          </button>
+        </div>
+      </form>
+    </template>
   </div>
 </template>
 
@@ -93,52 +84,73 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../../services/api'
 import { useGuruKelas } from '../../composables/useGuruKelas'
 import { useToastStore } from '../../stores/toast'
-import { labelSikap } from '../../utils/format'
 import LoadingState from '../../components/LoadingState.vue'
-import EmptyState from '../../components/EmptyState.vue'
 
 const { params } = useGuruKelas()
 const toast = useToastStore()
 
-const jenis = ref('spiritual')
+const daftarKategori = [
+  'Bolos',
+  'Tidak mengerjakan tugas',
+  'Berkelahi dengan teman',
+  'Memalak uang teman',
+  'Membully teman/perundungan',
+  'Berbicara kotor kepada teman',
+  'Tidak sopan kepada guru',
+  'Lainnya'
+]
+
+const siswaId = ref(null)
+const kategori = ref('')
+const aspek = ref('')
 const tanggal = ref(new Date().toISOString().slice(0, 10))
+const keterangan = ref('')
 const rows = ref([])
 const loading = ref(true)
 const saving = ref(false)
-const tercatat = computed(() => rows.value.filter((r) => r.nilai !== null).length)
+
+const bisaDisimpan = computed(() => {
+  if (!siswaId.value || !kategori.value || !tanggal.value || !aspek.value) return false
+  if (kategori.value === 'Lainnya' && !keterangan.value.trim()) return false
+  return true
+})
+
+function sesuaikanAspek() {
+  if (kategori.value && kategori.value !== 'Lainnya') aspek.value = 'sosial'
+}
 
 async function load() {
   loading.value = true
   try {
     const { data } = await api.get('/guru/siswa', { params: params() })
-    // Event-based: tidak ada nilai default. Setiap kejadian harus dipilih guru.
-    rows.value = data.list.map(({ siswa }) => ({ siswa, nilai: null, catatan: '' }))
+    rows.value = data.list || []
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Gagal memuat daftar siswa.')
   } finally {
     loading.value = false
   }
 }
 
 async function simpan() {
-  const daftar = rows.value
-    .filter((r) => Number(r.nilai) >= 1 && Number(r.nilai) <= 5)
-    .map((r) => ({
-      siswaId: r.siswa.id,
-      jenis: jenis.value,
-      nilai: Number(r.nilai),
-      catatan: r.catatan,
-      tanggal: tanggal.value
-    }))
-  if (!daftar.length) {
-    toast.error('Belum ada kejadian yang dipilih untuk disimpan.')
+  if (!bisaDisimpan.value) {
+    toast.error('Lengkapi siswa, jenis kejadian, aspek, dan tanggal terlebih dahulu.')
     return
   }
   saving.value = true
   try {
-    const { data } = await api.post('/guru/sikap', { daftar })
-    toast.success(data?.message || 'Kejadian sikap berhasil disimpan.')
-    await load()
+    const { data } = await api.post('/guru/sikap', {
+      daftar: [{
+        siswaId: siswaId.value,
+        kategori: kategori.value,
+        jenis: aspek.value,
+        catatan: keterangan.value,
+        tanggal: tanggal.value
+      }]
+    })
+    toast.success(data?.message || 'Catatan sikap berhasil disimpan.')
+    keterangan.value = ''
   } catch (e) {
-    toast.error(e.response?.data?.message || 'Gagal menyimpan kejadian sikap.')
+    toast.error(e.response?.data?.message || 'Gagal menyimpan catatan sikap.')
   } finally {
     saving.value = false
   }

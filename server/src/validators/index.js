@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { KATEGORI_SIKAP } from '../config/sikap.js'
 
 const tanggal = z
   .string()
@@ -170,15 +171,28 @@ export const kehadiranBulkSchema = z.object({
 })
 
 export const sikapBulkSchema = z.object({
-  daftar: z.array(
-    z.object({
-      siswaId: idInt,
-      jenis: z.enum(['spiritual', 'sosial']).default('spiritual'),
-      nilai: z.coerce.number().int().min(1, 'Nilai sikap 1-5').max(5, 'Nilai sikap 1-5'),
-      catatan: z.string().max(1000).nullable().optional(),
-      tanggal: tanggal.optional()
-    })
-  )
+  daftar: z
+    .array(
+      z
+        .object({
+          siswaId: idInt,
+          kategori: z.enum(KATEGORI_SIKAP, { message: 'Kategori catatan tidak valid' }),
+          jenis: z.enum(['sosial', 'spiritual'], { message: 'Aspek harus sosial atau spiritual' }).optional(),
+          catatan: z.string().max(1000).nullable().optional(),
+          tanggal: tanggal.optional()
+        })
+        .superRefine((item, ctx) => {
+          if (item.kategori === 'Lainnya') {
+            if (!item.jenis) {
+              ctx.addIssue({ code: 'custom', path: ['jenis'], message: 'Aspek wajib dipilih untuk kategori Lainnya.' })
+            }
+            if (!String(item.catatan || '').trim()) {
+              ctx.addIssue({ code: 'custom', path: ['catatan'], message: 'Keterangan wajib diisi untuk kategori Lainnya.' })
+            }
+          }
+        })
+    )
+    .min(1, 'Minimal satu catatan')
 })
 
 export const abkSchema = z.object({

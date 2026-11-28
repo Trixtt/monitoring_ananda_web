@@ -80,7 +80,7 @@
             Ananda dalam Satu Genggaman
           </h1>
           <p class="font-body-lg text-ice-white/80 mb-9 max-w-lg">
-            Sistem informasi monitoring perkembangan siswa berbasis sistem pendukung keputusan. Guru, wali kelas, dan orang tua dapat memantau nilai akademik, kehadiran, dan sikap siswa secara transparan.
+            Sistem informasi monitoring perkembangan siswa berbasis sistem pendukung keputusan. Guru, wali kelas, dan orang tua dapat memantau nilai akademik, kehadiran, dan catatan perilaku siswa secara transparan.
           </p>
           <div class="flex flex-wrap gap-3">
             <button v-magnet @click="scrollTo('fitur')" class="btn bg-gradient-to-r from-dark-teal to-light-teal text-white hover:brightness-110 shadow-card">
@@ -214,7 +214,7 @@
           <p class="font-label-md text-dark-teal dark:text-light-teal mb-2">FITUR</p>
           <h2 class="font-headline-lg text-deep-navy dark:text-ice-white">Sistem Monitoring Perkembangan Siswa</h2>
           <p class="font-body-md text-on-surface-variant dark:text-ice-white/60 mt-3 max-w-2xl mx-auto">
-            Pantau nilai akademik, kehadiran, dan sikap siswa secara transparan berbasis sistem pendukung keputusan metode SAW.
+            Pantau nilai akademik, kehadiran, dan catatan perilaku siswa secara transparan berbasis sistem pendukung keputusan metode SAW.
           </p>
         </div>
 
@@ -423,7 +423,7 @@
           <div class="relative">
             <h2 class="font-headline-lg mb-4">Siap Memantau Perkembangan Ananda?</h2>
             <p class="font-body-lg text-ice-white/80 mb-8 max-w-2xl mx-auto">
-              Orang tua dapat melihat nilai, kehadiran, dan rekomendasi pengembangan anak melalui akun yang dibagikan oleh pihak sekolah.
+              Orang tua dapat melihat nilai, kehadiran, catatan sikap, dan rekomendasi pengembangan anak melalui akun yang dibagikan oleh pihak sekolah.
             </p>
             <router-link v-magnet to="/login" class="btn bg-gradient-to-r from-light-teal to-dark-teal text-white hover:brightness-110 font-bold shadow-card">
               <span class="material-symbols-outlined text-[18px]">login</span>
@@ -511,7 +511,7 @@ let blobs = []
 let parallaxRaf = 0
 let reducedMotion = false
 
-const words = ['Nilai Akademik', 'Kehadiran', 'Sikap']
+const words = ['Nilai Akademik', 'Kehadiran', 'Catatan Sikap']
 
 const typeMinWidth = computed(() => Math.max(...words.map((w) => w.length)) + 'ch')
 
@@ -694,13 +694,13 @@ const navLinks = [
 const bars = [
   { label: 'Nilai Akademik', value: '85', color: 'text-light-teal', bar: 'bg-light-teal', percent: '85%' },
   { label: 'Kehadiran', value: '96%', color: 'text-light-teal', bar: 'bg-light-teal', percent: '96%' },
-  { label: 'Sikap', value: 'Baik', color: 'text-status-aman', bar: 'bg-status-aman', percent: '75%' }
+  { label: 'Skor Sikap', value: '95', color: 'text-status-aman', bar: 'bg-status-aman', percent: '95%' }
 ]
 
 const aspek = [
   { label: 'Nilai Akademik', icon: 'menu_book' },
   { label: 'Kehadiran', icon: 'how_to_reg' },
-  { label: 'Sikap', icon: 'favorite' }
+  { label: 'Catatan Sikap', icon: 'favorite' }
 ]
 
 const status = [
@@ -743,9 +743,10 @@ const stats = [
 ]
 
 const faqs = [
-  { q: 'Bagaimana orang tua mendapatkan akun?', a: 'Akun orang tua dibuat oleh admin/wali kelas dan dibagikan langsung. Setelah masuk, Anda bisa melihat nilai, kehadiran, sikap, dan rekomendasi perkembangan anak.' },
+  { q: 'Bagaimana orang tua mendapatkan akun?', a: 'Akun orang tua dibuat oleh admin/wali kelas dan dibagikan langsung. Setelah masuk, Anda bisa melihat nilai, kehadiran, catatan sikap, dan rekomendasi perkembangan anak.' },
+  { q: 'Apa yang dimaksud catatan sikap?', a: 'Catatan sikap adalah catatan kejadian perilaku yang dibuat guru hanya saat ada kejadian yang perlu disampaikan, bukan penilaian angka harian. Skor sikap dihitung dari nilai dasar 100 dikurangi pengurangan tiap catatan pada semester berjalan.' },
   { q: 'Apa itu metode SAW?', a: 'SAW (Simple Additive Weighting) adalah metode sistem pendukung keputusan yang menghitung skor berdasarkan bobot nilai akademik, kehadiran, dan sikap, lalu mengklasifikasikan siswa ke dalam tiga kondisi.' },
-  { q: 'Apakah nilai yang diinput langsung terlihat?', a: 'Ya. Setiap nilai, kehadiran, atau sikap yang diinput guru langsung diperbarui dan orang tua mendapat notifikasi ketika ada penilaian baru.' },
+  { q: 'Apakah nilai yang diinput langsung terlihat?', a: 'Ya. Nilai dan kehadiran langsung diperbarui. Orang tua mendapat notifikasi saat guru mencatat kejadian sikap.' },
   { q: 'Bagaimana cara reset kata sandi?', a: 'Anda dapat memilih menu "Lupa Kata Sandi" di halaman masuk. Jika masih terkendala, hubungi admin sekolah untuk reset.' },
   { q: 'Siapa saja yang bisa melihat data siswa?', a: 'Akses dibatasi sesuai peran: wali kelas mengelola nilai kelasnya, kepala sekolah melihat laporan keseluruhan, dan orang tua hanya melihat data anaknya sendiri.' }
 ]
@@ -766,10 +767,10 @@ const alur = ref([
     preview: []
   },
   {
-    label: 'Sikap',
+    label: 'Catatan Sikap',
     icon: 'favorite',
     step: 'Langkah 3',
-    desc: 'Penilaian sikap spiritual dan sosial oleh guru memberikan gambaran perilaku siswa di lingkungan kelas dan sekolah.',
+    desc: 'Guru mencatat kejadian sikap hanya saat ada perilaku yang perlu didokumentasikan. Skor dihitung dari 100 dikurangi pengurangan catatan pada semester berjalan.',
     preview: []
   },
   {

@@ -1,7 +1,26 @@
 import { Op } from 'sequelize'
 import { Siswa, Nilai, Kehadiran, Sikap, TahunAjaran } from '../models/index.js'
+import { hitungNilaiSikap } from '../config/sikap.js'
 import { hitungSkorSiswa, mapelTerlemah, rekomendasiUntuk, rentangSemester } from '../services/spk.js'
 import { susunRapor } from '../services/rapor.js'
+
+function catatanSikapPublic(s) {
+  return {
+    id: s.id,
+    tanggal: s.tanggal,
+    kategori: s.kategori,
+    aspek: s.jenis,
+    keterangan: s.catatan || null
+  }
+}
+
+function ringkasSikap(list) {
+  return {
+    nilai: hitungNilaiSikap(list),
+    jumlahCatatan: list.length,
+    tanpaCatatan: list.length === 0
+  }
+}
 
 function whereRentang(rentang) {
   if (!rentang) return {}
@@ -66,7 +85,8 @@ export async function ortuDashboard(req, res) {
     nilai,
     kehadiran,
     ringkasKehadiran: ringkas,
-    sikap
+    ringkasSikap: ringkasSikap(sikap),
+    sikap: sikap.map(catatanSikapPublic)
   })
 }
 
@@ -143,15 +163,12 @@ export async function ortuSikap(req, res) {
     order: [['tanggal', 'DESC'], ['createdAt', 'DESC']]
   })
 
-  const ringkas = { spiritual: { jumlah: 0, total: 0 }, sosial: { jumlah: 0, total: 0 } }
-  list.forEach((s) => {
-    if (ringkas[s.jenis]) {
-      ringkas[s.jenis].jumlah++
-      ringkas[s.jenis].total += Number(s.nilai)
-    }
+  return res.json({
+    ringkas: ringkasSikap(list),
+    list: list.map(catatanSikapPublic),
+    semester: ta?.semesterAktif || 'Ganjil',
+    periode: rentang
   })
-
-  return res.json({ ringkas, list, semester: ta?.semesterAktif || 'Ganjil', periode: rentang })
 }
 
 export async function ortuRapor(req, res) {
@@ -203,22 +220,14 @@ export async function ortuMonitoring(req, res) {
     kehadiranMap[k.tanggal] = { tanggal: k.tanggal, status: k.status, keterangan: k.keterangan }
   })
 
+  // Satu tanggal dapat memiliki beberapa catatan; semuanya dikirim.
   const sikapMap = {}
   sikap.forEach((s) => {
     const key = s.tanggal
-    if (!sikapMap[key]) {
-      sikapMap[key] = { tanggal: key, total: 0, jumlah: 0, catatan: null }
-    }
-    sikapMap[key].total += Number(s.nilai)
-    sikapMap[key].jumlah++
-    if (s.catatan && !sikapMap[key].catatan) sikapMap[key].catatan = s.catatan
+    if (!sikapMap[key]) sikapMap[key] = { tanggal: key, daftar: [] }
+    sikapMap[key].daftar.push(catatanSikapPublic(s))
   })
-
-  const sikapList = Object.values(sikapMap).map((s) => ({
-    tanggal: s.tanggal,
-    nilaiRata: s.jumlah ? Math.round((s.total / s.jumlah) * 10) / 10 : null,
-    catatan: s.catatan || null
-  }))
+  const sikapList = Object.values(sikapMap)
 
   return res.json({
     bulan: prefix,

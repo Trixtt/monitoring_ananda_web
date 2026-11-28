@@ -277,7 +277,7 @@ function adminNav() {
             { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
             { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg', exact: true },
             { to: '/guru/kehadiran/kalender', label: 'Kalender Kehadiran', icon: 'calendar_month' },
-            { to: '/guru/sikap', label: 'Penilaian Sikap', icon: 'favorite' }
+            { to: '/guru/sikap', label: 'Catatan Sikap', icon: 'favorite' }
           ]
         }
       ]
@@ -341,7 +341,7 @@ const menuGroups = computed(() => {
           { to: '/guru/nilai/riwayat', label: 'Riwayat Nilai', icon: 'history' },
           { to: '/guru/kehadiran', label: 'Input Kehadiran', icon: 'how_to_reg', exact: true },
           { to: '/guru/kehadiran/kalender', label: 'Kalender Kehadiran', icon: 'calendar_month' },
-          { to: '/guru/sikap', label: 'Penilaian Sikap', icon: 'favorite' }
+          { to: '/guru/sikap', label: 'Catatan Sikap', icon: 'favorite' }
         ]
       },
       { label: 'Akun', items: profil }

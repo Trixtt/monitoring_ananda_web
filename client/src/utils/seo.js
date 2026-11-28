@@ -1,7 +1,7 @@
 const SITE_NAME = 'SD Negeri 4 Keling'
 const DEFAULT_TITLE = `Sistem Monitoring Perkembangan Siswa - ${SITE_NAME}`
 const DEFAULT_DESCRIPTION =
-  'Sistem monitoring perkembangan siswa SD Negeri 4 Keling. Pantau nilai akademik, kehadiran, dan sikap putra-putri Anda.'
+  'Sistem monitoring perkembangan siswa SD Negeri 4 Keling. Lihat informasi nilai, kehadiran, dan catatan perilaku anak selama di sekolah.'
 
 export const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, '')
 

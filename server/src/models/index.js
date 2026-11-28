@@ -41,10 +41,14 @@ Kehadiran.belongsTo(Siswa, { as: 'siswa', foreignKey: 'siswaId' })
 Kehadiran.belongsTo(TahunAjaran, { as: 'tahunAjaran', foreignKey: 'tahunAjaranId' })
 Siswa.hasMany(Kehadiran, { as: 'kehadiran', foreignKey: 'siswaId' })
 
-// Sikap
+// Sikap (catatan kejadian)
 Sikap.belongsTo(Siswa, { as: 'siswa', foreignKey: 'siswaId' })
 Sikap.belongsTo(TahunAjaran, { as: 'tahunAjaran', foreignKey: 'tahunAjaranId' })
+Sikap.belongsTo(User, { as: 'guru', foreignKey: 'guruId' })
+Sikap.belongsTo(Kehadiran, { as: 'kehadiran', foreignKey: 'kehadiranId' })
 Siswa.hasMany(Sikap, { as: 'sikap', foreignKey: 'siswaId' })
+User.hasMany(Sikap, { as: 'catatanSikap', foreignKey: 'guruId' })
+Kehadiran.hasOne(Sikap, { as: 'catatanBolos', foreignKey: 'kehadiranId' })
 
 // Artikel
 Artikel.belongsTo(User, { as: 'author', foreignKey: 'authorId' })

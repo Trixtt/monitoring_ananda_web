@@ -60,7 +60,7 @@
                 <th>Nama</th>
                 <th class="text-right">Rata Nilai</th>
                 <th class="text-right">Hadir</th>
-                <th class="text-right">Sikap</th>
+                <th class="text-right">Skor Sikap</th>
                 <th class="text-right">Jml Nilai</th>
                 <th>Mapel Terlemah</th>
                 <th>Kondisi</th>
@@ -78,7 +78,12 @@
                 </td>
                 <td class="text-right font-label-md">{{ item.skor.abk ? '-' : item.skor.detail.rataNilai }}</td>
                 <td class="text-right font-label-md">{{ item.skor.abk ? '-' : persen(item.skor.skorKehadiran) }}</td>
-                <td class="text-right font-label-md">{{ item.skor.abk ? '-' : item.skor.detail.rataSikap }}</td>
+                <td class="text-right font-label-md">
+                  <span>{{ item.skor.abk ? '-' : item.skor.detail.nilaiSikap }}</span>
+                  <span v-if="!item.skor.abk && item.skor.detail.jumlahCatatanSikap" class="block font-label-sm text-on-surface-variant dark:text-ice-white/60">
+                    {{ item.skor.detail.jumlahCatatanSikap }} catatan
+                  </span>
+                </td>
                 <td class="text-right">{{ item.jumlahNilai }}</td>
                 <td class="text-on-surface-variant dark:text-ice-white/60">{{ item.mapelTerlemah || '-' }}</td>
                 <td><StatusBadge :kode="item.skor.kategori.kode" /></td>

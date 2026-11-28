@@ -97,14 +97,14 @@
           </div>
 
           <div class="card p-5">
-            <h3 class="font-label-md uppercase tracking-wider text-on-surface-variant dark:text-ice-white/60 mb-3">Sikap</h3>
-            <div v-if="rapor.ringkasSikap.length" class="space-y-2">
-              <div v-for="s in rapor.ringkasSikap" :key="s.jenis" class="flex items-center justify-between font-body-md text-sm">
-                <span class="text-on-surface-variant dark:text-ice-white/60">{{ s.jenis === 'spiritual' ? 'Spiritual' : 'Sosial' }}</span>
-                <span class="font-label-md text-deep-navy dark:text-ice-white">{{ s.jumlah ? (labelSikap[Math.round(s.rata)] || '-') : '-' }}</span>
-              </div>
-            </div>
-            <p v-else class="font-body-md text-sm text-on-surface-variant dark:text-ice-white/60">Belum ada penilaian sikap.</p>
+            <h3 class="font-label-md uppercase tracking-wider text-on-surface-variant dark:text-ice-white/60 mb-3">Catatan Sikap</h3>
+            <p class="font-headline-md text-deep-navy dark:text-ice-white">{{ rapor.ringkasSikap.nilai }}</p>
+            <p class="font-body-md text-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+              {{ rapor.ringkasSikap.jumlahCatatan }} catatan pada periode ini. Skor dihitung dari catatan yang tersimpan.
+            </p>
+            <p v-if="rapor.ringkasSikap.tanpaCatatan" class="font-body-md text-sm text-on-surface-variant dark:text-ice-white/60 mt-1">
+              Belum ada catatan kejadian pada periode ini.
+            </p>
           </div>
         </div>
       </div>
@@ -140,7 +140,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { formatSkor, formatTanggal, persen, labelSikap } from '../utils/format'
+import { formatSkor, formatTanggal, persen } from '../utils/format'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps({

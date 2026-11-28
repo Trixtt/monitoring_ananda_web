@@ -4,8 +4,7 @@ import {
   persen,
   kategoriInfo,
   formatTanggal,
-  namaKelasSingkat,
-  labelSikap
+  namaKelasSingkat
 } from '../format'
 
 describe('formatSkor', () => {
@@ -76,15 +75,5 @@ describe('formatTanggal', () => {
     const hasil = formatTanggal('2026-08-17')
     expect(hasil).toMatch(/2026/)
     expect(hasil).not.toBe('-')
-  })
-})
-
-describe('labelSikap', () => {
-  it('skala 1-5 lengkap', () => {
-    expect(labelSikap[1]).toBe('Kurang')
-    expect(labelSikap[2]).toBe('Cukup')
-    expect(labelSikap[3]).toBe('Baik')
-    expect(labelSikap[4]).toBe('Baik Sekali')
-    expect(labelSikap[5]).toBe('Sangat Baik')
   })
 })

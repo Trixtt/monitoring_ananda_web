@@ -1,4 +1,5 @@
 import { Nilai, Kehadiran, Sikap, SettingSpk, Siswa, TahunAjaran } from '../models/index.js'
+import { hitungNilaiSikap, penguranganUntuk } from '../config/sikap.js'
 import { Op } from 'sequelize'
 
 // Bobot hasil keputusan: Akademik 4, Kehadiran 4, Sikap 5 dari total 13.
@@ -72,10 +73,21 @@ async function tentukanRentang(tahunAjaranId, rentang) {
   return rentangSemester(ta)
 }
 
-export function normalizeSikap(rataSikap) {
-  // Skala 1-5, arah benefit: 1 = Kurang -> 0, 5 = Sangat Baik -> 1.
-  const hasil = (Number(rataSikap) - 1) / 4
-  return Math.min(1, Math.max(0, hasil))
+export function normalizeSikap(nilaiSikap) {
+  // Nilai sikap 0-100 dari catatan kejadian; semua kriteria SAW bersifat benefit.
+  const hasil = Number(nilaiSikap) / 100
+  return Math.min(1, Math.max(0, Number.isFinite(hasil) ? hasil : 0))
+}
+
+export function totalPenguranganSikap(catatan = []) {
+  return (Array.isArray(catatan) ? catatan : []).reduce((jumlah, item) => {
+    if (item === null || item === undefined) return jumlah
+    const mentah = typeof item === 'object'
+      ? (item.pengurangan ?? penguranganUntuk(item.kategori))
+      : item
+    const nilai = Number(mentah)
+    return jumlah + (Number.isFinite(nilai) && nilai > 0 ? nilai : 0)
+  }, 0)
 }
 
 export function kategoriDariSkor(skor, setting) {
@@ -137,8 +149,10 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}, setting = {}) {
       hariTercatat: detail.hariTercatat ?? null,
       jumlahHadirEfektif: detail.jumlahHadirEfektif ?? null,
       jumlahAlpa: detail.jumlahAlpa ?? null,
-      rataSikap: detail.rataSikap ?? null,
-      sikapTanpaKejadian: detail.sikapTanpaKejadian ?? false
+      nilaiSikap: detail.nilaiSikap ?? null,
+      totalPenguranganSikap: detail.totalPenguranganSikap ?? null,
+      jumlahCatatanSikap: detail.jumlahCatatanSikap ?? null,
+      sikapTanpaCatatan: detail.sikapTanpaCatatan ?? false
     },
     batas: batasDariSetting(setting),
     ambang: ambangDariSetting(setting)
@@ -150,11 +164,12 @@ function hasilBelumLengkap(siswaId, kelengkapan, detail = {}, setting = {}) {
  *
  * totalHariSekolah: jumlah tanggal unik yang tercatat pada tahun
  *   ajaran/periode berjalan (denominator tetap tanggal tercatat).
- * sikapAngka: nilai kejadian sikap (1-5). Tanpa kejadian berarti sikap
- *   dianggap Sangat Baik (nilai 5), sesuai keputusan final sekolah.
+ * sikapCatatan: catatan kejadian yang tersimpan pada periode berjalan.
+ *   Nilai sikap dihitung dari dasar 100 dikurangi pengurangan yang relevan.
+ *   Tanpa catatan berarti tidak ada pengurangan, bukan predikat tertentu.
  */
 export function hitungSkorData(
-  { nilaiRows = [], hadirStatus = [], sikapAngka = [], totalHariSekolah = null },
+  { nilaiRows = [], hadirStatus = [], sikapCatatan = [], totalHariSekolah = null },
   setting = {}
 ) {
   // Akademik: rata-rata tiap mapel lebih dulu, kemudian rata-rata dari
@@ -170,11 +185,11 @@ export function hitungSkorData(
     ? jumlahHadirEfektif / totalHariTercatat
     : null
 
-  const sikapTanpaKejadian = sikapAngka.length === 0
-  const rataSikap = sikapTanpaKejadian
-    ? 5
-    : sikapAngka.reduce((a, b) => a + Number(b), 0) / sikapAngka.length
-  const skorSikap = normalizeSikap(rataSikap)
+  const daftarCatatan = Array.isArray(sikapCatatan) ? sikapCatatan : []
+  const penguranganSikap = totalPenguranganSikap(daftarCatatan)
+  const nilaiSikap = hitungNilaiSikap(daftarCatatan)
+  const skorSikap = normalizeSikap(nilaiSikap)
+  const sikapTanpaCatatan = daftarCatatan.length === 0
 
   const kelengkapan = {
     akademik: perMapel.length > 0,
@@ -188,8 +203,10 @@ export function hitungSkorData(
     hariTercatat: totalHariTercatat,
     jumlahHadirEfektif,
     jumlahAlpa,
-    rataSikap: Number(rataSikap.toFixed(2)),
-    sikapTanpaKejadian
+    nilaiSikap,
+    totalPenguranganSikap: penguranganSikap,
+    jumlahCatatanSikap: daftarCatatan.length,
+    sikapTanpaCatatan
   }
 
   if (!kelengkapan.akademik || !kelengkapan.kehadiran) {
@@ -284,7 +301,7 @@ export async function hitungSkorSiswa(siswaId, tahunAjaranId, setting = null, re
     {
       nilaiRows,
       hadirStatus: hadirRows.map((k) => k.status),
-      sikapAngka: sikapRows.map((x) => Number(x.nilai)),
+      sikapCatatan: sikapRows,
       totalHariSekolah: totalHari
     },
     s
@@ -437,7 +454,7 @@ export async function hitungSemuaSiswa(siswaList, tahunAjaranId, rentang = null)
         {
           nilaiRows: nRows,
           hadirStatus: (gHadir.get(siswa.id) || []).map((k) => k.status),
-          sikapAngka: (gSikap.get(siswa.id) || []).map((x) => Number(x.nilai)),
+          sikapCatatan: gSikap.get(siswa.id) || [],
           totalHariSekolah: totalHari
         },
         s
